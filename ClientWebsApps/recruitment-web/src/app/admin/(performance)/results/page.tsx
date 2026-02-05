@@ -1,0 +1,254 @@
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    mockPerformanceResults,
+    mockKPIPeriods,
+    rankingConfigs,
+    calibrationStatusLabels,
+    getRankingFromScore,
+} from '@/lib/mocks';
+import {
+    BarChart3,
+    Download,
+    Filter,
+    CheckCircle,
+    XCircle,
+    Clock,
+    TrendingUp,
+    TrendingDown,
+    Minus,
+    Award,
+} from 'lucide-react';
+
+export default function ResultsPage() {
+    const [selectedPeriod, setSelectedPeriod] = useState<string>(mockKPIPeriods[1]?.id || '');
+
+    // Filter results by period
+    const periodResults = mockPerformanceResults.filter(r => r.periodId === selectedPeriod);
+
+    // Calculate distribution
+    const distribution = rankingConfigs.map(config => ({
+        ...config,
+        count: periodResults.filter(r => r.ranking === config.label).length,
+        percent: periodResults.length > 0
+            ? Math.round((periodResults.filter(r => r.ranking === config.label).length / periodResults.length) * 100)
+            : 0,
+    }));
+
+    // Calculate averages by department
+    const deptStats = periodResults.reduce((acc, result) => {
+        if (!acc[result.departmentId]) {
+            acc[result.departmentId] = {
+                name: result.departmentName,
+                scores: [],
+            };
+        }
+        acc[result.departmentId].scores.push(result.finalScore);
+        return acc;
+    }, {} as Record<string, { name: string; scores: number[] }>);
+
+    const departmentAverages = Object.entries(deptStats).map(([id, data]) => ({
+        id,
+        name: data.name,
+        avgScore: Math.round(data.scores.reduce((a, b) => a + b, 0) / data.scores.length),
+        count: data.scores.length,
+    })).sort((a, b) => b.avgScore - a.avgScore);
+
+    const getScoreTrend = (score: number, avg: number) => {
+        if (score > avg + 5) return { icon: TrendingUp, color: 'text-green-500' };
+        if (score < avg - 5) return { icon: TrendingDown, color: 'text-red-500' };
+        return { icon: Minus, color: 'text-gray-500' };
+    };
+
+    const overallAvg = periodResults.length > 0
+        ? Math.round(periodResults.reduce((sum, r) => sum + r.finalScore, 0) / periodResults.length)
+        : 0;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <BarChart3 className="h-6 w-6 text-primary" />
+                        Kết quả xếp loại
+                    </h1>
+                    <p className="text-muted-foreground">Tổng hợp và duyệt kết quả đánh giá</p>
+                </div>
+                <div className="flex gap-2">
+                    <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                        <SelectTrigger className="w-[180px]">
+                            <Filter className="h-4 w-4 mr-2" />
+                            <SelectValue placeholder="Chọn kỳ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {mockKPIPeriods.map(period => (
+                                <SelectItem key={period.id} value={period.id}>
+                                    {period.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button variant="outline">
+                        <Download className="h-4 w-4 mr-2" />
+                        Xuất báo cáo
+                    </Button>
+                </div>
+            </div>
+
+            {/* Distribution Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {distribution.map((config) => (
+                    <Card key={config.label}>
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className={`w-3 h-3 rounded-full bg-${config.color}-500`} />
+                                        <span className="font-semibold">Loại {config.label}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{config.name}</p>
+                                    <p className="text-xs text-muted-foreground">({config.minScore}-{config.maxScore} điểm)</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-3xl font-bold">{config.count}</p>
+                                    <p className="text-sm text-muted-foreground">{config.percent}%</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Results Table */}
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Bảng xếp hạng nhân viên</CardTitle>
+                        <CardDescription>
+                            Điểm tổng hợp từ KPI, năng lực và đánh giá 360°
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nhân viên</TableHead>
+                                    <TableHead className="text-center">KPI</TableHead>
+                                    <TableHead className="text-center">Năng lực</TableHead>
+                                    <TableHead className="text-center">360°</TableHead>
+                                    <TableHead className="text-center">Tổng</TableHead>
+                                    <TableHead className="text-center">Xếp loại</TableHead>
+                                    <TableHead className="text-center">Duyệt</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {periodResults.map((result) => {
+                                    const rankConfig = getRankingFromScore(result.finalScore);
+                                    const calibrationInfo = calibrationStatusLabels[result.calibrationStatus];
+                                    const trend = getScoreTrend(result.finalScore, overallAvg);
+                                    const TrendIcon = trend.icon;
+
+                                    return (
+                                        <TableRow key={result.id}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarFallback>{result.employeeName.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <div className="font-medium">{result.employeeName}</div>
+                                                        <div className="text-xs text-muted-foreground">{result.departmentName}</div>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">{result.kpiScore}</TableCell>
+                                            <TableCell className="text-center">{result.competencyScore}</TableCell>
+                                            <TableCell className="text-center">{result.review360Score}</TableCell>
+                                            <TableCell className="text-center">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <span className="font-bold text-lg">{result.finalScore}</span>
+                                                    <TrendIcon className={`h-4 w-4 ${trend.color}`} />
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge className={`bg-${rankConfig.color}-100 text-${rankConfig.color}-700`}>
+                                                    <Award className="h-3 w-3 mr-1" />
+                                                    {result.ranking}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {result.calibrationStatus === 'APPROVED' ? (
+                                                    <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
+                                                ) : result.calibrationStatus === 'REJECTED' ? (
+                                                    <XCircle className="h-5 w-5 text-red-500 mx-auto" />
+                                                ) : (
+                                                    <Clock className="h-5 w-5 text-orange-500 mx-auto" />
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+
+                {/* Department Summary */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Theo phòng ban</CardTitle>
+                        <CardDescription>Điểm trung bình theo bộ phận</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {departmentAverages.map((dept, index) => {
+                            const rankConfig = getRankingFromScore(dept.avgScore);
+                            return (
+                                <div key={dept.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                                                index === 1 ? 'bg-gray-100 text-gray-700' :
+                                                    index === 2 ? 'bg-orange-100 text-orange-700' :
+                                                        'bg-muted text-muted-foreground'
+                                            }`}>
+                                            {index + 1}
+                                        </div>
+                                        <div>
+                                            <div className="font-medium">{dept.name}</div>
+                                            <div className="text-xs text-muted-foreground">{dept.count} nhân viên</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-bold text-lg">{dept.avgScore}</div>
+                                        <Badge variant="outline" className={`text-${rankConfig.color}-700`}>
+                                            Loại {rankConfig.label}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+}
