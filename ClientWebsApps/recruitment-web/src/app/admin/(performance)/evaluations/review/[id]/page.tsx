@@ -58,8 +58,8 @@ function StarRating({ value, maxStars = 5, onChange }: { value: number; maxStars
                 >
                     <Star
                         className={`h-6 w-6 transition-colors ${star <= (hoverValue || value)
-                                ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-gray-300'
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300'
                             }`}
                     />
                 </button>

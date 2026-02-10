@@ -52,7 +52,7 @@ export default function CareersPage() {
                         🔥 {mockJobs.length} vị trí đang tuyển
                     </Badge>
                     <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-                        Cơ hội nghề nghiệp tại Li-Ning
+                        Cơ hội nghề nghiệp tại Phoenix
                     </h1>
                     <p className="text-muted-foreground max-w-2xl mx-auto">
                         Tìm kiếm vị trí phù hợp và bắt đầu hành trình sự nghiệp cùng chúng tôi.

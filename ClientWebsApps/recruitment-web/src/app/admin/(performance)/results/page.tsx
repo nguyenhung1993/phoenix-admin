@@ -26,7 +26,7 @@ import {
     rankingConfigs,
     calibrationStatusLabels,
     getRankingFromScore,
-} from '@/lib/mocks';
+} from '@/lib/mocks/performance';
 import {
     BarChart3,
     Download,
@@ -226,9 +226,9 @@ export default function ResultsPage() {
                                 <div key={dept.id} className="flex items-center justify-between p-3 border rounded-lg">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                                                index === 1 ? 'bg-gray-100 text-gray-700' :
-                                                    index === 2 ? 'bg-orange-100 text-orange-700' :
-                                                        'bg-muted text-muted-foreground'
+                                            index === 1 ? 'bg-gray-100 text-gray-700' :
+                                                index === 2 ? 'bg-orange-100 text-orange-700' :
+                                                    'bg-muted text-muted-foreground'
                                             }`}>
                                             {index + 1}
                                         </div>

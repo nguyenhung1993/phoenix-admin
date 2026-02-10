@@ -30,6 +30,7 @@ export type Permission =
     | 'leave:view' | 'leave:create' | 'leave:approve'
     | 'overtime:view' | 'overtime:create' | 'overtime:approve'
     | 'insurance:view' | 'insurance:manage'
+    | 'payroll:view' | 'payroll:manage'
     // Training
     | 'courses:view' | 'courses:create' | 'courses:edit'
     | 'classes:view' | 'classes:create' | 'classes:manage'
@@ -44,9 +45,20 @@ export type Permission =
     | 'results:view' | 'results:calibrate'
     // Reports
     | 'reports:view' | 'reports:export'
-    // Settings
+    // Settings / Users
     | 'settings:view' | 'settings:manage'
-    | 'users:view' | 'users:manage' | 'roles:manage';
+    | 'users:view' | 'users:manage' | 'roles:manage'
+    // Assets
+    | 'assets:view' | 'assets:create' | 'assets:edit' | 'assets:delete' | 'assets:assign'
+
+    // Offboarding (Resignation)
+    | 'resignation:create' | 'resignation:approve' | 'resignation:view_all'
+
+    // Workplace
+    | 'workplace:view' | 'workplace:post'
+
+    // BPA (Approvals)
+    | 'bpa:request' | 'bpa:approve' | 'bpa:view_all';
 
 // ========== ROLE -> PERMISSIONS MAPPING ==========
 export const rolePermissions: Record<Role, Permission[]> = {
@@ -65,6 +77,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
         'leave:view', 'leave:create', 'leave:approve',
         'overtime:view', 'overtime:create', 'overtime:approve',
         'insurance:view', 'insurance:manage',
+        'payroll:view', 'payroll:manage',
         'courses:view', 'courses:create', 'courses:edit',
         'classes:view', 'classes:create', 'classes:manage',
         'materials:view', 'materials:upload',
@@ -76,7 +89,12 @@ export const rolePermissions: Record<Role, Permission[]> = {
         'evaluations:view', 'evaluations:create', 'evaluations:manage',
         'results:view', 'results:calibrate',
         'reports:view', 'reports:export',
-        'settings:view', 'settings:manage', 'users:view', 'users:manage', 'roles:manage',
+        'settings:view', 'settings:manage',
+        'users:view', 'users:manage', 'roles:manage',
+        'assets:view', 'assets:create', 'assets:edit', 'assets:delete', 'assets:assign',
+        'resignation:view_all', 'resignation:approve', 'resignation:create',
+        'workplace:view', 'workplace:post',
+        'bpa:request', 'bpa:approve', 'bpa:view_all',
     ],
     HR_MANAGER: [
         'dashboard:view',
@@ -90,9 +108,14 @@ export const rolePermissions: Record<Role, Permission[]> = {
         'positions:view', 'positions:edit',
         'contracts:view', 'contracts:create', 'contracts:edit',
         'settings:view',
+        'assets:view', 'assets:create', 'assets:edit', 'assets:assign',
+        'resignation:view_all', 'resignation:approve', 'resignation:create',
+        'timesheet:view', 'timesheet:manage', 'leave:view', 'leave:approve', 'overtime:view', 'overtime:approve',
     ],
     HR_STAFF: [
         'dashboard:view',
+        'resignation:view_all', 'resignation:approve', 'resignation:create',
+        'bpa:view_all', 'bpa:approve', 'bpa:request',
         'jobs:view', 'jobs:create', 'jobs:edit',
         'candidates:view', 'candidates:create', 'candidates:edit',
         'interviews:view', 'interviews:create', 'interviews:feedback',
@@ -102,6 +125,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
         'departments:view',
         'positions:view',
         'contracts:view',
+        'timesheet:view', 'leave:view', 'overtime:view',
     ],
     RECRUITER: [
         'dashboard:view',
@@ -113,15 +137,22 @@ export const rolePermissions: Record<Role, Permission[]> = {
     ],
     DEPARTMENT_HEAD: [
         'dashboard:view',
+        'resignation:approve', 'resignation:create',
+        'bpa:approve', 'bpa:request',
         'jobs:view',
         'candidates:view',
         'interviews:view', 'interviews:feedback',
         'employees:view',
         'departments:view',
         'positions:view',
+        'leave:approve', 'overtime:approve',
     ],
     EMPLOYEE: [
         'dashboard:view',
+        'resignation:create',
+        'workplace:view', 'workplace:post',
+        'bpa:request',
+        'timesheet:view', 'leave:create', 'overtime:create', 'payroll:view',
     ],
     VIEWER: [
         'dashboard:view',
@@ -163,6 +194,7 @@ export interface NavItem {
     icon: string; // lucide icon name
     permission: Permission;
     children?: NavItem[];
+    matchExact?: boolean;
 }
 
 export interface NavGroup {
@@ -175,6 +207,10 @@ export const navigationConfig: NavGroup[] = [
         title: 'Tổng quan',
         items: [
             { href: '/admin', label: 'Dashboard', icon: 'LayoutDashboard', permission: 'dashboard:view' },
+            { href: '/admin/feed', label: 'Workplace', icon: 'MessageCircle', permission: 'workplace:view' },
+            { href: '/admin/timesheet', label: 'Chấm công', icon: 'Clock', permission: 'timesheet:view' },
+            { href: '/admin/requests', label: 'Quy trình', icon: 'GitPullRequest', permission: 'bpa:request' },
+            { href: '/admin/approvals', label: 'Duyệt yêu cầu', icon: 'FileCheck', permission: 'bpa:approve' },
         ],
     },
     {
@@ -191,18 +227,20 @@ export const navigationConfig: NavGroup[] = [
         title: 'Nhân sự',
         items: [
             { href: '/admin/employees', label: 'Nhân viên', icon: 'User', permission: 'employees:view' },
+            { href: '/admin/contracts', label: 'Hợp đồng', icon: 'FileText', permission: 'contracts:view' },
             { href: '/admin/departments', label: 'Phòng ban', icon: 'Building', permission: 'departments:view' },
             { href: '/admin/positions', label: 'Chức vụ', icon: 'Award', permission: 'positions:view' },
-            { href: '/admin/contracts', label: 'Hợp đồng', icon: 'FileText', permission: 'contracts:view' },
+            { href: '/admin/resignations', label: 'Nghỉ việc', icon: 'UserMinus', permission: 'resignation:create' },
+
         ],
     },
     {
         title: 'C&B',
         items: [
-            { href: '/admin/timesheet', label: 'Chấm công', icon: 'Clock', permission: 'timesheet:view' },
             { href: '/admin/leave', label: 'Nghỉ phép', icon: 'CalendarOff', permission: 'leave:view' },
             { href: '/admin/overtime', label: 'Tăng ca', icon: 'Timer', permission: 'overtime:view' },
             { href: '/admin/insurance', label: 'Bảo hiểm', icon: 'Shield', permission: 'insurance:view' },
+            { href: '/admin/payroll', label: 'Bảng lương', icon: 'Banknote', permission: 'payroll:view' },
         ],
     },
     {
@@ -235,9 +273,19 @@ export const navigationConfig: NavGroup[] = [
         ],
     },
     {
+        title: 'Tài sản',
+        items: [
+            { href: '/admin/assets', label: 'Tài sản', icon: 'Monitor', permission: 'assets:view' },
+        ],
+    },
+    {
         title: 'Cài đặt',
         items: [
-            { href: '/admin/settings', label: 'Cài đặt', icon: 'Settings', permission: 'settings:view' },
+            { href: '/admin/settings', label: 'Cài đặt chung', icon: 'Settings', permission: 'settings:view', matchExact: true },
+            { href: '/admin/settings/approvals', label: 'Quy trình duyệt', icon: 'GitPullRequest', permission: 'settings:manage' },
+            { href: '/admin/settings/payroll/tax-insurance', label: 'Thuế & Bảo hiểm', icon: 'BadgePercent', permission: 'payroll:manage' },
+            { href: '/admin/settings/payroll/run', label: 'Tính lương (Run)', icon: 'Calculator', permission: 'payroll:manage' },
+            { href: '/admin/users', label: 'Tài khoản', icon: 'Users', permission: 'users:manage' }, // Added Users Menu
         ],
     },
 ];

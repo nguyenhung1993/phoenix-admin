@@ -2,272 +2,205 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
-    mockCourses,
-    mockTrainingClasses,
-    mockEnrollments,
-    courseStatusLabels,
-    courseLevelLabels,
-    Course,
-    CourseStatus,
-} from '@/lib/mocks';
-import {
-    GraduationCap,
     Plus,
     Search,
-    Eye,
-    Edit,
+    MoreVertical,
     BookOpen,
-    Users,
     Clock,
+    Users,
+    Star,
+    LayoutGrid,
+    List as ListIcon,
+    Filter
 } from 'lucide-react';
+import { mockCourses, courseStatusLabels, courseCategories, Course } from '@/lib/mocks/training';
+import { CourseDialog } from '@/components/admin/training/course-dialog';
+import { CourseAssignmentDialog } from '@/components/admin/training/course-assignment-dialog'; // Import
+import Image from 'next/image';
 
 export default function CoursesPage() {
-    const [statusFilter, setStatusFilter] = useState<CourseStatus | 'ALL'>('ALL');
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-    const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+    const [categoryFilter, setCategoryFilter] = useState('ALL');
+    const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [assignDialogOpen, setAssignDialogOpen] = useState(false); // New state
+    const [courseToEdit, setCourseToEdit] = useState<Course | null>(null);
 
-    const filteredCourses = mockCourses.filter((course) => {
-        const matchesStatus = statusFilter === 'ALL' || course.status === statusFilter;
-        const matchesSearch = course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            course.code.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesStatus && matchesSearch;
+    const filteredCourses = mockCourses.filter(course => {
+        const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = categoryFilter === 'ALL' || course.category === categoryFilter;
+        return matchesSearch && matchesCategory;
     });
 
-    const stats = {
-        total: mockCourses.length,
-        active: mockCourses.filter(c => c.status === 'ACTIVE').length,
-        totalClasses: mockTrainingClasses.length,
-        totalEnrollments: mockEnrollments.length,
+    const handleEdit = (course: Course) => {
+        setCourseToEdit(course);
+        setCreateDialogOpen(true);
+    };
+
+    const handleAssign = (course: Course) => {
+        setCourseToEdit(course); // Re-use this state to track selected course
+        setAssignDialogOpen(true);
+    };
+
+    const handleCreate = () => {
+        setCourseToEdit(null);
+        setCreateDialogOpen(true);
     };
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Quản lý khóa học</h1>
-                    <p className="text-muted-foreground">Danh mục các khóa đào tạo nội bộ</p>
+                    <h1 className="text-2xl font-bold">Thư viện khóa học</h1>
+                    <p className="text-muted-foreground">Quản lý các khóa học đào tạo nội bộ</p>
                 </div>
-                <Button>
+                <Button onClick={handleCreate}>
                     <Plus className="mr-2 h-4 w-4" />
                     Thêm khóa học
                 </Button>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Tổng khóa học</p>
-                                <p className="text-2xl font-bold">{stats.total}</p>
-                            </div>
-                            <GraduationCap className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Đang hoạt động</p>
-                                <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-                            </div>
-                            <BookOpen className="h-8 w-8 text-green-500" />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Lớp học</p>
-                                <p className="text-2xl font-bold">{stats.totalClasses}</p>
-                            </div>
-                            <Users className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Học viên</p>
-                                <p className="text-2xl font-bold">{stats.totalEnrollments}</p>
-                            </div>
-                            <Users className="h-8 w-8 text-blue-500" />
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Search and Filter */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <div className="relative flex-1 w-full">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Tìm kiếm khóa học..."
-                        className="pl-9"
+                        className="pl-8"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-                <Tabs defaultValue="ALL" onValueChange={(v) => setStatusFilter(v as CourseStatus | 'ALL')}>
-                    <TabsList>
-                        <TabsTrigger value="ALL">Tất cả</TabsTrigger>
-                        <TabsTrigger value="ACTIVE">Đang hoạt động</TabsTrigger>
-                        <TabsTrigger value="DRAFT">Nháp</TabsTrigger>
-                        <TabsTrigger value="ARCHIVED">Lưu trữ</TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="w-[180px]">
+                            <Filter className="mr-2 h-4 w-4" />
+                            <SelectValue placeholder="Danh mục" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Tất cả danh mục</SelectItem>
+                            {courseCategories.map((cat) => (
+                                <SelectItem key={cat.id} value={cat.name}>
+                                    {cat.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <div className="flex items-center border rounded-md bg-background">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 text-primary bg-accent/50"><LayoutGrid className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground"><ListIcon className="h-4 w-4" /></Button>
+                    </div>
+                </div>
             </div>
 
-            {/* Courses Table */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Danh sách khóa học</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Mã</TableHead>
-                                <TableHead>Tên khóa học</TableHead>
-                                <TableHead>Cấp độ</TableHead>
-                                <TableHead className="text-center">Thời lượng</TableHead>
-                                <TableHead>Trạng thái</TableHead>
-                                <TableHead className="text-right">Thao tác</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredCourses.map((course) => {
-                                const statusStyle = courseStatusLabels[course.status];
-                                const levelStyle = courseLevelLabels[course.level];
-
-                                return (
-                                    <TableRow key={course.id}>
-                                        <TableCell className="font-mono text-sm">{course.code}</TableCell>
-                                        <TableCell>
-                                            <div>
-                                                <p className="font-medium">{course.name}</p>
-                                                <p className="text-sm text-muted-foreground truncate max-w-[300px]">
-                                                    {course.description}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className={`px-2 py-1 rounded text-xs font-medium ${levelStyle.color}`}>
-                                                {levelStyle.label}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                                <span>{course.duration}h</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setSelectedCourse(course);
-                                                        setDetailDialogOpen(true);
-                                                    }}
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon">
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-
-                    {filteredCourses.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                            Không tìm thấy khóa học nào
+            {/* Course Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCourses.map((course) => (
+                    <Card key={course.id} className="overflow-hidden flex flex-col group hover:shadow-lg transition-shadow">
+                        <div className="relative aspect-video w-full bg-muted">
+                            <Image
+                                src={course.thumbnail}
+                                alt={course.title}
+                                fill
+                                className="object-cover transition-transform group-hover:scale-105"
+                            />
+                            <div className="absolute top-2 right-2">
+                                <Badge variant={courseStatusLabels[course.status].variant} className="shadow-sm">
+                                    {courseStatusLabels[course.status].label}
+                                </Badge>
+                            </div>
                         </div>
-                    )}
-                </CardContent>
-            </Card>
+                        <CardHeader className="pb-2">
+                            <div className="flex justify-between items-start gap-2">
+                                <Badge variant="outline" className="mb-2">{course.category}</Badge>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 -mt-1 -mr-2">
+                                            <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={() => handleEdit(course)}>Chỉnh sửa thông tin</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAssign(course)}>Giao khóa học</DropdownMenuItem> {/* Connected */}
+                                        <DropdownMenuItem>Quản lý nội dung</DropdownMenuItem>
+                                        <DropdownMenuItem>Học viên tham gia</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-destructive">Xóa khóa học</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                            <CardTitle className="text-lg line-clamp-2 leading-tight">
+                                {course.title}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1 pb-4">
+                            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                                {course.description}
+                            </p>
 
-            {/* Detail Dialog */}
-            <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-                <DialogContent className="max-w-lg">
-                    {selectedCourse && (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>{selectedCourse.name}</DialogTitle>
-                            </DialogHeader>
-
-                            <div className="space-y-4">
-                                <div className="flex gap-2">
-                                    <Badge variant="outline">{selectedCourse.code}</Badge>
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${courseLevelLabels[selectedCourse.level].color}`}>
-                                        {courseLevelLabels[selectedCourse.level].label}
-                                    </span>
-                                    <Badge variant={courseStatusLabels[selectedCourse.status].variant}>
-                                        {courseStatusLabels[selectedCourse.status].label}
-                                    </Badge>
+                            <div className="grid grid-cols-2 gap-y-2 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1.5">
+                                    <BookOpen className="h-4 w-4" />
+                                    <span>{course.totalModules} chương</span>
                                 </div>
-
-                                <p className="text-muted-foreground">{selectedCourse.description}</p>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Thời lượng</p>
-                                        <p className="font-medium">{selectedCourse.duration} giờ</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Ngày tạo</p>
-                                        <p className="font-medium">{new Date(selectedCourse.createdAt).toLocaleDateString('vi-VN')}</p>
-                                    </div>
+                                <div className="flex items-center gap-1.5">
+                                    <Clock className="h-4 w-4" />
+                                    <span>{course.duration}</span>
                                 </div>
-
-                                <div className="flex gap-2 pt-4">
-                                    <Button variant="outline" className="flex-1">
-                                        <BookOpen className="mr-2 h-4 w-4" />
-                                        Xem lớp học
-                                    </Button>
-                                    <Button className="flex-1">
-                                        <Edit className="mr-2 h-4 w-4" />
-                                        Chỉnh sửa
-                                    </Button>
+                                <div className="flex items-center gap-1.5">
+                                    <Users className="h-4 w-4" />
+                                    <span>{course.students} học viên</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-yellow-600">
+                                    <Star className="h-4 w-4 fill-current" />
+                                    <span>{course.rating.toFixed(1)}</span>
                                 </div>
                             </div>
-                        </>
-                    )}
-                </DialogContent>
-            </Dialog>
+                        </CardContent>
+                        <CardFooter className="pt-0 border-t bg-muted/20 p-4">
+                            <Button variant="secondary" className="w-full">Xem chi tiết</Button>
+                        </CardFooter>
+                    </Card>
+                ))}
+            </div>
+
+            {filteredCourses.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                    <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p>Không tìm thấy khóa học nào phù hợp</p>
+                </div>
+            )}
+
+            <CourseDialog
+                open={createDialogOpen}
+                onOpenChange={setCreateDialogOpen}
+                courseToEdit={courseToEdit}
+            />
+
+            <CourseAssignmentDialog
+                open={assignDialogOpen}
+                onOpenChange={setAssignDialogOpen}
+                course={courseToEdit}
+            />
         </div>
     );
 }

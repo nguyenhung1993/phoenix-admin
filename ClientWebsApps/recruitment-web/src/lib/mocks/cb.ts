@@ -57,23 +57,23 @@ const generateMockTimesheet = (): TimesheetEntry[] => {
             const dayOfWeek = date.getDay();
 
             let status: TimesheetEntry['status'] = 'PRESENT';
-            let checkIn = '08:00';
-            let checkOut = '17:30';
+            let checkIn: string | undefined = '08:00';
+            let checkOut: string | undefined = '17:30';
             let workHours = 8;
             let overtimeHours = 0;
 
             if (dayOfWeek === 0 || dayOfWeek === 6) {
                 status = 'WEEKEND';
-                checkIn = undefined as any;
-                checkOut = undefined as any;
+                checkIn = undefined;
+                checkOut = undefined;
                 workHours = 0;
             } else if (Math.random() < 0.1) {
                 status = 'LATE';
                 checkIn = '08:' + (15 + Math.floor(Math.random() * 30)).toString().padStart(2, '0');
             } else if (Math.random() < 0.05) {
                 status = 'ABSENT';
-                checkIn = undefined as any;
-                checkOut = undefined as any;
+                checkIn = undefined;
+                checkOut = undefined;
                 workHours = 0;
             }
 
@@ -95,89 +95,6 @@ const generateMockTimesheet = (): TimesheetEntry[] => {
 };
 
 export const mockTimesheetEntries = generateMockTimesheet();
-
-// ========== LEAVE ==========
-export type LeaveType = 'ANNUAL' | 'SICK' | 'UNPAID' | 'MATERNITY' | 'WEDDING' | 'FUNERAL' | 'OTHER';
-export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-
-export interface LeaveRequest {
-    id: string;
-    employeeId: string;
-    employeeName: string;
-    leaveType: LeaveType;
-    startDate: string;
-    endDate: string;
-    totalDays: number;
-    reason: string;
-    status: LeaveStatus;
-    approverId?: string;
-    approverName?: string;
-    approvedAt?: string;
-    rejectionReason?: string;
-    createdAt: string;
-}
-
-export const leaveTypeLabels: Record<LeaveType, { label: string; color: string }> = {
-    ANNUAL: { label: 'Nghỉ phép năm', color: 'bg-blue-100 text-blue-800' },
-    SICK: { label: 'Nghỉ ốm', color: 'bg-red-100 text-red-800' },
-    UNPAID: { label: 'Nghỉ không lương', color: 'bg-gray-100 text-gray-800' },
-    MATERNITY: { label: 'Nghỉ thai sản', color: 'bg-pink-100 text-pink-800' },
-    WEDDING: { label: 'Nghỉ cưới', color: 'bg-purple-100 text-purple-800' },
-    FUNERAL: { label: 'Nghỉ tang', color: 'bg-slate-100 text-slate-800' },
-    OTHER: { label: 'Khác', color: 'bg-orange-100 text-orange-800' },
-};
-
-export const leaveStatusLabels: Record<LeaveStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    PENDING: { label: 'Chờ duyệt', variant: 'secondary' },
-    APPROVED: { label: 'Đã duyệt', variant: 'default' },
-    REJECTED: { label: 'Từ chối', variant: 'destructive' },
-    CANCELLED: { label: 'Đã hủy', variant: 'outline' },
-};
-
-export const mockLeaveRequests: LeaveRequest[] = [
-    {
-        id: 'lv-1',
-        employeeId: '6',
-        employeeName: 'Võ Thị Lan',
-        leaveType: 'ANNUAL',
-        startDate: '2026-02-10',
-        endDate: '2026-02-12',
-        totalDays: 3,
-        reason: 'Về quê thăm gia đình',
-        status: 'PENDING',
-        createdAt: '2026-02-04',
-    },
-    {
-        id: 'lv-2',
-        employeeId: '7',
-        employeeName: 'Hoàng Văn Tuấn',
-        leaveType: 'SICK',
-        startDate: '2026-02-03',
-        endDate: '2026-02-03',
-        totalDays: 1,
-        reason: 'Bị cảm, có giấy bác sĩ',
-        status: 'APPROVED',
-        approverId: '3',
-        approverName: 'Phạm Văn Tùng',
-        approvedAt: '2026-02-03',
-        createdAt: '2026-02-03',
-    },
-    {
-        id: 'lv-3',
-        employeeId: '8',
-        employeeName: 'Trần Thị Bình',
-        leaveType: 'ANNUAL',
-        startDate: '2026-02-20',
-        endDate: '2026-02-21',
-        totalDays: 2,
-        reason: 'Đi du lịch',
-        status: 'REJECTED',
-        approverId: '4',
-        approverName: 'Nguyễn Hoàng Nam',
-        rejectionReason: 'Trùng deadline dự án',
-        createdAt: '2026-02-01',
-    },
-];
 
 // ========== OVERTIME ==========
 export type OvertimeStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -232,27 +149,6 @@ export const mockOvertimeRequests: OvertimeRequest[] = [
         status: 'PENDING',
         createdAt: '2026-02-05',
     },
-];
-
-// ========== LEAVE BALANCE ==========
-export interface LeaveBalance {
-    employeeId: string;
-    employeeName: string;
-    year: number;
-    annualTotal: number;
-    annualUsed: number;
-    annualRemaining: number;
-    sickTotal: number;
-    sickUsed: number;
-}
-
-export const mockLeaveBalances: LeaveBalance[] = [
-    { employeeId: '1', employeeName: 'Nguyễn Văn Minh', year: 2026, annualTotal: 14, annualUsed: 2, annualRemaining: 12, sickTotal: 30, sickUsed: 0 },
-    { employeeId: '2', employeeName: 'Trần Thị Hương', year: 2026, annualTotal: 14, annualUsed: 3, annualRemaining: 11, sickTotal: 30, sickUsed: 1 },
-    { employeeId: '3', employeeName: 'Phạm Văn Tùng', year: 2026, annualTotal: 14, annualUsed: 0, annualRemaining: 14, sickTotal: 30, sickUsed: 0 },
-    { employeeId: '6', employeeName: 'Võ Thị Lan', year: 2026, annualTotal: 12, annualUsed: 1, annualRemaining: 11, sickTotal: 30, sickUsed: 2 },
-    { employeeId: '7', employeeName: 'Hoàng Văn Tuấn', year: 2026, annualTotal: 12, annualUsed: 4, annualRemaining: 8, sickTotal: 30, sickUsed: 1 },
-    { employeeId: '8', employeeName: 'Trần Thị Bình', year: 2026, annualTotal: 12, annualUsed: 0, annualRemaining: 12, sickTotal: 30, sickUsed: 0 },
 ];
 
 // ========== SOCIAL INSURANCE ==========
@@ -340,3 +236,107 @@ export const mockInsuranceRecords: InsuranceRecord[] = [
         monthlyContribution: 2550000,
     },
 ];
+
+// ========== PAYROLL ==========
+export interface PayrollSlip {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    month: number;
+    year: number;
+
+    // Earnings
+    standardWorkDays: number;
+    actualWorkDays: number;
+    baseSalary: number;
+    salaryByWorkDays: number; // (base / standard) * actual
+
+    overtimeHours: number;
+    overtimePay: number;
+
+    allowances: number;
+    bonus: number;
+    totalIncome: number;
+
+    // Deductions
+    bhxh: number; // 8%
+    bhyt: number; // 1.5%
+    bhtn: number; // 1%
+    tax: number;
+    totalDeductions: number;
+
+    // Net
+    netSalary: number;
+    status: 'DRAFT' | 'CONFIRMED' | 'PAID';
+}
+
+export const generateMockPayroll = (month: number, year: number): PayrollSlip[] => {
+    // Mock employees basic data
+    const employees = [
+        { id: '1', name: 'Nguyễn Văn Minh', baseSalary: 30000000 },
+        { id: '2', name: 'Trần Thị Hương', baseSalary: 25000000 },
+        { id: '3', name: 'Phạm Văn Tùng', baseSalary: 22000000 },
+        { id: '6', name: 'Võ Thị Lan', baseSalary: 12000000 },
+        { id: '7', name: 'Hoàng Văn Tuấn', baseSalary: 15000000 },
+    ];
+
+    return employees.map(emp => {
+        const standardWorkDays = 22;
+        // Mock random actual work days (20-22)
+        const actualWorkDays = Math.floor(Math.random() * 3) + 20;
+
+        const salaryByWorkDays = (emp.baseSalary / standardWorkDays) * actualWorkDays;
+
+        const overtimeHours = Math.floor(Math.random() * 10);
+        const overtimePay = (emp.baseSalary / standardWorkDays / 8) * 1.5 * overtimeHours;
+
+        const allowances = 1500000; // Lunch, Parking, etc.
+        const bonus = Math.random() > 0.7 ? 2000000 : 0; // Random performance bonus
+
+        const totalIncome = salaryByWorkDays + overtimePay + allowances + bonus;
+
+        // Insurance (10.5% total)
+        const insuranceSalary = emp.baseSalary; // Simplified: pay insurance on full base
+        const bhxh = insuranceSalary * 0.08;
+        const bhyt = insuranceSalary * 0.015;
+        const bhtn = insuranceSalary * 0.01;
+
+        // Tax (Simplified progressive)
+        const taxableIncome = totalIncome - (bhxh + bhyt + bhtn) - 11000000; // 11M deduction
+        let tax = 0;
+        if (taxableIncome > 0) {
+            tax = taxableIncome * 0.05; // Simplified flat 5% for mockup
+        }
+
+        const totalDeductions = bhxh + bhyt + bhtn + tax;
+        const netSalary = totalIncome - totalDeductions;
+
+        return {
+            id: `pr-${emp.id}-${month}-${year}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            month,
+            year,
+            standardWorkDays,
+            actualWorkDays,
+            baseSalary: emp.baseSalary,
+            salaryByWorkDays,
+            overtimeHours,
+            overtimePay,
+            allowances,
+            bonus,
+            totalIncome,
+            bhxh,
+            bhyt,
+            bhtn,
+            tax,
+            totalDeductions,
+            netSalary,
+            status: 'DRAFT',
+        };
+    });
+};
+
+// export const formatCurrency = (amount: number) => {
+//     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+// };

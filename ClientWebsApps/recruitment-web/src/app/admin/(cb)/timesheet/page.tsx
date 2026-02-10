@@ -1,16 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import {
     Select,
     SelectContent,
@@ -18,261 +10,248 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { mockAttendanceRecords, attendanceStatusLabels, AttendanceRecord } from '@/lib/mocks';
+import { LeaveDialog } from '@/components/admin/cb/leave/leave-dialog';
+import { FileDown, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon } from 'lucide-react';
 import {
-    mockTimesheetEntries,
-    mockEmployees,
-    timesheetStatusLabels,
-    TimesheetEntry,
-} from '@/lib/mocks';
-import {
-    Clock,
-    Users,
-    Calendar,
-    AlertTriangle,
-    CheckCircle2,
-    XCircle,
-} from 'lucide-react';
+    format,
+    startOfMonth,
+    endOfMonth,
+    eachDayOfInterval,
+    isSameMonth,
+    isSameDay,
+    addMonths,
+    subMonths,
+    startOfWeek,
+    endOfWeek,
+    isToday
+} from 'date-fns';
+import { vi } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function TimesheetPage() {
-    const today = new Date();
-    const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
-    const [selectedYear] = useState(today.getFullYear());
-    const [selectedEmployee, setSelectedEmployee] = useState('ALL');
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const currentUserId = '1'; // Mock user
 
-    // Filter entries by month and employee
-    const filteredEntries = useMemo(() => {
-        return mockTimesheetEntries.filter((entry) => {
-            const entryDate = new Date(entry.date);
-            const matchesMonth = entryDate.getMonth() + 1 === selectedMonth;
-            const matchesEmployee = selectedEmployee === 'ALL' || entry.employeeId === selectedEmployee;
-            return matchesMonth && matchesEmployee;
-        });
-    }, [selectedMonth, selectedEmployee]);
+    const [isCheckedIn, setIsCheckedIn] = useState(true); // Demo state, user is checked in today
+    // Force rebuild verification
+    const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<Date>();
 
-    // Calculate summary stats
-    const stats = useMemo(() => {
-        const workDays = filteredEntries.filter(e => e.status !== 'WEEKEND' && e.status !== 'HOLIDAY');
-        return {
-            totalEntries: filteredEntries.length,
-            presentDays: filteredEntries.filter(e => e.status === 'PRESENT').length,
-            lateDays: filteredEntries.filter(e => e.status === 'LATE').length,
-            absentDays: filteredEntries.filter(e => e.status === 'ABSENT').length,
-            totalWorkHours: workDays.reduce((sum, e) => sum + e.workHours, 0),
-            totalOvertimeHours: filteredEntries.reduce((sum, e) => sum + e.overtimeHours, 0),
-        };
-    }, [filteredEntries]);
+    const handleCheckInOut = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const action = isCheckedIn ? "Check Out" : "Check In";
+        const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
-    // Group by employee for summary view
-    const employeeSummaries = useMemo(() => {
-        const grouped = new Map<string, { name: string; present: number; late: number; absent: number; hours: number }>();
+        // In real app, call API here
+        toast.success(`${action} thành công lúc ${time}`);
+        setIsCheckedIn(!isCheckedIn);
+    };
 
-        filteredEntries.forEach((entry) => {
-            const existing = grouped.get(entry.employeeId) || {
-                name: entry.employeeName,
-                present: 0,
-                late: 0,
-                absent: 0,
-                hours: 0,
-            };
+    const handleDayClick = (day: Date) => {
+        // Only allow clicking on future dates or today for leave request, 
+        // or past dates for viewing details (future enhancement)
+        setSelectedDate(day);
+        setLeaveDialogOpen(true);
+    };
 
-            if (entry.status === 'PRESENT') existing.present++;
-            if (entry.status === 'LATE') existing.late++;
-            if (entry.status === 'ABSENT') existing.absent++;
-            existing.hours += entry.workHours;
+    // Navigation
+    const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
+    const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
+    const jumpToToday = () => setCurrentDate(new Date());
 
-            grouped.set(entry.employeeId, existing);
-        });
+    // Calendar Data
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(monthStart);
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 }); // Monday start
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
-        return Array.from(grouped.entries()).map(([id, data]) => ({ id, ...data }));
-    }, [filteredEntries]);
+    const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-    const months = [
-        { value: 1, label: 'Tháng 1' },
-        { value: 2, label: 'Tháng 2' },
-        { value: 3, label: 'Tháng 3' },
-        { value: 4, label: 'Tháng 4' },
-        { value: 5, label: 'Tháng 5' },
-        { value: 6, label: 'Tháng 6' },
-        { value: 7, label: 'Tháng 7' },
-        { value: 8, label: 'Tháng 8' },
-        { value: 9, label: 'Tháng 9' },
-        { value: 10, label: 'Tháng 10' },
-        { value: 11, label: 'Tháng 11' },
-        { value: 12, label: 'Tháng 12' },
-    ];
+    // Filter Records
+    const monthRecords = mockAttendanceRecords.filter(record =>
+        record.employeeId === currentUserId &&
+        isSameMonth(new Date(record.date), currentDate)
+    );
+
+    const getRecordForDay = (day: Date) => {
+        return mockAttendanceRecords.find(r =>
+            r.employeeId === currentUserId &&
+            isSameDay(new Date(r.date), day)
+        );
+    };
+
+    // Statistics
+    const stats = {
+        present: monthRecords.filter(r => r.status === 'PRESENT').length,
+        late: monthRecords.filter(r => r.status === 'LATE').length,
+        early: monthRecords.filter(r => r.status === 'EARLY_LEAVE').length,
+        leave: monthRecords.filter(r => r.status === 'LEAVE').length,
+    };
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold">Bảng chấm công</h1>
-                <p className="text-muted-foreground">Quản lý dữ liệu chấm công nhân viên</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold">Bảng chấm công</h1>
+                    <p className="text-muted-foreground">Theo dõi ngày công và ca làm việc tháng {format(currentDate, 'MM/yyyy')}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        className={cn(
+                            "min-w-[120px]",
+                            isCheckedIn ? "bg-orange-600 hover:bg-orange-700" : "bg-green-600 hover:bg-green-700"
+                        )}
+                        onClick={handleCheckInOut}
+                    >
+                        <Clock className="mr-2 h-4 w-4" />
+                        {isCheckedIn ? "Check Out" : "Check In"}
+                    </Button>
+                    <Button variant="outline" onClick={jumpToToday}>Hôm nay</Button>
+                    <div className="flex items-center border rounded-md">
+                        <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+                        <span className="px-4 font-medium">{format(currentDate, "'Tháng' MM, yyyy", { locale: vi })}</span>
+                        <Button variant="ghost" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+                    </div>
+                    <Button variant="outline">
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Xuất Excel
+                    </Button>
+                </div>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4">
-                <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
-                    <SelectTrigger className="w-[150px]">
-                        <SelectValue placeholder="Chọn tháng" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {months.map((m) => (
-                            <SelectItem key={m.value} value={m.value.toString()}>
-                                {m.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
-                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                    <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Chọn nhân viên" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="ALL">Tất cả nhân viên</SelectItem>
-                        {mockEmployees.map((emp) => (
-                            <SelectItem key={emp.id} value={emp.id}>
-                                {emp.fullName}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-
-            {/* Summary Cards */}
+            {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Có mặt</p>
-                                <p className="text-2xl font-bold text-green-600">{stats.presentDays}</p>
-                            </div>
-                            <CheckCircle2 className="h-8 w-8 text-green-500" />
-                        </div>
+                    <CardHeader className="py-4 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Công chuẩn</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-green-600">{stats.present}</div>
+                        <p className="text-xs text-muted-foreground">ngày</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Đi muộn</p>
-                                <p className="text-2xl font-bold text-yellow-600">{stats.lateDays}</p>
-                            </div>
-                            <AlertTriangle className="h-8 w-8 text-yellow-500" />
-                        </div>
+                    <CardHeader className="py-4 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Đi muộn</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-yellow-600">{stats.late}</div>
+                        <p className="text-xs text-muted-foreground">lần</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Vắng mặt</p>
-                                <p className="text-2xl font-bold text-red-600">{stats.absentDays}</p>
-                            </div>
-                            <XCircle className="h-8 w-8 text-red-500" />
-                        </div>
+                    <CardHeader className="py-4 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Về sớm</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-orange-600">{stats.early}</div>
+                        <p className="text-xs text-muted-foreground">lần</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Tổng giờ làm</p>
-                                <p className="text-2xl font-bold">{stats.totalWorkHours}h</p>
-                            </div>
-                            <Clock className="h-8 w-8 text-muted-foreground" />
-                        </div>
+                    <CardHeader className="py-4 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Nghỉ phép</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-purple-600">{stats.leave}</div>
+                        <p className="text-xs text-muted-foreground">ngày</p>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Employee Summary Table */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        Tổng hợp theo nhân viên - Tháng {selectedMonth}/{selectedYear}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nhân viên</TableHead>
-                                <TableHead className="text-center">Có mặt</TableHead>
-                                <TableHead className="text-center">Đi muộn</TableHead>
-                                <TableHead className="text-center">Vắng</TableHead>
-                                <TableHead className="text-right">Tổng giờ</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {employeeSummaries.map((emp) => (
-                                <TableRow key={emp.id}>
-                                    <TableCell className="font-medium">{emp.name}</TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge variant="default">{emp.present}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge variant="secondary">{emp.late}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge variant="destructive">{emp.absent}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono">{emp.hours}h</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
+            {/* Calendar Grid */}
+            <Card className="overflow-hidden">
+                <div className="grid grid-cols-7 border-b bg-muted/40">
+                    {['Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy', 'CN'].map((day, i) => (
+                        <div key={day} className={cn("py-3 text-center text-sm font-semibold text-muted-foreground border-r last:border-r-0", i >= 5 && "text-destructive/70")}>
+                            {day}
+                        </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-7 auto-rows-[minmax(120px,auto)]">
+                    {calendarDays.map((day, dayIdx) => {
+                        const record = getRecordForDay(day);
+                        const isCurrentMonth = isSameMonth(day, currentDate);
+                        const isSunday = day.getDay() === 0;
+
+                        return (
+                            <div
+                                key={day.toString()}
+                                onClick={() => handleDayClick(day)}
+                                className={cn(
+                                    "relative border-r border-b p-2 transition-colors hover:bg-muted/30 flex flex-col gap-1 cursor-pointer group",
+                                    !isCurrentMonth && "bg-muted/10 text-muted-foreground",
+                                    isSunday && isCurrentMonth && "bg-slate-50/50",
+                                    isToday(day) && "bg-blue-50/30"
+                                )}
+                            >
+                                <div className="flex justify-between items-start">
+                                    <span className={cn(
+                                        "text-sm font-medium rounded-full w-7 h-7 flex items-center justify-center",
+                                        isToday(day) && "bg-primary text-primary-foreground",
+                                        !isCurrentMonth && "text-muted-foreground/50",
+                                        isSunday && "text-destructive"
+                                    )}>
+                                        {format(day, 'd')}
+                                    </span>
+                                    {record && (
+                                        <Badge variant="outline" className={cn("text-[10px] h-5 px-1", attendanceStatusLabels[record.status].color)}>
+                                            {attendanceStatusLabels[record.status].label}
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                {record ? (
+                                    <div className="mt-1 flex-1 flex flex-col gap-1 text-xs">
+                                        <div className="flex items-center gap-1 text-muted-foreground" title="Ca làm việc">
+                                            <CalendarIcon className="h-3 w-3" />
+                                            <span className="truncate">{record.shiftName}</span>
+                                        </div>
+
+                                        {record.status !== 'LEAVE' && record.status !== 'ABSENT' && (
+                                            <div className="mt-auto space-y-1 bg-background/50 p-1 rounded border border-border/50">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-muted-foreground">In:</span>
+                                                    <span className={cn("font-medium", record.status === 'LATE' && "text-red-500")}>
+                                                        {record.checkIn || '--:--'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-muted-foreground">Out:</span>
+                                                    <span className={cn("font-medium", record.status === 'EARLY_LEAVE' && "text-orange-500")}>
+                                                        {record.checkOut || '--:--'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {record.status === 'LEAVE' && (
+                                            <div className="mt-auto p-1 bg-purple-50 text-purple-700 rounded text-[11px] italic">
+                                                {record.note || 'Nghỉ phép'}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    isCurrentMonth && !isSunday && day < new Date() && (
+                                        <div className="mt-auto flex justify-center group-hover:opacity-100 opacity-0 transition-opacity">
+                                            <Badge variant="outline" className="text-[10px] bg-white hover:bg-purple-50 hover:text-purple-600 border-dashed cursor-pointer">+ Đơn nghỉ</Badge>
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             </Card>
 
-            {/* Detailed Entries (when specific employee selected) */}
-            {selectedEmployee !== 'ALL' && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Calendar className="h-5 w-5" />
-                            Chi tiết chấm công
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Ngày</TableHead>
-                                    <TableHead>Giờ vào</TableHead>
-                                    <TableHead>Giờ ra</TableHead>
-                                    <TableHead>Số giờ</TableHead>
-                                    <TableHead>Trạng thái</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredEntries.map((entry) => {
-                                    const statusStyle = timesheetStatusLabels[entry.status];
-                                    return (
-                                        <TableRow key={entry.id}>
-                                            <TableCell>
-                                                {new Date(entry.date).toLocaleDateString('vi-VN', {
-                                                    weekday: 'short',
-                                                    day: '2-digit',
-                                                    month: '2-digit',
-                                                })}
-                                            </TableCell>
-                                            <TableCell className="font-mono">{entry.checkIn || '-'}</TableCell>
-                                            <TableCell className="font-mono">{entry.checkOut || '-'}</TableCell>
-                                            <TableCell className="font-mono">{entry.workHours}h</TableCell>
-                                            <TableCell>
-                                                <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
+            <LeaveDialog
+                open={leaveDialogOpen}
+                onOpenChange={setLeaveDialogOpen}
+                checkInDate={selectedDate}
+            />
         </div>
     );
 }

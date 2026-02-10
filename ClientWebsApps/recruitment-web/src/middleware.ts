@@ -26,6 +26,7 @@ export default auth((req) => {
             return NextResponse.redirect(loginUrl);
         }
 
+
         // Check if user has permission to access admin area
         if (!userRole || !hasPermission(userRole, 'dashboard:view')) {
             // Redirect to unauthorized page if no dashboard access
@@ -33,9 +34,21 @@ export default auth((req) => {
         }
     }
 
+    // Protect /portal routes
+    if (pathname.startsWith("/portal")) {
+        if (!isLoggedIn) {
+            const loginUrl = new URL("/login", req.url);
+            loginUrl.searchParams.set("callbackUrl", pathname);
+            return NextResponse.redirect(loginUrl);
+        }
+        // All logged in users can access portal, no specific permission check needed for now, 
+        // or we could check for 'dashboard:view' as base permission? 
+        // Let's assume all authenticated users can access portal.
+    }
+
     return NextResponse.next();
 });
 
 export const config = {
-    matcher: ["/admin/:path*"],
+    matcher: ["/admin/:path*", "/portal/:path*"],
 };

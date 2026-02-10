@@ -36,10 +36,8 @@ export function UserNav() {
         .join('')
         .toUpperCase() || 'U';
 
-    const isAdmin = session.user?.role === 'SUPER_ADMIN'
-        || session.user?.role === 'HR_MANAGER'
-        || session.user?.role === 'HR_STAFF'
-        || session.user?.role === 'RECRUITER';
+    // Check if user has an internal role (exclude VIEWER or undefined)
+    const canAccessAdmin = session.user?.role && session.user.role !== 'VIEWER';
 
     return (
         <DropdownMenu>
@@ -64,7 +62,7 @@ export function UserNav() {
                         )}
                     </div>
                 </div>
-                {isAdmin && (
+                {canAccessAdmin && (
                     <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Header, Footer } from "@/components/layout";
-import { PublicShell } from "@/components/layout/public-shell";
+import { ConditionalLayout } from "@/components/layout/conditional-layout";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { BackToTop } from "@/components/ui/back-to-top";
@@ -15,19 +14,21 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Li-Ning VN Careers - Tuyển dụng",
-    template: "%s | Li-Ning VN Careers",
+    default: "Phoenix Careers - Tuyển dụng",
+    template: "%s | Phoenix Careers",
   },
-  description: "Gia nhập đội ngũ Li-Ning Việt Nam - Khám phá cơ hội nghề nghiệp và phát triển bản thân cùng thương hiệu thể thao hàng đầu.",
-  keywords: ["Li-Ning", "tuyển dụng", "việc làm", "careers", "thể thao", "retail"],
+  description: "Gia nhập đội ngũ Phoenix - Khám phá cơ hội nghề nghiệp và phát triển bản thân cùng thương hiệu thể thao hàng đầu.",
+  keywords: ["Phoenix", "tuyển dụng", "việc làm", "careers", "thể thao", "retail"],
   openGraph: {
-    title: "Li-Ning VN Careers - Tuyển dụng",
-    description: "Gia nhập đội ngũ Li-Ning Việt Nam - Khám phá cơ hội nghề nghiệp và phát triển bản thân.",
+    title: "Phoenix Careers - Tuyển dụng",
+    description: "Gia nhập đội ngũ Phoenix - Khám phá cơ hội nghề nghiệp và phát triển bản thân.",
     type: "website",
     locale: "vi_VN",
-    siteName: "Li-Ning VN Careers",
+    siteName: "Phoenix Careers",
   },
 };
+
+import { SmoothScrollProvider } from "@/components/providers/smooth-scroll-provider";
 
 export default function RootLayout({
   children,
@@ -36,27 +37,26 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased min-h-screen flex flex-col`}>
+      <body className={`${inter.variable} font-sans antialiased min-h-screen flex flex-col`} suppressHydrationWarning>
         <AuthProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="light"
           >
-            <PublicShell
-              header={<Header />}
-              footer={<Footer />}
-            >
-              {children}
-            </PublicShell>
-            <BackToTop />
-            <Toaster
-              position="top-right"
-              richColors
-              closeButton
-              toastOptions={{
-                duration: 4000,
-              }}
-            />
+            <SmoothScrollProvider>
+              <ConditionalLayout>
+                {children}
+              </ConditionalLayout>
+              <BackToTop />
+              <Toaster
+                position="top-right"
+                richColors
+                closeButton
+                toastOptions={{
+                  duration: 4000,
+                }}
+              />
+            </SmoothScrollProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Users,
     UserPlus,
@@ -14,23 +17,25 @@ import {
     Award,
     AlertTriangle,
 } from 'lucide-react';
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    LineChart,
-    Line,
-    PieChart,
-    Pie,
-    Cell,
-    Legend,
-} from 'recharts';
 
-// Mock data for dashboard
+// Dynamically import charts with loading skeletons
+// We use the wrapper components which re-export Recharts components with ResponsiveContainer
+const DynamicBarChart = dynamic(() => import('@/components/admin/reports/charts').then(mod => mod.DynamicBarChart), {
+    loading: () => <Skeleton className="w-full h-[300px]" />,
+    ssr: false
+});
+
+const DynamicLineChart = dynamic(() => import('@/components/admin/reports/charts').then(mod => mod.DynamicLineChart), {
+    loading: () => <Skeleton className="w-full h-[300px]" />,
+    ssr: false
+});
+
+const DynamicPieChart = dynamic(() => import('@/components/admin/reports/charts').then(mod => mod.DynamicPieChart), {
+    loading: () => <Skeleton className="w-full h-[300px]" />,
+    ssr: false
+});
+
+// Mock data
 const stats = {
     totalEmployees: 156,
     newHires: 12,
@@ -47,19 +52,20 @@ const departmentData = [
     { name: 'Vận hành', employees: 21 },
 ];
 
-const trendData = [
-    { month: 'T1', hired: 8, resigned: 2 },
-    { month: 'T2', hired: 5, resigned: 1 },
-    { month: 'T3', hired: 10, resigned: 3 },
-    { month: 'T4', hired: 7, resigned: 2 },
-    { month: 'T5', hired: 12, resigned: 4 },
-    { month: 'T6', hired: 9, resigned: 2 },
-    { month: 'T7', hired: 6, resigned: 1 },
-    { month: 'T8', hired: 11, resigned: 3 },
-    { month: 'T9', hired: 8, resigned: 2 },
-    { month: 'T10', hired: 14, resigned: 5 },
-    { month: 'T11', hired: 10, resigned: 3 },
-    { month: 'T12', hired: 12, resigned: 3 },
+const turnoverData = [
+    { month: 'T1', hired: 4, resigned: 0 },
+    { month: 'T2', hired: 3, resigned: 1 },
+    { month: 'T3', hired: 5, resigned: 0 },
+    { month: 'T4', hired: 8, resigned: 2 },
+    { month: 'T5', hired: 6, resigned: 1 },
+    { month: 'T6', hired: 12, resigned: 3 },
+];
+
+const contractData = [
+    { name: 'Chính thức', value: 120 },
+    { name: 'Thử việc', value: 15 },
+    { name: 'Thực tập', value: 10 },
+    { name: 'Freelance', value: 11 },
 ];
 
 const performanceData = [
@@ -80,173 +86,129 @@ const needsImprovement = [
     { name: 'Hoàng Thị L', department: 'Marketing', score: 55, ranking: 'D' },
 ];
 
+const upcomingEvents = [
+    { id: 1, title: 'Đánh giá năng lực Q1', date: '2024-03-15', type: 'PERFORMANCE' },
+    { id: 2, title: 'Onboarding 5 nhân viên mới', date: '2024-03-20', type: 'ONBOARDING' },
+    { id: 3, title: 'Hết hạn hợp đồng: Nguyễn Văn A', date: '2024-03-25', type: 'CONTRACT' },
+];
+
 export default function DashboardPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                    Dashboard Quản trị
-                </h1>
-                <p className="text-muted-foreground">Tổng quan nhân sự và hiệu suất</p>
+                <h1 className="text-3xl font-bold tracking-tight">Tổng quan nhân sự</h1>
+                <p className="text-muted-foreground">Dashboard quản trị và báo cáo</p>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Tổng nhân viên</p>
-                                <p className="text-3xl font-bold">{stats.totalEmployees}</p>
-                            </div>
-                            <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                                <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                        </div>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Tổng nhân viên</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.totalEmployees}</div>
+                        <p className="text-xs text-muted-foreground">+2.5% so với tháng trước</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Tuyển mới tháng này</p>
-                                <p className="text-3xl font-bold text-green-600">{stats.newHires}</p>
-                            </div>
-                            <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                <UserPlus className="h-6 w-6 text-green-600 dark:text-green-400" />
-                            </div>
-                        </div>
-                        <div className="mt-2 flex items-center text-xs text-green-600 dark:text-green-400">
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                            +20% so với tháng trước
-                        </div>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Tuyển mới (T6)</CardTitle>
+                        <UserPlus className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">+{stats.newHires}</div>
+                        <p className="text-xs text-muted-foreground">Đạt 80% kế hoạch</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Nghỉ việc</p>
-                                <p className="text-3xl font-bold text-red-600">{stats.resignations}</p>
-                            </div>
-                            <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                                <UserMinus className="h-6 w-6 text-red-600 dark:text-red-400" />
-                            </div>
-                        </div>
-                        <div className="mt-2 flex items-center text-xs text-green-600 dark:text-green-400">
-                            <TrendingDown className="h-3 w-3 mr-1" />
-                            -25% so với tháng trước
-                        </div>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Nghỉ việc (T6)</CardTitle>
+                        <UserMinus className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.resignations}</div>
+                        <p className="text-xs text-muted-foreground">Turnover: 1.9%</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Đang thử việc</p>
-                                <p className="text-3xl font-bold text-orange-600">{stats.onProbation}</p>
-                            </div>
-                            <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                                <Clock className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                            </div>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Đang thử việc</CardTitle>
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.onProbation}</div>
+                        <p className="text-xs text-muted-foreground">Sắp hết hạn: 3</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Main Charts */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                <Card className="col-span-4">
+                    <CardHeader>
+                        <CardTitle>Nhân sự theo phòng ban</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pl-2">
+                        <div className="h-[350px]">
+                            <DynamicBarChart data={departmentData} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="col-span-3">
+                    <CardHeader>
+                        <CardTitle>Biến động nhân sự (6 tháng)</CardTitle>
+                        <CardDescription>Tuyển dụng vs Nghỉ việc</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-[350px]">
+                            <DynamicLineChart data={turnoverData} />
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Department Distribution */}
-                <Card>
+            {/* Secondary Metrics */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                <Card className="col-span-3">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Building2 className="h-5 w-5" />
-                            Nhân sự theo phòng ban
-                        </CardTitle>
+                        <CardTitle>Cơ cấu hợp đồng</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={departmentData} layout="vertical">
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis type="number" />
-                                <YAxis dataKey="name" type="category" width={80} fontSize={12} />
-                                <Tooltip />
-                                <Bar dataKey="employees" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <div className="h-[300px]">
+                            <DynamicPieChart data={contractData} />
+                        </div>
                     </CardContent>
                 </Card>
 
-                {/* Performance Distribution */}
-                <Card>
+                <Card className="col-span-4">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Award className="h-5 w-5" />
-                            Phân bố xếp loại KPI
-                        </CardTitle>
+                        <CardTitle>Sự kiện sắp tới</CardTitle>
+                        <CardDescription>Hoạt động nhân sự trong tuần</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <Pie
-                                    data={performanceData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={100}
-                                    paddingAngle={2}
-                                    dataKey="value"
-                                    label={({ value }) => `${value}`}
-                                >
-                                    {performanceData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Legend />
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        <div className="space-y-8">
+                            {upcomingEvents.map((event) => (
+                                <div key={event.id} className="flex items-center">
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium leading-none">{event.title}</p>
+                                        <p className="text-sm text-muted-foreground">{event.date}</p>
+                                    </div>
+                                    <div className="ml-auto font-medium">
+                                        {event.type === 'PERFORMANCE' && <Badge variant="default">Đánh giá</Badge>}
+                                        {event.type === 'ONBOARDING' && <Badge variant="outline" className="text-blue-500 border-blue-500">Onboarding</Badge>}
+                                        {event.type === 'CONTRACT' && <Badge variant="destructive">Hết hạn</Badge>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Hiring Trend */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Xu hướng tuyển dụng 12 tháng</CardTitle>
-                    <CardDescription>So sánh số lượng tuyển mới và nghỉ việc</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={trendData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="month" />
-                            <YAxis />
-                            <Tooltip />
-                            <Legend />
-                            <Line
-                                type="monotone"
-                                dataKey="hired"
-                                name="Tuyển mới"
-                                stroke="#22c55e"
-                                strokeWidth={2}
-                                dot={{ fill: '#22c55e' }}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="resigned"
-                                name="Nghỉ việc"
-                                stroke="#ef4444"
-                                strokeWidth={2}
-                                dot={{ fill: '#ef4444' }}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </CardContent>
-            </Card>
-
-            {/* Top & Bottom Performers */}
+            {/* Performance Lists */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader>

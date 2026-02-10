@@ -1,572 +1,268 @@
-// Mock data for Training Module: Courses, Classes, Materials
+export interface Lesson {
+    id: string;
+    title: string;
+    description?: string;
+    duration: string; // e.g., "10:00"
+    type: 'VIDEO' | 'ARTICLE' | 'QUIZ';
+    videoUrl?: string; // Mock URL
+    content?: string; // For articles
+}
 
-// ========== COURSE ==========
-export type CourseStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
-export type CourseLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+export interface CourseModule {
+    id: string;
+    title: string;
+    lessons: Lesson[];
+}
 
 export interface Course {
     id: string;
-    code: string;
-    name: string;
+    title: string;
     description: string;
-    level: CourseLevel;
-    duration: number; // in hours
-    departmentId?: string;
-    status: CourseStatus;
-    thumbnail?: string;
+    thumbnail: string;
+    instructor: string;
+    duration: string; // "2h 30m"
+    totalModules: number;
+    totalLessons: number;
+    category: string;
+    level: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+    students: number;
+    rating: number;
     createdAt: string;
     updatedAt: string;
+    status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
+    modules: CourseModule[]; // Included for detail view
 }
 
-export const courseStatusLabels: Record<CourseStatus, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
-    DRAFT: { label: 'Nháp', variant: 'secondary' },
-    ACTIVE: { label: 'Đang hoạt động', variant: 'default' },
-    ARCHIVED: { label: 'Lưu trữ', variant: 'outline' },
-};
-
-export const courseLevelLabels: Record<CourseLevel, { label: string; color: string }> = {
-    BEGINNER: { label: 'Cơ bản', color: 'bg-green-100 text-green-800' },
-    INTERMEDIATE: { label: 'Trung cấp', color: 'bg-yellow-100 text-yellow-800' },
-    ADVANCED: { label: 'Nâng cao', color: 'bg-red-100 text-red-800' },
-};
+export const courseCategories = [
+    { id: 'cat-1', name: 'Onboarding' },
+    { id: 'cat-2', name: 'Technical Skills' },
+    { id: 'cat-3', name: 'Soft Skills' },
+    { id: 'cat-4', name: 'Compliance' },
+    { id: 'cat-5', name: 'Leadership' },
+];
 
 export const mockCourses: Course[] = [
     {
-        id: 'course-1',
-        code: 'ONBOARD-001',
-        name: 'Định hướng nhân viên mới',
-        description: 'Khóa học giới thiệu văn hóa công ty, quy trình làm việc và các công cụ cần thiết cho nhân viên mới.',
+        id: 'c-1',
+        title: 'Hội nhập văn hóa doanh nghiệp',
+        description: 'Khóa học bắt buộc dành cho nhân viên mới để tìm hiểu về lịch sử, sứ mệnh và văn hóa của công ty Phoenix.',
+        thumbnail: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80',
+        instructor: 'HR Department',
+        duration: '1h 30m',
+        totalModules: 3,
+        totalLessons: 8,
+        category: 'Onboarding',
         level: 'BEGINNER',
-        duration: 8,
-        status: 'ACTIVE',
-        createdAt: '2025-01-15',
-        updatedAt: '2025-01-15',
+        students: 156,
+        rating: 4.8,
+        createdAt: '2025-12-01',
+        updatedAt: '2026-01-15',
+        status: 'PUBLISHED',
+        modules: [
+            {
+                id: 'm-1-1',
+                title: 'Giới thiệu về Phoenix',
+                lessons: [
+                    { id: 'l-1-1-1', title: 'Lịch sử hình thành', duration: '10:00', type: 'VIDEO' },
+                    { id: 'l-1-1-2', title: 'Tầm nhìn & Sứ mệnh', duration: '15:00', type: 'VIDEO' },
+                ]
+            },
+            {
+                id: 'm-1-2',
+                title: 'Quy định & Chính sách',
+                lessons: [
+                    { id: 'l-1-2-1', title: 'Sổ tay nhân viên', duration: '20:00', type: 'ARTICLE' },
+                    { id: 'l-1-2-2', title: 'Quy định bảo mật', duration: '15:00', type: 'VIDEO' },
+                    { id: 'l-1-2-3', title: 'Kiểm tra kiến thức', duration: '10:00', type: 'QUIZ' },
+                ]
+            }
+        ]
     },
     {
-        id: 'course-2',
-        code: 'SKILL-001',
-        name: 'Kỹ năng giao tiếp chuyên nghiệp',
-        description: 'Nâng cao kỹ năng giao tiếp, thuyết trình và làm việc nhóm hiệu quả.',
+        id: 'c-2',
+        title: 'Kỹ năng giao tiếp hiệu quả',
+        description: 'Nâng cao khả năng giao tiếp, thuyết trình và làm việc nhóm trong môi trường công sở chuyên nghiệp.',
+        thumbnail: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&q=80',
+        instructor: 'Dr. John Doe',
+        duration: '3h 45m',
+        totalModules: 5,
+        totalLessons: 15,
+        category: 'Soft Skills',
         level: 'INTERMEDIATE',
-        duration: 16,
-        status: 'ACTIVE',
-        createdAt: '2025-02-01',
-        updatedAt: '2025-02-01',
+        students: 89,
+        rating: 4.5,
+        createdAt: '2026-01-05',
+        updatedAt: '2026-02-01',
+        status: 'PUBLISHED',
+        modules: []
     },
     {
-        id: 'course-3',
-        code: 'LEAD-001',
-        name: 'Lãnh đạo và quản lý đội nhóm',
-        description: 'Khóa học dành cho các quản lý, trưởng nhóm về kỹ năng lãnh đạo và phát triển nhân viên.',
+        id: 'c-3',
+        title: 'Quy trình Tuyển dụng 2026',
+        description: 'Cập nhật quy trình tuyển dụng mới áp dụng từ năm 2026 cho bộ phận TA.',
+        thumbnail: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&q=80',
+        instructor: 'Recruitment Team',
+        duration: '45m',
+        totalModules: 2,
+        totalLessons: 4,
+        category: 'Technical Skills',
         level: 'ADVANCED',
-        duration: 24,
-        status: 'ACTIVE',
-        createdAt: '2025-02-10',
-        updatedAt: '2025-02-10',
-    },
-    {
-        id: 'course-4',
-        code: 'SAFE-001',
-        name: 'An toàn lao động cơ bản',
-        description: 'Kiến thức cơ bản về an toàn lao động, phòng cháy chữa cháy và sơ cấp cứu.',
-        level: 'BEGINNER',
-        duration: 4,
-        status: 'ACTIVE',
-        createdAt: '2025-01-20',
-        updatedAt: '2025-01-20',
-    },
+        students: 12,
+        rating: 5.0,
+        createdAt: '2026-02-01',
+        updatedAt: '2026-02-01',
+        status: 'DRAFT',
+        modules: []
+    }
 ];
 
-// ========== CLASS ==========
-export type ClassStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export const courseStatusLabels: Record<Course['status'], { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "ghost" | null | undefined }> = {
+    PUBLISHED: { label: 'Đã xuất bản', variant: 'default' },
+    DRAFT: { label: 'Bản nháp', variant: 'secondary' },
+    ARCHIVED: { label: 'Lưu trữ', variant: 'outline' },
+};
 
-export interface TrainingClass {
+// ========== CLASSES SUPPORT ==========
+
+export type ClassStatus = 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+
+export interface Class {
     id: string;
     courseId: string;
-    courseName: string;
-    instructor: string;
+    code: string;
     startDate: string;
     endDate: string;
-    location: string;
-    maxParticipants: number;
-    enrolledCount: number;
+    instructor: string;
+    capacity: number;
+    enrolled: number;
     status: ClassStatus;
+    location?: string;
 }
 
-export const classStatusLabels: Record<ClassStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    SCHEDULED: { label: 'Đã lên lịch', variant: 'secondary' },
-    IN_PROGRESS: { label: 'Đang diễn ra', variant: 'default' },
-    COMPLETED: { label: 'Hoàn thành', variant: 'outline' },
-    CANCELLED: { label: 'Đã hủy', variant: 'destructive' },
-};
-
-export const mockTrainingClasses: TrainingClass[] = [
+export const mockClasses: Class[] = [
     {
-        id: 'class-1',
-        courseId: 'course-1',
-        courseName: 'Định hướng nhân viên mới',
-        instructor: 'Nguyễn Thu Hà',
-        startDate: '2026-02-10',
-        endDate: '2026-02-10',
-        location: 'Phòng họp A3',
-        maxParticipants: 20,
-        enrolledCount: 8,
-        status: 'SCHEDULED',
-    },
-    {
-        id: 'class-2',
-        courseId: 'course-2',
-        courseName: 'Kỹ năng giao tiếp chuyên nghiệp',
-        instructor: 'Trần Minh Quân',
+        id: 'cls-1',
+        courseId: 'c-1',
+        code: 'CLS-2026-001',
         startDate: '2026-02-15',
-        endDate: '2026-02-16',
-        location: 'Online - Google Meet',
-        maxParticipants: 30,
-        enrolledCount: 25,
-        status: 'SCHEDULED',
+        endDate: '2026-02-15',
+        instructor: 'HR Department',
+        capacity: 30,
+        enrolled: 25,
+        status: 'scheduled',
+        location: 'Phòng họp lớn tầng 3'
     },
     {
-        id: 'class-3',
-        courseId: 'course-4',
-        courseName: 'An toàn lao động cơ bản',
-        instructor: 'Lê Văn Hùng',
-        startDate: '2026-02-05',
-        endDate: '2026-02-05',
-        location: 'Phòng họp B1',
-        maxParticipants: 40,
-        enrolledCount: 35,
-        status: 'IN_PROGRESS',
+        id: 'cls-2',
+        courseId: 'c-2',
+        code: 'CLS-2026-002',
+        startDate: '2026-02-20',
+        endDate: '2026-02-22',
+        instructor: 'Dr. John Doe',
+        capacity: 20,
+        enrolled: 18,
+        status: 'scheduled',
+        location: 'Online Zoom'
     },
+    {
+        id: 'cls-3',
+        courseId: 'c-1',
+        code: 'CLS-2026-003',
+        startDate: '2026-01-10',
+        endDate: '2026-01-10',
+        instructor: 'HR Department',
+        capacity: 30,
+        enrolled: 30,
+        status: 'completed',
+        location: 'Phòng đào tạo'
+    }
 ];
 
-// ========== TRAINING MATERIAL ==========
-export type MaterialType = 'PDF' | 'VIDEO' | 'DOCUMENT' | 'SLIDE' | 'LINK';
+// ========== MATERIAL SUPPORT ==========
 
-export interface TrainingMaterial {
+export type MaterialType = 'pdf' | 'video' | 'slide' | 'link';
+
+export interface Material {
     id: string;
+    title: string;
     courseId: string;
-    courseName: string;
-    name: string;
     type: MaterialType;
-    url?: string;
-    size?: number; // in bytes
-    uploadedBy: string;
-    uploadedAt: string;
+    url: string;
+    size?: string;
+    createdAt: string;
 }
 
-export const materialTypeLabels: Record<MaterialType, { label: string; icon: string }> = {
-    PDF: { label: 'PDF', icon: 'FileText' },
-    VIDEO: { label: 'Video', icon: 'Video' },
-    DOCUMENT: { label: 'Tài liệu', icon: 'File' },
-    SLIDE: { label: 'Slide', icon: 'Presentation' },
-    LINK: { label: 'Link', icon: 'Link' },
-};
-
-export const mockTrainingMaterials: TrainingMaterial[] = [
-    {
-        id: 'mat-1',
-        courseId: 'course-1',
-        courseName: 'Định hướng nhân viên mới',
-        name: 'Giới thiệu văn hóa công ty.pdf',
-        type: 'PDF',
-        size: 2500000,
-        uploadedBy: 'Nguyễn Thu Hà',
-        uploadedAt: '2025-12-01',
-    },
-    {
-        id: 'mat-2',
-        courseId: 'course-1',
-        courseName: 'Định hướng nhân viên mới',
-        name: 'Hướng dẫn sử dụng hệ thống.mp4',
-        type: 'VIDEO',
-        size: 150000000,
-        uploadedBy: 'Nguyễn Thu Hà',
-        uploadedAt: '2025-12-05',
-    },
-    {
-        id: 'mat-3',
-        courseId: 'course-2',
-        courseName: 'Kỹ năng giao tiếp chuyên nghiệp',
-        name: 'Slide bài giảng - Giao tiếp hiệu quả.pptx',
-        type: 'SLIDE',
-        size: 5000000,
-        uploadedBy: 'Trần Minh Quân',
-        uploadedAt: '2025-12-10',
-    },
+export const mockMaterials: Material[] = [
+    { id: 'mat-1', title: 'Sổ tay nhân viên 2026.pdf', courseId: 'c-1', type: 'pdf', url: '#', size: '2.5 MB', createdAt: '2026-01-10' },
+    { id: 'mat-2', title: 'Video giới thiệu văn hóa.mp4', courseId: 'c-1', type: 'video', url: '#', size: '150 MB', createdAt: '2026-01-12' },
+    { id: 'mat-3', title: 'Slide bài giảng - Kỹ năng giao tiếp.pptx', courseId: 'c-2', type: 'slide', url: '#', size: '15 MB', createdAt: '2026-02-05' },
+    { id: 'mat-4', title: 'Quy trình tuyển dụng chi tiết (Link)', courseId: 'c-3', type: 'link', url: '#', createdAt: '2026-02-01' },
 ];
 
-// ========== ENROLLMENT ==========
-export type EnrollmentStatus = 'ENROLLED' | 'IN_PROGRESS' | 'COMPLETED' | 'DROPPED';
+// ========== ENROLLMENT SUPPORT (History Page) ==========
 
 export interface Enrollment {
     id: string;
-    employeeId: string;
-    employeeName: string;
-    classId: string;
+    userId: string;
+    userName: string;
+    courseId: string;
     courseName: string;
     enrolledAt: string;
     completedAt?: string;
     progress: number; // 0-100
-    status: EnrollmentStatus;
     score?: number;
+    status: 'in-progress' | 'completed' | 'failed';
 }
-
-export const enrollmentStatusLabels: Record<EnrollmentStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    ENROLLED: { label: 'Đã đăng ký', variant: 'secondary' },
-    IN_PROGRESS: { label: 'Đang học', variant: 'default' },
-    COMPLETED: { label: 'Hoàn thành', variant: 'outline' },
-    DROPPED: { label: 'Bỏ học', variant: 'destructive' },
-};
 
 export const mockEnrollments: Enrollment[] = [
     {
-        id: 'enroll-1',
-        employeeId: '6',
-        employeeName: 'Võ Thị Lan',
-        classId: 'class-1',
-        courseName: 'Định hướng nhân viên mới',
+        id: 'enr-1',
+        userId: 'u-1', userName: 'Nguyễn Văn A',
+        courseId: 'c-1', courseName: 'Hội nhập văn hóa doanh nghiệp',
+        enrolledAt: '2026-01-10', completedAt: '2026-01-15',
+        progress: 100, score: 95, status: 'completed'
+    },
+    {
+        id: 'enr-2',
+        userId: 'u-2', userName: 'Trần Thị B',
+        courseId: 'c-1', courseName: 'Hội nhập văn hóa doanh nghiệp',
         enrolledAt: '2026-02-01',
-        progress: 0,
-        status: 'ENROLLED',
+        progress: 45, status: 'in-progress'
     },
     {
-        id: 'enroll-2',
-        employeeId: '7',
-        employeeName: 'Hoàng Văn Tuấn',
-        classId: 'class-3',
-        courseName: 'An toàn lao động cơ bản',
-        enrolledAt: '2026-01-28',
-        progress: 60,
-        status: 'IN_PROGRESS',
-    },
-    {
-        id: 'enroll-3',
-        employeeId: '3',
-        employeeName: 'Phạm Văn Tùng',
-        classId: 'class-2',
-        courseName: 'Kỹ năng giao tiếp chuyên nghiệp',
+        id: 'enr-3',
+        userId: 'u-3', userName: 'Lê Văn C',
+        courseId: 'c-2', courseName: 'Kỹ năng giao tiếp hiệu quả',
         enrolledAt: '2026-01-20',
-        completedAt: '2026-01-25',
-        progress: 100,
-        status: 'COMPLETED',
-        score: 85,
+        progress: 10, status: 'in-progress'
     },
+    {
+        id: 'enr-4',
+        userId: 'u-4', userName: 'Phạm Thị D',
+        courseId: 'c-1', courseName: 'Hội nhập văn hóa doanh nghiệp',
+        enrolledAt: '2026-01-05', completedAt: '2026-01-08',
+        progress: 100, score: 60, status: 'failed' // Example failed
+    }
 ];
 
-// ========== EXAMS ==========
-export type ExamStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+// ========== EXAM SUPPORT ==========
 
 export interface Exam {
     id: string;
-    courseId: string;
-    courseName: string;
     title: string;
-    description: string;
-    duration: number; // in minutes
-    passingScore: number;
+    durationMinutes: number;
     totalQuestions: number;
-    status: ExamStatus;
-    createdAt: string;
+    passScore: number;
+    status: 'active' | 'draft';
 }
-
-export const examStatusLabels: Record<ExamStatus, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
-    DRAFT: { label: 'Nháp', variant: 'secondary' },
-    ACTIVE: { label: 'Đang hoạt động', variant: 'default' },
-    ARCHIVED: { label: 'Lưu trữ', variant: 'outline' },
-};
 
 export const mockExams: Exam[] = [
-    {
-        id: 'exam-1',
-        courseId: 'course-1',
-        courseName: 'Định hướng nhân viên mới',
-        title: 'Bài kiểm tra cuối khóa - Định hướng NV mới',
-        description: 'Kiểm tra kiến thức về văn hóa công ty và quy trình làm việc',
-        duration: 30,
-        passingScore: 70,
-        totalQuestions: 20,
-        status: 'ACTIVE',
-        createdAt: '2025-01-20',
-    },
-    {
-        id: 'exam-2',
-        courseId: 'course-4',
-        courseName: 'An toàn lao động cơ bản',
-        title: 'Bài kiểm tra An toàn lao động',
-        description: 'Kiểm tra kiến thức về an toàn lao động và phòng cháy chữa cháy',
-        duration: 45,
-        passingScore: 80,
-        totalQuestions: 30,
-        status: 'ACTIVE',
-        createdAt: '2025-01-25',
-    },
-    {
-        id: 'exam-3',
-        courseId: 'course-2',
-        courseName: 'Kỹ năng giao tiếp chuyên nghiệp',
-        title: 'Bài tập thực hành Giao tiếp',
-        description: 'Bài tập case study về kỹ năng giao tiếp và xử lý tình huống',
-        duration: 60,
-        passingScore: 75,
-        totalQuestions: 15,
-        status: 'ACTIVE',
-        createdAt: '2025-02-05',
-    },
+    { id: 'ex-1', title: 'Kiểm tra IQ - Tuyển dụng', durationMinutes: 30, totalQuestions: 20, passScore: 70, status: 'active' },
+    { id: 'ex-2', title: 'Đánh giá năng lực chuyên môn - IT', durationMinutes: 60, totalQuestions: 40, passScore: 60, status: 'active' },
+    { id: 'ex-3', title: 'Kiểm tra Tiếng Anh đầu vào', durationMinutes: 45, totalQuestions: 50, passScore: 50, status: 'draft' },
 ];
 
-export interface ExamResult {
-    id: string;
-    examId: string;
-    examTitle: string;
-    employeeId: string;
-    employeeName: string;
-    score: number;
-    passed: boolean;
-    startedAt: string;
-    completedAt: string;
-    duration: number; // actual time in minutes
-}
-
-export const mockExamResults: ExamResult[] = [
-    {
-        id: 'result-1',
-        examId: 'exam-1',
-        examTitle: 'Bài kiểm tra cuối khóa - Định hướng NV mới',
-        employeeId: '3',
-        employeeName: 'Phạm Văn Tùng',
-        score: 85,
-        passed: true,
-        startedAt: '2026-01-25T09:00:00',
-        completedAt: '2026-01-25T09:22:00',
-        duration: 22,
-    },
-    {
-        id: 'result-2',
-        examId: 'exam-2',
-        examTitle: 'Bài kiểm tra An toàn lao động',
-        employeeId: '7',
-        employeeName: 'Hoàng Văn Tuấn',
-        score: 65,
-        passed: false,
-        startedAt: '2026-02-03T14:00:00',
-        completedAt: '2026-02-03T14:40:00',
-        duration: 40,
-    },
-];
-
-// ========== E-LEARNING LESSONS ==========
-export type LessonType = 'VIDEO' | 'DOCUMENT' | 'QUIZ';
-export type LessonStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-
-export interface Lesson {
-    id: string;
-    courseId: string;
-    courseName: string;
-    title: string;
-    description: string;
-    type: LessonType;
-    videoUrl?: string;
-    duration: number; // in minutes
-    order: number;
-    content?: string; // for DOCUMENT type
-}
-
-export interface LessonProgress {
-    lessonId: string;
-    lessonTitle: string;
-    employeeId: string;
-    employeeName: string;
-    status: LessonStatus;
-    progress: number; // 0-100 for video watch progress
-    completedAt?: string;
-    watchTime: number; // seconds
-}
-
-export const lessonTypeLabels: Record<LessonType, { label: string; icon: string }> = {
-    VIDEO: { label: 'Video', icon: 'Video' },
-    DOCUMENT: { label: 'Tài liệu', icon: 'FileText' },
-    QUIZ: { label: 'Kiểm tra', icon: 'FileQuestion' },
-};
-
-export const mockLessons: Lesson[] = [
-    {
-        id: 'lesson-1',
-        courseId: 'course-1',
-        courseName: 'Định hướng nhân viên mới',
-        title: 'Giới thiệu văn hóa công ty',
-        description: 'Tìm hiểu về văn hóa, giá trị cốt lõi và tầm nhìn của công ty',
-        type: 'VIDEO',
-        videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        duration: 15,
-        order: 1,
-    },
-    {
-        id: 'lesson-2',
-        courseId: 'course-1',
-        courseName: 'Định hướng nhân viên mới',
-        title: 'Quy trình làm việc và công cụ',
-        description: 'Hướng dẫn sử dụng các công cụ và quy trình nội bộ',
-        type: 'VIDEO',
-        videoUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
-        duration: 20,
-        order: 2,
-    },
-    {
-        id: 'lesson-3',
-        courseId: 'course-1',
-        courseName: 'Định hướng nhân viên mới',
-        title: 'Chính sách nhân sự',
-        description: 'Các chính sách về nghỉ phép, phúc lợi và quy định',
-        type: 'DOCUMENT',
-        duration: 10,
-        order: 3,
-        content: '# Chính sách nhân sự\n\n## 1. Nghỉ phép\n- Phép năm: 12 ngày/năm\n- Nghỉ ốm: 30 ngày/năm\n\n## 2. Phúc lợi\n- BHXH, BHYT, BHTN\n- Bảo hiểm sức khỏe toàn diện\n- Thưởng hiệu suất',
-    },
-    {
-        id: 'lesson-4',
-        courseId: 'course-1',
-        courseName: 'Định hướng nhân viên mới',
-        title: 'Bài kiểm tra cuối khóa',
-        description: 'Kiểm tra kiến thức đã học',
-        type: 'QUIZ',
-        duration: 15,
-        order: 4,
-    },
-    {
-        id: 'lesson-5',
-        courseId: 'course-4',
-        courseName: 'An toàn lao động cơ bản',
-        title: 'Nguyên tắc an toàn lao động',
-        description: 'Các nguyên tắc cơ bản về an toàn lao động',
-        type: 'VIDEO',
-        videoUrl: 'https://www.youtube.com/watch?v=9bZkp7q19f0',
-        duration: 25,
-        order: 1,
-    },
-];
-
-export const mockLessonProgress: LessonProgress[] = [
-    {
-        lessonId: 'lesson-1',
-        lessonTitle: 'Giới thiệu văn hóa công ty',
-        employeeId: '6',
-        employeeName: 'Võ Thị Lan',
-        status: 'COMPLETED',
-        progress: 100,
-        completedAt: '2026-02-03',
-        watchTime: 900,
-    },
-    {
-        lessonId: 'lesson-2',
-        lessonTitle: 'Quy trình làm việc và công cụ',
-        employeeId: '6',
-        employeeName: 'Võ Thị Lan',
-        status: 'IN_PROGRESS',
-        progress: 45,
-        watchTime: 540,
-    },
-    {
-        lessonId: 'lesson-1',
-        lessonTitle: 'Giới thiệu văn hóa công ty',
-        employeeId: '7',
-        employeeName: 'Hoàng Văn Tuấn',
-        status: 'IN_PROGRESS',
-        progress: 30,
-        watchTime: 270,
-    },
-];
-
-// ========== QUIZ QUESTIONS ==========
-export interface QuizQuestion {
-    id: string;
-    lessonId: string;
-    question: string;
-    options: string[];
-    correctAnswer: number; // index of correct option
-    explanation?: string;
-}
-
-export interface QuizAttempt {
-    id: string;
-    lessonId: string;
-    employeeId: string;
-    employeeName: string;
-    answers: number[]; // selected option indexes
-    score: number;
-    passed: boolean;
-    completedAt: string;
-}
-
-export const mockQuizQuestions: QuizQuestion[] = [
-    // Lesson 4 - Bài kiểm tra cuối khóa (course-1)
-    {
-        id: 'q1',
-        lessonId: 'lesson-4',
-        question: 'Công ty được thành lập vào năm nào?',
-        options: ['2010', '2015', '2018', '2020'],
-        correctAnswer: 1,
-        explanation: 'Công ty được thành lập vào năm 2015.',
-    },
-    {
-        id: 'q2',
-        lessonId: 'lesson-4',
-        question: 'Giá trị cốt lõi nào KHÔNG thuộc về công ty?',
-        options: ['Đổi mới sáng tạo', 'Khách hàng là trung tâm', 'Lợi nhuận tối đa', 'Làm việc nhóm'],
-        correctAnswer: 2,
-        explanation: 'Lợi nhuận tối đa không phải là giá trị cốt lõi của công ty.',
-    },
-    {
-        id: 'q3',
-        lessonId: 'lesson-4',
-        question: 'Nhân viên mới được hưởng bao nhiêu ngày phép năm?',
-        options: ['10 ngày', '12 ngày', '14 ngày', '15 ngày'],
-        correctAnswer: 1,
-        explanation: 'Theo quy định, nhân viên được hưởng 12 ngày phép/năm.',
-    },
-    {
-        id: 'q4',
-        lessonId: 'lesson-4',
-        question: 'Ai là người liên hệ khi cần hỗ trợ IT?',
-        options: ['Bộ phận HR', 'Bộ phận IT helpdesk', 'Quản lý trực tiếp', 'Phòng tổng hợp'],
-        correctAnswer: 1,
-        explanation: 'Bộ phận IT helpdesk sẽ hỗ trợ các vấn đề về công nghệ.',
-    },
-    {
-        id: 'q5',
-        lessonId: 'lesson-4',
-        question: 'Thời gian làm việc chính thức là?',
-        options: ['8h00 - 17h00', '8h30 - 17h30', '9h00 - 18h00', '8h00 - 18h00'],
-        correctAnswer: 1,
-        explanation: 'Thời gian làm việc chính thức từ 8h30 đến 17h30.',
-    },
-    // Additional questions for safety course
-    {
-        id: 'q6',
-        lessonId: 'lesson-5',
-        question: 'Khi phát hiện hỏa hoạn, bước đầu tiên cần làm là gì?',
-        options: ['Chạy thoát khỏi tòa nhà', 'Báo động và thông báo cho mọi người', 'Cố gắng dập lửa', 'Gọi điện cho người thân'],
-        correctAnswer: 1,
-        explanation: 'Việc đầu tiên là báo động để mọi người biết và di chuyển đến nơi an toàn.',
-    },
-    {
-        id: 'q7',
-        lessonId: 'lesson-5',
-        question: 'Thiết bị bảo hộ cá nhân (PPE) bao gồm những gì?',
-        options: ['Mũ bảo hộ, găng tay, kính bảo hộ', 'Điện thoại, laptop, tai nghe', 'Giày dép, quần áo thường', 'Đồ ăn, nước uống'],
-        correctAnswer: 0,
-        explanation: 'PPE bao gồm các thiết bị bảo vệ như mũ, găng tay, kính bảo hộ...',
-    },
-];
-
-export const mockQuizAttempts: QuizAttempt[] = [
-    {
-        id: 'attempt-1',
-        lessonId: 'lesson-4',
-        employeeId: '3',
-        employeeName: 'Phạm Văn Tùng',
-        answers: [1, 2, 1, 1, 1],
-        score: 100,
-        passed: true,
-        completedAt: '2026-01-25T09:22:00',
-    },
-];
+export const getCourses = () => mockCourses;
+export const getAllClasses = () => mockClasses;
+export const getEnrollments = () => mockEnrollments;
+export const getExams = () => mockExams;

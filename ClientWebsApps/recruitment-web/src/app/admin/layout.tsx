@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,6 +18,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getNavigationForRole, Role, roleLabels } from '@/lib/rbac';
+import { NotificationProvider } from '@/lib/contexts/notification-context';
+import { NotificationDropdown } from '@/components/admin/layout/notification-dropdown';
 import {
     LayoutDashboard,
     Briefcase,
@@ -51,6 +53,9 @@ import {
     BarChart3,
     PanelLeftClose,
     PanelLeft,
+    Monitor,
+    BadgePercent,
+    Calculator,
 } from 'lucide-react';
 import {
     Tooltip,
@@ -84,6 +89,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     Target,
     ClipboardList,
     BarChart3,
+    Monitor,
+    BadgePercent,
+    Calculator,
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -137,8 +145,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     };
 
-    const NavLink = ({ href, label, iconName, collapsed = false }: { href: string; label: string; iconName: string; collapsed?: boolean }) => {
-        const isActive = pathname === href || (href !== '/admin' && pathname.startsWith(href));
+    const NavLink = ({ href, label, iconName, collapsed = false, matchExact = false }: { href: string; label: string; iconName: string; collapsed?: boolean; matchExact?: boolean }) => {
+        const isActive = matchExact
+            ? pathname === href
+            : pathname === href || (href !== '/admin' && pathname.startsWith(href));
         const Icon = iconMap[iconName] || LayoutDashboard;
 
         const linkContent = (
@@ -187,9 +197,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <nav ref={navRef} className={`flex-1 overflow-y-auto overflow-x-hidden py-4 transition-all duration-300 ${collapsed ? 'scrollbar-none px-0' : 'scrollbar-thin px-2'}`}>
                 {navigation.map((group) => {
                     const isExpanded = expandedGroups[group.title] ?? false;
-                    const hasActiveItem = group.items.some(item =>
-                        pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-                    );
+                    const hasActiveItem = group.items.some(item => {
+                        if (item.matchExact) {
+                            return pathname === item.href;
+                        }
+                        return pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+                    });
 
                     if (collapsed) {
                         // Collapsed mode: show only icons for each item
@@ -202,6 +215,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                         label={item.label}
                                         iconName={item.icon}
                                         collapsed={collapsed}
+                                        matchExact={item.matchExact}
                                     />
                                 ))}
                             </div>
@@ -233,6 +247,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                             label={item.label}
                                             iconName={item.icon}
                                             collapsed={collapsed}
+                                            matchExact={item.matchExact}
                                         />
                                     ))}
                                 </div>
@@ -241,6 +256,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     );
                 })}
             </nav>
+
             {/* Toggle Button - aligned left */}
             <div className="border-t p-2 flex items-center justify-end">
                 <Tooltip delayDuration={0}>
@@ -262,87 +278,111 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
     );
 
+    const UserNav = () => (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="gap-2 px-2 sm:px-4">
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={session?.user?.image || undefined} />
+                        <AvatarFallback>{getInitials(session?.user?.name)}</AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:inline">{session?.user?.name}</span>
+                    <ChevronDown className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                    <div>
+                        <p>{session?.user?.name}</p>
+                        <p className="text-xs text-muted-foreground">{session?.user?.email}</p>
+                        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${roleInfo.color}`}>
+                            {roleInfo.label}
+                        </span>
+                    </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                    <Link href="/admin/settings">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Cài đặt
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                    <Link href="/portal">
+                        <User className="mr-2 h-4 w-4" />
+                        Portal Nhân viên
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span className="ml-2">Đăng xuất</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+
     return (
-        <TooltipProvider>
-            <div className="flex min-h-screen bg-background">
-                {/* Desktop Sidebar */}
-                <aside className={`hidden md:flex md:flex-col border-r sticky top-0 h-screen overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'md:w-16' : 'md:w-64'}`}>
-                    <SidebarContent collapsed={sidebarCollapsed} />
-                </aside>
+        <NotificationProvider>
+            <TooltipProvider>
+                <div className="flex min-h-screen bg-background">
+                    {/* Desktop Sidebar */}
+                    <aside className={`hidden md:flex md:flex-col border-r sticky top-0 h-screen overflow-hidden shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'md:w-16' : 'md:w-64'}`}>
+                        <SidebarContent collapsed={sidebarCollapsed} />
+                    </aside>
 
-                {/* Mobile Header & Content */}
-                <div className="flex flex-1 flex-col">
-                    {/* Mobile Header */}
-                    <header className="flex h-14 items-center justify-between border-b px-4 md:hidden sticky top-0 bg-background z-50">
-                        <Link href="/admin" className="flex items-center gap-2 font-semibold">
-                            <Building className="h-6 w-6" />
-                            <span>HRM Admin</span>
-                        </Link>
-                        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                            <SheetTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                    <Menu className="h-5 w-5" />
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent side="left" className="p-0 w-64">
-                                <SidebarContent />
-                            </SheetContent>
-                        </Sheet>
-                    </header>
+                    {/* Mobile Header & Content */}
+                    <div className="flex flex-1 flex-col">
+                        {/* Mobile Header */}
+                        <header className="flex h-14 items-center justify-between border-b px-4 md:hidden sticky top-0 bg-background z-50">
+                            <div className="flex items-center gap-2">
+                                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                                    <SheetTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="-ml-2">
+                                            <Menu className="h-5 w-5" />
+                                        </Button>
+                                    </SheetTrigger>
+                                    <SheetContent side="left" className="p-0 w-64">
+                                        <div className="sr-only">
+                                            <SheetTitle>Menu điều hướng</SheetTitle>
+                                            <SheetDescription>Danh sách các chức năng quản trị</SheetDescription>
+                                        </div>
+                                        <SidebarContent />
+                                    </SheetContent>
+                                </Sheet>
+                                <Link href="/admin" className="flex items-center gap-2 font-semibold">
+                                    <Building className="h-5 w-5" />
+                                    <span>HRM</span>
+                                </Link>
+                            </div>
+                            <div className="flex items-start gap-2">
+                                <NotificationDropdown />
+                                <UserNav />
+                            </div>
+                        </header>
 
-                    {/* Desktop Header */}
-                    <header className="hidden md:flex h-14 items-center justify-end border-b px-6 sticky top-0 bg-background z-50 gap-2">
-                        <Button variant="ghost" size="icon" asChild title="Trang chủ tuyển dụng">
-                            <Link href="/" target="_blank" rel="noopener noreferrer">
-                                <Globe className="h-5 w-5" />
-                            </Link>
-                        </Button>
+                        {/* Desktop Header */}
+                        <header className="hidden md:flex h-14 items-center justify-end border-b px-6 sticky top-0 bg-background z-50 gap-2">
+                            <Button variant="ghost" size="icon" asChild title="Trang chủ tuyển dụng">
+                                <Link href="/" target="_blank" rel="noopener noreferrer">
+                                    <Globe className="h-5 w-5" />
+                                </Link>
+                            </Button>
 
-                        <ThemeToggle />
+                            <NotificationDropdown />
+                            <ThemeToggle />
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="gap-2">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={session?.user?.image || undefined} />
-                                        <AvatarFallback>{getInitials(session?.user?.name)}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="hidden sm:inline">{session?.user?.name}</span>
-                                    <ChevronDown className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>
-                                    <div>
-                                        <p>{session?.user?.name}</p>
-                                        <p className="text-xs text-muted-foreground">{session?.user?.email}</p>
-                                        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${roleInfo.color}`}>
-                                            {roleInfo.label}
-                                        </span>
-                                    </div>
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem asChild>
-                                    <Link href="/admin/settings">
-                                        <Settings className="mr-2 h-4 w-4" />
-                                        Cài đặt
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    <span className="ml-2">Đăng xuất</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </header>
+                            <UserNav />
+                        </header>
 
-                    {/* Main Content */}
-                    <main className="flex-1 p-6">
-                        {children}
-                    </main>
-                </div>
-            </div>
-        </TooltipProvider>
+                        {/* Main Content */}
+                        <main className="flex-1 p-6 min-w-0">
+                            {children}
+                        </main>
+                    </div>
+                </div >
+            </TooltipProvider >
+        </NotificationProvider>
     );
 }

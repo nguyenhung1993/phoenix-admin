@@ -29,6 +29,7 @@ import {
     LeaveRequest,
     LeaveStatus,
 } from '@/lib/mocks';
+import { LeaveDialog } from '@/components/admin/cb/leave/leave-dialog';
 import {
     Calendar,
     Clock,
@@ -39,11 +40,13 @@ import {
     CalendarDays,
     Users,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function LeavePage() {
     const [statusFilter, setStatusFilter] = useState<LeaveStatus | 'ALL'>('ALL');
     const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+    const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
     const filteredRequests = mockLeaveRequests.filter((req) => {
         return statusFilter === 'ALL' || req.status === statusFilter;
@@ -56,6 +59,20 @@ export default function LeavePage() {
         REJECTED: mockLeaveRequests.filter((r) => r.status === 'REJECTED').length,
     };
 
+    const handleApprove = () => {
+        toast.success('Đã phê duyệt đơn nghỉ phép', {
+            description: `Nhân viên: ${selectedRequest?.employeeName}`
+        });
+        setDetailDialogOpen(false);
+    };
+
+    const handleReject = () => {
+        toast.error('Đã từ chối đơn nghỉ phép', {
+            description: `Nhân viên: ${selectedRequest?.employeeName}`
+        });
+        setDetailDialogOpen(false);
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -63,7 +80,7 @@ export default function LeavePage() {
                     <h1 className="text-2xl font-bold">Quản lý nghỉ phép</h1>
                     <p className="text-muted-foreground">Xem và duyệt đơn xin nghỉ phép</p>
                 </div>
-                <Button>
+                <Button onClick={() => setCreateDialogOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Tạo đơn nghỉ phép
                 </Button>
@@ -186,10 +203,16 @@ export default function LeavePage() {
                                                 </Button>
                                                 {request.status === 'PENDING' && (
                                                     <>
-                                                        <Button variant="ghost" size="icon" className="text-green-600">
+                                                        <Button variant="ghost" size="icon" className="text-green-600" onClick={() => {
+                                                            setSelectedRequest(request);
+                                                            handleApprove();
+                                                        }}>
                                                             <Check className="h-4 w-4" />
                                                         </Button>
-                                                        <Button variant="ghost" size="icon" className="text-red-600">
+                                                        <Button variant="ghost" size="icon" className="text-red-600" onClick={() => {
+                                                            setSelectedRequest(request);
+                                                            handleReject();
+                                                        }}>
                                                             <X className="h-4 w-4" />
                                                         </Button>
                                                     </>
@@ -308,8 +331,8 @@ export default function LeavePage() {
                                 </Button>
                                 {selectedRequest.status === 'PENDING' && (
                                     <>
-                                        <Button variant="destructive">Từ chối</Button>
-                                        <Button>Phê duyệt</Button>
+                                        <Button variant="destructive" onClick={handleReject}>Từ chối</Button>
+                                        <Button onClick={handleApprove}>Phê duyệt</Button>
                                     </>
                                 )}
                             </DialogFooter>
@@ -317,6 +340,8 @@ export default function LeavePage() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            <LeaveDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
         </div>
     );
 }

@@ -19,7 +19,9 @@ import {
     Check,
     Loader2,
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportToExcel, exportToPDF } from '@/lib/export-utils';
+import { mockEmployees, employeeStatusLabels } from '@/lib/mocks/hrm';
 
 interface ReportType {
     id: string;
@@ -126,24 +128,94 @@ export default function ExportPage() {
 
         await new Promise((resolve) => setTimeout(resolve, 500));
 
+        let dataToExport: any[] = [];
+
+        if (reportId === 'employee-list') {
+            // Transform mockEmployees to export format
+            dataToExport = mockEmployees.map(emp => ({
+                'Mã NV': emp.employeeCode,
+                'Họ tên': emp.fullName,
+                'Phòng ban': emp.departmentName,
+                'Chức vụ': emp.positionName,
+                'Trạng thái': employeeStatusLabels[emp.status]?.label || emp.status,
+                'Ngày vào làm': emp.hireDate,
+                'Email': emp.email,
+                'Số điện thoại': emp.phone,
+            }));
+        } else {
+            // Fallback to sample data for other reports (can be expanded later)
+            dataToExport = sampleEmployeeData;
+        }
+
         if (format === 'excel') {
-            exportToExcel(sampleEmployeeData, filename, report?.name || 'Sheet1');
+            await exportToExcel(dataToExport, filename, report?.name || 'Sheet1');
         } else if (format === 'pdf') {
-            const headers = Object.keys(sampleEmployeeData[0]);
-            const data = sampleEmployeeData.map(row => Object.values(row));
-            exportToPDF(report?.name || 'Report', headers, data, filename);
+            if (dataToExport.length > 0) {
+                const headers = Object.keys(dataToExport[0]);
+                const data = dataToExport.map(row => Object.values(row)) as (string | number)[][];
+                await exportToPDF(report?.name || 'Report', headers, data, filename);
+            }
         }
 
         setExporting(null);
     };
 
-    const groupedReports = reportTypes.reduce((acc, report) => {
-        if (!acc[report.category]) {
-            acc[report.category] = [];
-        }
-        acc[report.category].push(report);
-        return acc;
-    }, {} as Record<string, ReportType[]>);
+    const categories = Array.from(new Set(reportTypes.map(r => r.category)));
+
+    const ReportCard = ({ report }: { report: ReportType }) => {
+        const Icon = report.icon;
+        return (
+            <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Icon className="h-5 w-5 text-primary" />
+                        </div>
+                    </div>
+                    <CardTitle className="text-base mt-3">{report.name}</CardTitle>
+                    <CardDescription className="text-sm">
+                        {report.description}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex gap-2">
+                        {report.formats.includes('excel') && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1"
+                                disabled={exporting !== null}
+                                onClick={() => handleExport(report.id, 'excel')}
+                            >
+                                {exporting === `${report.id}-excel` ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                    <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
+                                )}
+                                Excel
+                            </Button>
+                        )}
+                        {report.formats.includes('pdf') && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1"
+                                disabled={exporting !== null}
+                                onClick={() => handleExport(report.id, 'pdf')}
+                            >
+                                {exporting === `${report.id}-pdf` ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                    <FileText className="h-4 w-4 mr-2 text-red-600 dark:text-red-400" />
+                                )}
+                                PDF
+                            </Button>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    };
 
     return (
         <div className="space-y-6">
@@ -172,70 +244,43 @@ export default function ExportPage() {
                 </div>
             </div>
 
-            {/* Reports by Category */}
-            {Object.entries(groupedReports).map(([category, reports]) => (
-                <div key={category} className="space-y-4">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <Badge variant="outline">{category}</Badge>
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {reports.map((report) => {
-                            const Icon = report.icon;
-                            return (
-                                <Card key={report.id} className="hover:shadow-md transition-shadow">
-                                    <CardHeader className="pb-3">
-                                        <div className="flex items-start justify-between">
-                                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                <Icon className="h-5 w-5 text-primary" />
-                                            </div>
-                                        </div>
-                                        <CardTitle className="text-base mt-3">{report.name}</CardTitle>
-                                        <CardDescription className="text-sm">
-                                            {report.description}
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="flex gap-2">
-                                            {report.formats.includes('excel') && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="flex-1"
-                                                    disabled={exporting !== null}
-                                                    onClick={() => handleExport(report.id, 'excel')}
-                                                >
-                                                    {exporting === `${report.id}-excel` ? (
-                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                    ) : (
-                                                        <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
-                                                    )}
-                                                    Excel
-                                                </Button>
-                                            )}
-                                            {report.formats.includes('pdf') && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="flex-1"
-                                                    disabled={exporting !== null}
-                                                    onClick={() => handleExport(report.id, 'pdf')}
-                                                >
-                                                    {exporting === `${report.id}-pdf` ? (
-                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                    ) : (
-                                                        <FileText className="h-4 w-4 mr-2 text-red-600 dark:text-red-400" />
-                                                    )}
-                                                    PDF
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
+            <Tabs defaultValue="ALL" className="space-y-6">
+                <TabsList className="flex-wrap h-auto gap-2 bg-transparent p-0 justify-start">
+                    <TabsTrigger
+                        value="ALL"
+                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border bg-background"
+                    >
+                        Tất cả
+                    </TabsTrigger>
+                    {categories.map((category) => (
+                        <TabsTrigger
+                            key={category}
+                            value={category}
+                            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border bg-background"
+                        >
+                            {category}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+
+                <TabsContent value="ALL" className="mt-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {reportTypes.map((report) => (
+                            <ReportCard key={report.id} report={report} />
+                        ))}
                     </div>
-                </div>
-            ))}
+                </TabsContent>
+
+                {categories.map((category) => (
+                    <TabsContent key={category} value={category} className="mt-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {reportTypes.filter(r => r.category === category).map((report) => (
+                                <ReportCard key={report.id} report={report} />
+                            ))}
+                        </div>
+                    </TabsContent>
+                ))}
+            </Tabs>
 
             {/* Info */}
             <Card className="bg-muted/50">

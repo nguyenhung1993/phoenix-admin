@@ -21,6 +21,8 @@ export {
     employeeStatusLabels,
     contractTypeLabels,
     contractStatusLabels,
+    mockContractTypes,
+    mockShiftTypes,
     // Note: formatCurrency and formatDate already exported from recruitment
 } from './hrm';
 
@@ -32,3 +34,24 @@ export * from './training';
 
 // Performance Module (KPI & Đánh giá)
 export * from './performance';
+
+// Assets Module
+export * from './assets';
+
+// Offboarding Module
+export * from './offboarding';
+
+// Workplace Module
+export * from './workplace';
+
+// BPA Module
+export * from './approvals';
+
+// Settings Module
+export * from './settings';
+
+// Attendance Module
+export * from './attendance';
+
+// Leave Module
+export * from './leave';

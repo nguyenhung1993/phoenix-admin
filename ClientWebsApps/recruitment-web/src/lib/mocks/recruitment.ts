@@ -124,6 +124,16 @@ export interface Candidate {
     notes?: string;
     rating?: number;
     source: 'LinkedIn' | 'Website' | 'Referral' | 'Job Board' | 'Other';
+    activities?: CandidateActivity[];
+}
+
+export interface CandidateActivity {
+    id: string;
+    type: 'EMAIL' | 'NOTE' | 'STATUS_CHANGE' | 'INTERVIEW_LOG';
+    title: string;
+    content: string;
+    createdAt: string;
+    createdBy: string;
 }
 
 export const candidateStatusLabels: Record<CandidateStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {

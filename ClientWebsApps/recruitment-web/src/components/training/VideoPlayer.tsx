@@ -49,7 +49,6 @@ export default function VideoPlayer({
         setHasCompleted(true);
         onProgress?.(100);
         onComplete?.();
-        console.log('🚀 VIP skip activated! Welcome, boss!');
     }, [onProgress, onComplete]);
 
     // 🔥 BACKDOOR 1: Keyboard shortcut Ctrl+Shift+X (VIP only)

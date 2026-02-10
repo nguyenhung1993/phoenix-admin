@@ -1,29 +1,15 @@
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-
-// Extend jsPDF type for autotable
-declare module 'jspdf' {
-    interface jsPDF {
-        autoTable: (options: {
-            head?: string[][];
-            body?: (string | number)[][];
-            startY?: number;
-            styles?: Record<string, unknown>;
-            headStyles?: Record<string, unknown>;
-            theme?: string;
-        }) => jsPDF;
-    }
-}
 
 /**
  * Export data to Excel file
  */
-export function exportToExcel<T extends Record<string, unknown>>(
+export async function exportToExcel<T extends Record<string, unknown>>(
     data: T[],
     filename: string,
     sheetName: string = 'Sheet1'
-): void {
+): Promise<void> {
+    // Dynamic import
+    const XLSX = await import('xlsx');
+
     // Create a new workbook
     const wb = XLSX.utils.book_new();
 
@@ -40,12 +26,16 @@ export function exportToExcel<T extends Record<string, unknown>>(
 /**
  * Export data to PDF file with a table
  */
-export function exportToPDF(
+export async function exportToPDF(
     title: string,
     headers: string[],
     data: (string | number)[][],
     filename: string
-): void {
+): Promise<void> {
+    // Dynamic import
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
+
     // Create PDF document
     const doc = new jsPDF();
 
@@ -58,6 +48,7 @@ export function exportToPDF(
     doc.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 14, 28);
 
     // Add table
+    // @ts-ignore - autotable augmentation needs to be handled carefully with dynamic types
     doc.autoTable({
         head: [headers],
         body: data,

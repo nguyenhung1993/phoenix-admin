@@ -16,14 +16,6 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import {
     Select,
     SelectContent,
     SelectItem,
@@ -31,28 +23,26 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import {
     mockEmployees,
     mockDepartments,
     employeeStatusLabels,
     formatDate,
     Employee,
+    mockContractTypes,
+    mockCandidates
 } from '@/lib/mocks';
 import {
     Search,
     Plus,
-    Eye,
-    Pencil,
     User,
-    Mail,
-    Phone,
     Building,
-    Briefcase,
     Calendar,
     Users,
+    Filter,
 } from 'lucide-react';
+import { EmployeeDialog } from '@/components/admin/hrm/employees/employee-dialog';
+import { toast } from 'sonner';
 
 // Wrapper component for Suspense boundary
 export default function AdminEmployeesPage() {
@@ -81,46 +71,107 @@ function EmployeesPageContent() {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [departmentFilter, setDepartmentFilter] = useState('ALL');
+    const [contractFilter, setContractFilter] = useState('ALL');
+
+    // State for data and dialogs
+    const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-    const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-    const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+
     const searchParams = useSearchParams();
 
     // Auto-open create dialog if action=create is present in URL
     useEffect(() => {
         if (searchParams.get('action') === 'create') {
-            setCreateDialogOpen(true);
+            const candidateId = searchParams.get('candidateId');
+            if (candidateId) {
+                // Pre-fill from candidate
+                const candidate = mockCandidates.find(c => c.id === candidateId);
+                if (candidate) {
+                    // Create a partial employee object for pre-filling
+                    // We cast to Employee for the state, but the dialog should handle partials if we typed it loosely,
+                    // but here we can just mock the missing required fields with defaults or let the user fill them.
+                    // Actually, let's create a partial object that satisfies the form defaults where possible.
+                    const prefilledData: any = {
+                        fullName: candidate.name,
+                        email: candidate.email,
+                        phone: candidate.phone,
+                        status: 'PROBATION', // Default for new hires
+                        // Map other fields if possible, e.g. jobTitle -> positionName (display only)
+                        positionName: candidate.jobTitle,
+                        hireDate: new Date().toISOString().split('T')[0],
+                    };
+                    setSelectedEmployee(prefilledData);
+                } else {
+                    setSelectedEmployee(null);
+                }
+            } else {
+                setSelectedEmployee(null);
+            }
+            setIsDialogOpen(true);
         }
     }, [searchParams]);
 
-    // Initial values from URL params
-    const initialData = {
-        name: searchParams.get('name') || '',
-        email: searchParams.get('email') || '',
-        position: searchParams.get('position') || '',
-        department: searchParams.get('department') || '', // Note: This needs to match ID if strict, but for mock select it might need logic
-        startDate: searchParams.get('start_date') || '',
-    };
-
-    const filteredEmployees = mockEmployees.filter((employee) => {
+    const filteredEmployees = employees.filter((employee) => {
         const matchesSearch =
             employee.fullName.toLowerCase().includes(search.toLowerCase()) ||
             employee.employeeCode.toLowerCase().includes(search.toLowerCase()) ||
             employee.email.toLowerCase().includes(search.toLowerCase());
         const matchesStatus = statusFilter === 'ALL' || employee.status === statusFilter;
         const matchesDepartment = departmentFilter === 'ALL' || employee.departmentId === departmentFilter;
-        return matchesSearch && matchesStatus && matchesDepartment;
+        const matchesContract = contractFilter === 'ALL' || employee.contractTypeId === contractFilter;
+
+        return matchesSearch && matchesStatus && matchesDepartment && matchesContract;
     });
 
     const employeesByStatus = {
-        ALL: mockEmployees.length,
-        ACTIVE: mockEmployees.filter((e) => e.status === 'ACTIVE').length,
-        PROBATION: mockEmployees.filter((e) => e.status === 'PROBATION').length,
-        RESIGNED: mockEmployees.filter((e) => e.status === 'RESIGNED').length,
+        ALL: employees.length,
+        ACTIVE: employees.filter((e) => e.status === 'ACTIVE').length,
+        PROBATION: employees.filter((e) => e.status === 'PROBATION').length,
+        RESIGNED: employees.filter((e) => e.status === 'RESIGNED').length,
     };
 
     const getInitials = (name: string) => {
         return name.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase();
+    };
+
+    const handleCreate = () => {
+        setSelectedEmployee(null);
+        setIsDialogOpen(true);
+    };
+
+    const handleEdit = (employee: Employee) => {
+        setSelectedEmployee(employee);
+        setIsDialogOpen(true);
+    };
+
+    const handleSubmit = (values: any, id?: string) => {
+        if (id) {
+            // Update
+            setEmployees(prev => prev.map(emp => {
+                if (emp.id === id) {
+                    // Look up relation names for display
+                    const deptName = mockDepartments.find(d => d.id === values.departmentId)?.name || emp.departmentName;
+                    // Note: In real app, position name would be fetched from API
+
+                    return { ...emp, ...values, departmentName: deptName };
+                }
+                return emp;
+            }));
+            toast.success("Cập nhật hồ sơ nhân viên thành công");
+        } else {
+            // Create
+            const newEmployee: Employee = {
+                id: Math.random().toString(36).substr(2, 9),
+                departmentName: mockDepartments.find(d => d.id === values.departmentId)?.name || 'Unknown',
+                positionName: 'N/A', // In mock we simplified this
+                createdAt: new Date().toISOString(),
+                ...values
+            };
+            setEmployees(prev => [...prev, newEmployee]);
+            toast.success("Tạo nhân viên mới thành công");
+        }
+        setIsDialogOpen(false);
     };
 
     return (
@@ -130,7 +181,7 @@ function EmployeesPageContent() {
                     <h1 className="text-2xl font-bold">Quản lý nhân viên</h1>
                     <p className="text-muted-foreground">Xem và quản lý thông tin nhân viên</p>
                 </div>
-                <Button onClick={() => setCreateDialogOpen(true)}>
+                <Button onClick={handleCreate}>
                     <Plus className="mr-2 h-4 w-4" />
                     Thêm nhân viên
                 </Button>
@@ -201,8 +252,8 @@ function EmployeesPageContent() {
 
             <Card>
                 <CardHeader>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <div className="relative flex-1 max-w-sm">
+                    <div className="flex flex-col xl:flex-row items-start xl:items-center gap-4">
+                        <div className="relative flex-1 max-w-sm w-full">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="Tìm kiếm nhân viên..."
@@ -211,236 +262,105 @@ function EmployeesPageContent() {
                                 className="pl-10"
                             />
                         </div>
-                        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Phòng ban" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Tất cả phòng ban</SelectItem>
-                                {mockDepartments.map((dept) => (
-                                    <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex flex-wrap gap-2 w-full xl:w-auto">
+                            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                                <SelectTrigger className="w-full sm:w-[180px]">
+                                    <SelectValue placeholder="Phòng ban" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Tất cả phòng ban</SelectItem>
+                                    {mockDepartments.map((dept) => (
+                                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select value={contractFilter} onValueChange={setContractFilter}>
+                                <SelectTrigger className="w-full sm:w-[180px]">
+                                    <SelectValue placeholder="Loại hợp đồng" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Tất cả hợp đồng</SelectItem>
+                                    {mockContractTypes.map((type) => (
+                                        <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Button variant="outline" size="icon">
+                                <Filter className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nhân viên</TableHead>
-                                <TableHead>Mã NV</TableHead>
-                                <TableHead>Phòng ban</TableHead>
-                                <TableHead>Chức vụ</TableHead>
-                                <TableHead>Ngày vào</TableHead>
-                                <TableHead>Trạng thái</TableHead>
-                                <TableHead className="text-right">Thao tác</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredEmployees.map((employee) => {
-                                const statusStyle = employeeStatusLabels[employee.status];
+                <CardContent className="p-0">
+                    <div className="rounded-md border border-x-0 sm:border-x">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="pl-6">Nhân viên</TableHead>
+                                    <TableHead className="hidden md:table-cell">Mã NV</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Phòng ban</TableHead>
+                                    <TableHead className="hidden md:table-cell">Hợp đồng</TableHead>
+                                    <TableHead className="hidden lg:table-cell">Ngày vào</TableHead>
+                                    <TableHead>Trạng thái</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredEmployees.map((employee) => {
+                                    const statusStyle = employeeStatusLabels[employee.status];
 
-                                return (
-                                    <TableRow key={employee.id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-9 w-9">
-                                                    <AvatarFallback>{getInitials(employee.fullName)}</AvatarFallback>
-                                                </Avatar>
-                                                <div>
-                                                    <p className="font-medium">{employee.fullName}</p>
-                                                    <p className="text-sm text-muted-foreground">{employee.email}</p>
+                                    return (
+                                        <TableRow
+                                            key={employee.id}
+                                            className="cursor-pointer hover:bg-muted/50"
+                                            onClick={() => handleEdit(employee)}
+                                        >
+                                            <TableCell className="pl-6">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-9 w-9">
+                                                        <AvatarFallback>{getInitials(employee.fullName)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="font-medium text-sm">{employee.fullName}</p>
+                                                        <p className="text-xs text-muted-foreground">{employee.positionName}</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="font-mono">{employee.employeeCode}</TableCell>
-                                        <TableCell>{employee.departmentName}</TableCell>
-                                        <TableCell>{employee.positionName}</TableCell>
-                                        <TableCell>{formatDate(employee.hireDate)}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setSelectedEmployee(employee);
-                                                        setDetailDialogOpen(true);
-                                                    }}
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon">
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
+                                            </TableCell>
+                                            <TableCell className="hidden md:table-cell font-mono text-xs">{employee.employeeCode}</TableCell>
+                                            <TableCell className="hidden sm:table-cell text-sm">{employee.departmentName}</TableCell>
+                                            <TableCell className="hidden md:table-cell">
+                                                {employee.contractTypeName ? (
+                                                    <Badge variant="outline" className="font-normal text-xs">{employee.contractTypeName}</Badge>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">-</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="hidden lg:table-cell text-sm">{formatDate(employee.hireDate)}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={statusStyle.variant} className="font-normal text-xs">{statusStyle.label}</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </div>
 
                     {filteredEmployees.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                            Không có nhân viên nào phù hợp
+                        <div className="text-center py-12 text-muted-foreground">
+                            Không có nhân viên nào phù hợp với bộ lọc
                         </div>
                     )}
                 </CardContent>
             </Card>
 
-            {/* Detail Dialog */}
-            <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-                <DialogContent className="max-w-lg">
-                    {selectedEmployee && (
-                        <>
-                            <DialogHeader>
-                                <div className="flex items-center gap-4">
-                                    <Avatar className="h-16 w-16">
-                                        <AvatarFallback className="text-lg">
-                                            {getInitials(selectedEmployee.fullName)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <DialogTitle>{selectedEmployee.fullName}</DialogTitle>
-                                        <DialogDescription>
-                                            {selectedEmployee.employeeCode} • {selectedEmployee.positionName}
-                                        </DialogDescription>
-                                    </div>
-                                </div>
-                            </DialogHeader>
-
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <Mail className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-sm">{selectedEmployee.email}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Phone className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-sm">{selectedEmployee.phone}</span>
-                                    </div>
-                                </div>
-
-                                <Separator />
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Phòng ban</p>
-                                        <p className="font-medium flex items-center gap-2">
-                                            <Building className="h-4 w-4" />
-                                            {selectedEmployee.departmentName}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Chức vụ</p>
-                                        <p className="font-medium flex items-center gap-2">
-                                            <Briefcase className="h-4 w-4" />
-                                            {selectedEmployee.positionName}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Ngày vào làm</p>
-                                        <p className="font-medium">{formatDate(selectedEmployee.hireDate)}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Trạng thái</p>
-                                        <Badge variant={employeeStatusLabels[selectedEmployee.status].variant}>
-                                            {employeeStatusLabels[selectedEmployee.status].label}
-                                        </Badge>
-                                    </div>
-                                </div>
-
-                                {selectedEmployee.managerName && (
-                                    <>
-                                        <Separator />
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Quản lý trực tiếp</p>
-                                            <p className="font-medium">{selectedEmployee.managerName}</p>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Đóng</Button>
-                                <Button>Chỉnh sửa</Button>
-                            </DialogFooter>
-                        </>
-                    )}
-                </DialogContent>
-            </Dialog>
-
-            {/* Create Dialog */}
-            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Thêm nhân viên mới</DialogTitle>
-                        <DialogDescription>Nhập thông tin nhân viên</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label>Họ tên</Label>
-                                <Input defaultValue={initialData.name} placeholder="Nguyễn Văn A" />
-                            </div>
-                            <div>
-                                <Label>Mã nhân viên</Label>
-                                <Input placeholder="EMP009" />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label>Email</Label>
-                                <Input type="email" defaultValue={initialData.email} placeholder="email@company.com" />
-                            </div>
-                            <div>
-                                <Label>Số điện thoại</Label>
-                                <Input placeholder="0901234567" />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label>Phòng ban</Label>
-                                <Select>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Chọn phòng ban" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {mockDepartments.map((dept) => (
-                                            <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label>Chức vụ</Label>
-                                <Select>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Chọn chức vụ" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="5">Chuyên viên</SelectItem>
-                                        <SelectItem value="4">Chuyên viên cao cấp</SelectItem>
-                                        <SelectItem value="3">Team Lead</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div>
-                            <Label>Ngày vào làm</Label>
-                            <Input type="date" defaultValue={initialData.startDate ? new Date(initialData.startDate).toISOString().split('T')[0] : ''} />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Hủy</Button>
-                        <Button onClick={() => setCreateDialogOpen(false)}>Tạo nhân viên</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <EmployeeDialog
+                open={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
+                initialData={selectedEmployee}
+                onSubmit={handleSubmit}
+            />
         </div>
     );
 }

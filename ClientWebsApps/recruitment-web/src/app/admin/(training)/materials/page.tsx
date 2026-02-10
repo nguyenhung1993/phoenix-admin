@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
     Table,
     TableBody,
@@ -21,17 +21,16 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
-    mockTrainingMaterials,
-    mockCourses,
-    materialTypeLabels,
-    TrainingMaterial,
-    MaterialType,
-} from '@/lib/mocks';
+    mockMaterials,
+    getCourses,
+    Material,
+    MaterialType
+} from '@/lib/mocks/training';
 import {
     FileText,
     Video,
     File,
-    Link,
+    Link as LinkIcon,
     Presentation,
     Upload,
     Search,
@@ -40,40 +39,52 @@ import {
     Trash2,
     FolderOpen,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Icon mapping for material types
 const materialIcons: Record<MaterialType, React.ReactNode> = {
-    PDF: <FileText className="h-5 w-5 text-red-500" />,
-    VIDEO: <Video className="h-5 w-5 text-blue-500" />,
-    DOCUMENT: <File className="h-5 w-5 text-gray-500" />,
-    SLIDE: <Presentation className="h-5 w-5 text-orange-500" />,
-    LINK: <Link className="h-5 w-5 text-green-500" />,
+    pdf: <FileText className="h-5 w-5 text-red-500" />,
+    video: <Video className="h-5 w-5 text-blue-500" />,
+    slide: <Presentation className="h-5 w-5 text-orange-500" />,
+    link: <LinkIcon className="h-5 w-5 text-green-500" />,
 };
 
-function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
+const materialLabels: Record<MaterialType, string> = {
+    pdf: 'Tài liệu PDF',
+    video: 'Video',
+    slide: 'Slide bài giảng',
+    link: 'Liên kết ngoài',
+};
 
 export default function MaterialsPage() {
+    const [materials, setMaterials] = useState<Material[]>(mockMaterials);
     const [courseFilter, setCourseFilter] = useState('ALL');
     const [searchQuery, setSearchQuery] = useState('');
+    const courses = getCourses();
 
-    const filteredMaterials = mockTrainingMaterials.filter((mat) => {
+    const filteredMaterials = materials.filter((mat) => {
         const matchesCourse = courseFilter === 'ALL' || mat.courseId === courseFilter;
-        const matchesSearch = mat.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = mat.title.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesCourse && matchesSearch;
     });
 
-    const stats = {
-        total: mockTrainingMaterials.length,
-        pdf: mockTrainingMaterials.filter(m => m.type === 'PDF').length,
-        video: mockTrainingMaterials.filter(m => m.type === 'VIDEO').length,
-        other: mockTrainingMaterials.filter(m => !['PDF', 'VIDEO'].includes(m.type)).length,
+    const getCourseName = (courseId: string) => {
+        return courses.find(c => c.id === courseId)?.title || 'Unknown Course';
     };
+
+    const stats = {
+        total: materials.length,
+        pdf: materials.filter(m => m.type === 'pdf').length,
+        video: materials.filter(m => m.type === 'video').length,
+        slide: materials.filter(m => m.type === 'slide').length,
+    };
+
+    const handleDelete = (id: string) => {
+        if (confirm('Bạn có chắc chắn muốn xóa tài liệu này?')) {
+            setMaterials(materials.filter(m => m.id !== id));
+            toast.success('Đã xóa tài liệu');
+        }
+    }
 
     return (
         <div className="space-y-6">
@@ -127,10 +138,10 @@ export default function MaterialsPage() {
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-muted-foreground">Khác</p>
-                                <p className="text-2xl font-bold">{stats.other}</p>
+                                <p className="text-sm text-muted-foreground">Slides</p>
+                                <p className="text-2xl font-bold text-orange-600">{stats.slide}</p>
                             </div>
-                            <File className="h-8 w-8 text-muted-foreground" />
+                            <Presentation className="h-8 w-8 text-orange-500" />
                         </div>
                     </CardContent>
                 </Card>
@@ -153,9 +164,9 @@ export default function MaterialsPage() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">Tất cả khóa học</SelectItem>
-                        {mockCourses.map((course) => (
+                        {courses.map((course) => (
                             <SelectItem key={course.id} value={course.id}>
-                                {course.name}
+                                {course.title}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -175,8 +186,6 @@ export default function MaterialsPage() {
                                 <TableHead>Khóa học</TableHead>
                                 <TableHead>Loại</TableHead>
                                 <TableHead className="text-right">Kích thước</TableHead>
-                                <TableHead>Người tải lên</TableHead>
-                                <TableHead>Ngày tải</TableHead>
                                 <TableHead className="text-right">Thao tác</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -186,18 +195,16 @@ export default function MaterialsPage() {
                                     <TableCell>
                                         <div className="flex items-center gap-3">
                                             {materialIcons[material.type]}
-                                            <span className="font-medium">{material.name}</span>
+                                            <span className="font-medium">{material.title}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground">{material.courseName}</TableCell>
+                                    <TableCell className="text-muted-foreground">{getCourseName(material.courseId)}</TableCell>
                                     <TableCell>
-                                        <Badge variant="outline">{materialTypeLabels[material.type].label}</Badge>
+                                        <Badge variant="outline">{materialLabels[material.type]}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-sm">
-                                        {material.size ? formatFileSize(material.size) : '-'}
+                                        {material.size || '-'}
                                     </TableCell>
-                                    <TableCell>{material.uploadedBy}</TableCell>
-                                    <TableCell>{new Date(material.uploadedAt).toLocaleDateString('vi-VN')}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-1">
                                             <Button variant="ghost" size="icon">
@@ -206,7 +213,7 @@ export default function MaterialsPage() {
                                             <Button variant="ghost" size="icon">
                                                 <Download className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="text-red-600">
+                                            <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleDelete(material.id)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>

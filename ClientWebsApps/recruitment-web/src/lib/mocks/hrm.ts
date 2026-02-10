@@ -1,4 +1,5 @@
-// Mock data for HRM Core: Employees, Departments, Positions, Contracts
+export { mockContractTypes, mockShiftTypes } from './settings-hr';
+export type { ContractType, ShiftType } from './settings-hr';
 
 // ========== DEPARTMENTS ==========
 export interface Department {
@@ -65,6 +66,8 @@ export interface Employee {
     email: string;
     phone: string;
     address?: string;
+
+    // Work info
     departmentId: string;
     departmentName: string;
     positionId: string;
@@ -73,6 +76,19 @@ export interface Employee {
     hireDate: string;
     managerId?: string;
     managerName?: string;
+
+    // Settings references
+    contractTypeId?: string;
+    contractTypeName?: string;
+    shiftTypeId?: string;
+    shiftTypeName?: string;
+
+    // Personal & Banking
+    identityCard?: string; // CCCD
+    taxCode?: string;      // MST
+    bankAccount?: string;
+    bankName?: string;
+
     createdAt: string;
 }
 
@@ -80,42 +96,59 @@ export const mockEmployees: Employee[] = [
     {
         id: '1', employeeCode: 'EMP001', fullName: 'Nguyễn Văn Minh', dob: '1985-03-15', gender: 'MALE',
         email: 'minh.nguyen@lining.vn', phone: '0901234567', departmentId: '1', departmentName: 'Ban Giám đốc',
-        positionId: '1', positionName: 'Giám đốc', status: 'ACTIVE', hireDate: '2020-01-01', createdAt: '2020-01-01'
+        positionId: '1', positionName: 'Giám đốc', status: 'ACTIVE', hireDate: '2020-01-01', createdAt: '2020-01-01',
+        contractTypeId: '4', contractTypeName: 'HĐ Không xác định thời hạn',
+        shiftTypeId: 'SH_ADMIN', shiftTypeName: 'Ca Hành chính',
+        identityCard: '001085000123', taxCode: '8000123456'
     },
     {
         id: '2', employeeCode: 'EMP002', fullName: 'Trần Thị Hương', dob: '1990-07-22', gender: 'FEMALE',
         email: 'huong.tran@lining.vn', phone: '0912345678', departmentId: '2', departmentName: 'Nhân sự',
-        positionId: '2', positionName: 'Trưởng phòng', status: 'ACTIVE', hireDate: '2020-02-15', managerId: '1', managerName: 'Nguyễn Văn Minh', createdAt: '2020-02-15'
+        positionId: '2', positionName: 'Trưởng phòng', status: 'ACTIVE', hireDate: '2020-02-15', managerId: '1', managerName: 'Nguyễn Văn Minh', createdAt: '2020-02-15',
+        contractTypeId: '4', contractTypeName: 'HĐ Không xác định thời hạn',
+        shiftTypeId: 'SH_ADMIN', shiftTypeName: 'Ca Hành chính'
     },
     {
         id: '3', employeeCode: 'EMP003', fullName: 'Phạm Văn Tùng', dob: '1988-11-30', gender: 'MALE',
         email: 'tung.pham@lining.vn', phone: '0923456789', departmentId: '3', departmentName: 'Công nghệ thông tin',
-        positionId: '2', positionName: 'Trưởng phòng', status: 'ACTIVE', hireDate: '2020-03-01', managerId: '1', managerName: 'Nguyễn Văn Minh', createdAt: '2020-03-01'
+        positionId: '2', positionName: 'Trưởng phòng', status: 'ACTIVE', hireDate: '2020-03-01', managerId: '1', managerName: 'Nguyễn Văn Minh', createdAt: '2020-03-01',
+        contractTypeId: '4', contractTypeName: 'HĐ Không xác định thời hạn',
+        shiftTypeId: 'SH_ADMIN', shiftTypeName: 'Ca Hành chính'
     },
     {
         id: '4', employeeCode: 'EMP004', fullName: 'Nguyễn Hoàng Nam', dob: '1992-05-18', gender: 'MALE',
         email: 'nam.nguyen@lining.vn', phone: '0934567890', departmentId: '4', departmentName: 'Marketing',
-        positionId: '2', positionName: 'Trưởng phòng', status: 'ACTIVE', hireDate: '2020-04-01', managerId: '1', managerName: 'Nguyễn Văn Minh', createdAt: '2020-04-01'
+        positionId: '2', positionName: 'Trưởng phòng', status: 'ACTIVE', hireDate: '2020-04-01', managerId: '1', managerName: 'Nguyễn Văn Minh', createdAt: '2020-04-01',
+        contractTypeId: '4', contractTypeName: 'HĐ Không xác định thời hạn',
+        shiftTypeId: 'SH_ADMIN', shiftTypeName: 'Ca Hành chính'
     },
     {
         id: '5', employeeCode: 'EMP005', fullName: 'Lê Minh Đức', dob: '1987-09-25', gender: 'MALE',
         email: 'duc.le@lining.vn', phone: '0945678901', departmentId: '5', departmentName: 'Bán lẻ',
-        positionId: '2', positionName: 'Trưởng phòng', status: 'ACTIVE', hireDate: '2020-05-15', managerId: '1', managerName: 'Nguyễn Văn Minh', createdAt: '2020-05-15'
+        positionId: '2', positionName: 'Trưởng phòng', status: 'ACTIVE', hireDate: '2020-05-15', managerId: '1', managerName: 'Nguyễn Văn Minh', createdAt: '2020-05-15',
+        contractTypeId: '4', contractTypeName: 'HĐ Không xác định thời hạn',
+        shiftTypeId: 'SH_ADMIN', shiftTypeName: 'Ca Hành chính'
     },
     {
         id: '6', employeeCode: 'EMP006', fullName: 'Võ Thị Lan', dob: '1995-01-10', gender: 'FEMALE',
         email: 'lan.vo@lining.vn', phone: '0956789012', departmentId: '2', departmentName: 'Nhân sự',
-        positionId: '5', positionName: 'Chuyên viên', status: 'ACTIVE', hireDate: '2021-06-01', managerId: '2', managerName: 'Trần Thị Hương', createdAt: '2021-06-01'
+        positionId: '5', positionName: 'Chuyên viên', status: 'ACTIVE', hireDate: '2021-06-01', managerId: '2', managerName: 'Trần Thị Hương', createdAt: '2021-06-01',
+        contractTypeId: '2', contractTypeName: 'HĐ Chính thức (1 năm)',
+        shiftTypeId: 'SH_ADMIN', shiftTypeName: 'Ca Hành chính'
     },
     {
         id: '7', employeeCode: 'EMP007', fullName: 'Hoàng Văn Tuấn', dob: '1993-08-05', gender: 'MALE',
         email: 'tuan.hoang@lining.vn', phone: '0967890123', departmentId: '3', departmentName: 'Công nghệ thông tin',
-        positionId: '4', positionName: 'Chuyên viên cao cấp', status: 'ACTIVE', hireDate: '2021-07-15', managerId: '3', managerName: 'Phạm Văn Tùng', createdAt: '2021-07-15'
+        positionId: '4', positionName: 'Chuyên viên cao cấp', status: 'ACTIVE', hireDate: '2021-07-15', managerId: '3', managerName: 'Phạm Văn Tùng', createdAt: '2021-07-15',
+        contractTypeId: '2', contractTypeName: 'HĐ Chính thức (1 năm)',
+        shiftTypeId: 'SH_ADMIN', shiftTypeName: 'Ca Hành chính'
     },
     {
         id: '8', employeeCode: 'EMP008', fullName: 'Trần Thị Bình', dob: '1996-04-20', gender: 'FEMALE',
         email: 'binh.tran@lining.vn', phone: '0978901234', departmentId: '4', departmentName: 'Marketing',
-        positionId: '5', positionName: 'Chuyên viên', status: 'PROBATION', hireDate: '2026-03-01', managerId: '4', managerName: 'Nguyễn Hoàng Nam', createdAt: '2026-02-04'
+        positionId: '5', positionName: 'Chuyên viên', status: 'PROBATION', hireDate: '2026-03-01', managerId: '4', managerName: 'Nguyễn Hoàng Nam', createdAt: '2026-02-04',
+        contractTypeId: '1', contractTypeName: 'HĐ Thử việc',
+        shiftTypeId: 'SH_MORNING', shiftTypeName: 'Ca Sáng (Retail)'
     },
 ];
 
@@ -126,12 +159,21 @@ export const employeeStatusLabels: Record<string, { label: string; variant: 'def
     ON_LEAVE: { label: 'Nghỉ phép', variant: 'outline' },
 };
 
+// Deprecated: Old ContractType simple interface - kept for compatibility if needed, but prefer settings-hr types
+export interface SimpleContractType {
+    id: string;
+    code: string;
+    name: string;
+    description?: string;
+    isActive: boolean;
+}
+
 // ========== CONTRACTS ==========
 export interface Contract {
     id: string;
     employeeId: string;
     employeeName: string;
-    contractType: 'PROBATION' | 'FIXED_TERM' | 'INDEFINITE';
+    contractType: string; // Changed from union to string to support dynamic types
     startDate: string;
     endDate?: string;
     salary: number;
