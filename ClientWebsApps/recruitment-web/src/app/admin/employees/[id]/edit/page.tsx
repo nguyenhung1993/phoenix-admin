@@ -5,6 +5,8 @@ import prisma from '@/lib/prisma';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+export const dynamic = 'force-dynamic';
+
 interface EditEmployeePageProps {
     params: Promise<{ id: string }>;
 }
