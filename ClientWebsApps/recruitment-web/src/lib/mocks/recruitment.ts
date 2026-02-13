@@ -1,5 +1,16 @@
 // Mock Data - Recruitment Module
 // Consolidates: mock-data.ts, mock-candidates.ts, mock-interviews.ts, mock-offers.ts, mock-onboarding.ts
+import { formatDate, formatCurrency } from '@/lib/utils';
+// Quick wrapper for formatDateTime since it's not in utils yet, or move it to utils?
+// For now, let's keep formatDateTime here or add to utils.
+// Actually, let's add formatDateTime to utils as well to be consistent. 
+export { formatDate, formatCurrency };
+
+export const formatDateTime = (date: string | Date) => {
+    return new Date(date).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+
 
 // ==================== JOBS ====================
 export interface Job {
@@ -375,15 +386,4 @@ export const mockOnboardings: EmployeeOnboarding[] = [
     },
 ];
 
-// ==================== UTILITIES ====================
-export const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
 
-export const formatDateTime = (date: string) => {
-    return new Date(date).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
-
-export const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-};

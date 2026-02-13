@@ -43,3 +43,5 @@ lint_errors.txt
 build.log 
 lint_errors.txt  
 build.log 
+
+/src/generated/prisma

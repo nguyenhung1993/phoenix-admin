@@ -1,6 +1,9 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { hasPermission, Role } from "@/lib/rbac";
 import { NextResponse } from "next/server";
+
+const { auth } = NextAuth(authConfig);
 
 // Roles that can access admin area (have at least dashboard:view permission)
 const adminAccessRoles: Role[] = [
@@ -16,6 +19,8 @@ export default auth((req) => {
     const { pathname } = req.nextUrl;
     const isLoggedIn = !!req.auth;
     const userRole = req.auth?.user?.role as Role | undefined;
+
+
 
     // Protect /admin routes
     if (pathname.startsWith("/admin")) {

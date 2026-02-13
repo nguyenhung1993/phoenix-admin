@@ -3,18 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MapPin, Clock, Building2, ArrowRight } from 'lucide-react';
-import { Job, formatCurrency } from '@/lib/mocks';
+import { PublicJobItem, jobTypeLabels } from '@/lib/schemas/recruitment';
+import { formatCurrency } from '@/lib/utils';
 
 interface JobCardProps {
-    job: Job;
+    job: PublicJobItem;
 }
-
-const typeLabels: Record<string, string> = {
-    FULLTIME: 'Toàn thời gian',
-    PARTTIME: 'Bán thời gian',
-    INTERNSHIP: 'Thực tập',
-    CONTRACT: 'Hợp đồng',
-};
 
 const workModeLabels: Record<string, string> = {
     ONSITE: 'Tại văn phòng',
@@ -33,13 +27,11 @@ export function JobCard({ job }: JobCardProps) {
                         </CardTitle>
                         <CardDescription className="mt-1">{job.department}</CardDescription>
                     </div>
-                    <Badge variant="secondary">{typeLabels[job.type]}</Badge>
+                    <Badge variant="secondary">{jobTypeLabels[job.type] || job.type}</Badge>
                 </div>
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground line-clamp-2">{job.description}</p>
-
                     <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
@@ -47,7 +39,7 @@ export function JobCard({ job }: JobCardProps) {
                         </span>
                         <span className="flex items-center gap-1">
                             <Building2 className="h-4 w-4" />
-                            {workModeLabels[job.workMode]}
+                            {workModeLabels[job.workMode] || job.workMode}
                         </span>
                         <span className="flex items-center gap-1">
                             <Clock className="h-4 w-4" />

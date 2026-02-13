@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,12 +32,14 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
-    mockInterviews,
+    InterviewItem,
+    InterviewStatus,
+    InterviewStatusValues,
     interviewTypeLabels,
     interviewStatusLabels,
-    Interview,
-    formatDateTime,
-} from '@/lib/mocks';
+    recommendationLabels,
+    CandidateItem,
+} from '@/lib/schemas/recruitment';
 import {
     Search,
     Calendar,
@@ -49,35 +51,77 @@ import {
     Star,
     Plus,
     MessageSquare,
+    Loader2,
+    Trash2,
 } from 'lucide-react';
-
-const recommendationLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    HIRE: { label: 'Tuyển dụng', variant: 'default' },
-    REJECT: { label: 'Từ chối', variant: 'destructive' },
-    NEXT_ROUND: { label: 'Vòng tiếp theo', variant: 'secondary' },
-    UNDECIDED: { label: 'Chưa quyết định', variant: 'outline' },
-};
+import { toast } from 'sonner';
 
 export default function AdminInterviewsPage() {
+    const [interviews, setInterviews] = useState<InterviewItem[]>([]);
+    const [candidates, setCandidates] = useState<CandidateItem[]>([]);
+    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
-    const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
+    const [selectedInterview, setSelectedInterview] = useState<InterviewItem | null>(null);
     const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
     const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    const filteredInterviews = mockInterviews.filter((interview) => {
-        const matchesSearch =
-            interview.candidateName.toLowerCase().includes(search.toLowerCase()) ||
-            interview.jobTitle.toLowerCase().includes(search.toLowerCase());
-        const matchesStatus = statusFilter === 'ALL' || interview.status === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
+    // Feedback form state
+    const [fbRecommendation, setFbRecommendation] = useState('UNDECIDED');
+    const [fbRating, setFbRating] = useState('3');
+    const [fbNotes, setFbNotes] = useState('');
+
+    // Schedule form state
+    const [schedCandidateId, setSchedCandidateId] = useState('');
+    const [schedDate, setSchedDate] = useState('');
+    const [schedTime, setSchedTime] = useState('');
+    const [schedDuration, setSchedDuration] = useState('45');
+    const [schedType, setSchedType] = useState('VIDEO');
+    const [schedInterviewerName, setSchedInterviewerName] = useState('');
+
+    const fetchInterviews = useCallback(async () => {
+        try {
+            setLoading(true);
+            const params = new URLSearchParams();
+            if (search) params.set('search', search);
+            if (statusFilter !== 'ALL') params.set('status', statusFilter);
+
+            const res = await fetch(`/api/interviews?${params}`);
+            const data = await res.json();
+            setInterviews(data.data || []);
+        } catch {
+            toast.error('Không thể tải dữ liệu phỏng vấn');
+        } finally {
+            setLoading(false);
+        }
+    }, [search, statusFilter]);
+
+    const fetchCandidates = async () => {
+        try {
+            const res = await fetch('/api/candidates?limit=100');
+            const data = await res.json();
+            setCandidates(data.data || []);
+        } catch {
+            console.warn('Could not load candidates');
+        }
+    };
+
+    useEffect(() => {
+        fetchInterviews();
+    }, [fetchInterviews]);
+
+    useEffect(() => {
+        fetchCandidates();
+    }, []);
+
+    const filteredInterviews = interviews;
 
     const interviewsByStatus = {
-        ALL: mockInterviews.length,
-        SCHEDULED: mockInterviews.filter((i) => i.status === 'SCHEDULED').length,
-        COMPLETED: mockInterviews.filter((i) => i.status === 'COMPLETED').length,
-        CANCELLED: mockInterviews.filter((i) => i.status === 'CANCELLED').length,
+        ALL: interviews.length,
+        SCHEDULED: interviews.filter((i) => i.status === 'SCHEDULED').length,
+        COMPLETED: interviews.filter((i) => i.status === 'COMPLETED').length,
+        CANCELLED: interviews.filter((i) => i.status === 'CANCELLED').length,
     };
 
     const getTypeIcon = (type: string) => {
@@ -93,15 +137,92 @@ export default function AdminInterviewsPage() {
         }
     };
 
-    // Helper function to safely format date using the one from mocks or local logic if needed.
-    // The imported formatDateTime treats input as ISO string.
     const getFormattedDate = (dateString: string) => {
-        // We can just use the utility from mocks if it fits, but splitting date/time might need custom logic
         const date = new Date(dateString);
         return {
             date: date.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' }),
             time: date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         };
+    };
+
+    const handleSaveFeedback = async () => {
+        if (!selectedInterview) return;
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/interviews/${selectedInterview.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'COMPLETED',
+                    feedback: {
+                        recommendation: fbRecommendation,
+                        rating: parseInt(fbRating),
+                        notes: fbNotes,
+                    },
+                }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            toast.success('Đã lưu đánh giá phỏng vấn');
+            setFeedbackDialogOpen(false);
+            fetchInterviews();
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleSchedule = async () => {
+        if (!schedCandidateId || !schedDate || !schedTime) {
+            toast.error('Vui lòng điền đầy đủ thông tin');
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const scheduledAt = new Date(`${schedDate}T${schedTime}`).toISOString();
+            const res = await fetch('/api/interviews', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidateId: schedCandidateId,
+                    type: schedType,
+                    scheduledAt,
+                    duration: parseInt(schedDuration),
+                    interviewers: schedInterviewerName ? [{ name: schedInterviewerName }] : [],
+                }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            toast.success('Đã lên lịch phỏng vấn');
+            setScheduleDialogOpen(false);
+            // Reset form
+            setSchedCandidateId('');
+            setSchedDate('');
+            setSchedTime('');
+            setSchedDuration('45');
+            setSchedType('VIDEO');
+            setSchedInterviewerName('');
+            fetchInterviews();
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleCancel = async (id: string) => {
+        if (!confirm('Bạn có chắc muốn hủy buổi phỏng vấn này?')) return;
+        try {
+            const res = await fetch(`/api/interviews/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'CANCELLED' }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            toast.success('Đã hủy phỏng vấn');
+            fetchInterviews();
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        }
     };
 
     return (
@@ -150,94 +271,143 @@ export default function AdminInterviewsPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Ứng viên</TableHead>
-                                <TableHead>Vị trí</TableHead>
-                                <TableHead>Thời gian</TableHead>
-                                <TableHead>Hình thức</TableHead>
-                                <TableHead>Người PV</TableHead>
-                                <TableHead>Trạng thái</TableHead>
-                                <TableHead>Kết quả</TableHead>
-                                <TableHead className="text-right">Thao tác</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredInterviews.map((interview) => {
-                                const { date, time } = getFormattedDate(interview.scheduledAt);
-                                const statusStyle = interviewStatusLabels[interview.status];
-                                const feedback = interview.feedback;
-                                const recommendationStyle = feedback?.recommendation ? recommendationLabels[feedback.recommendation] : null;
-
-                                return (
-                                    <TableRow key={interview.id}>
-                                        <TableCell className="font-medium">
-                                            {interview.candidateName}
-                                        </TableCell>
-                                        <TableCell>{interview.jobTitle}</TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="flex items-center gap-1">
-                                                    <Calendar className="h-3 w-3" />
-                                                    {date}
-                                                </span>
-                                                <span className="flex items-center gap-1 text-muted-foreground text-sm">
-                                                    <Clock className="h-3 w-3" />
-                                                    {time} ({interview.duration} phút)
-                                                </span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1">
-                                                {getTypeIcon(interview.type)}
-                                                <span>{interviewTypeLabels[interview.type]}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1">
-                                                <Users className="h-3 w-3" />
-                                                <span>{interview.interviewers.length}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {recommendationStyle && (
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant={recommendationStyle.variant}>{recommendationStyle.label}</Badge>
-                                                    {feedback?.rating && (
-                                                        <span className="flex items-center gap-0.5 text-sm text-yellow-500">
-                                                            <Star className="h-3 w-3 fill-current" />
-                                                            {feedback.rating}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => {
-                                                    setSelectedInterview(interview);
-                                                    setFeedbackDialogOpen(true);
-                                                }}
-                                            >
-                                                <MessageSquare className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-
-                    {filteredInterviews.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                            Không có lịch phỏng vấn nào phù hợp
+                    {loading ? (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
+                    ) : (
+                        <>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Ứng viên</TableHead>
+                                        <TableHead>Vị trí</TableHead>
+                                        <TableHead>Thời gian</TableHead>
+                                        <TableHead>Hình thức</TableHead>
+                                        <TableHead>Người PV</TableHead>
+                                        <TableHead>Trạng thái</TableHead>
+                                        <TableHead>Kết quả</TableHead>
+                                        <TableHead className="text-right">Thao tác</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredInterviews.map((interview) => {
+                                        const { date, time } = getFormattedDate(interview.scheduledAt);
+                                        const statusStyle = interviewStatusLabels[interview.status as InterviewStatus];
+                                        const feedback = interview.feedback;
+                                        const recommendationStyle = feedback?.recommendation
+                                            ? recommendationLabels[feedback.recommendation]
+                                            : null;
+                                        const interviewers = Array.isArray(interview.interviewers) ? interview.interviewers : [];
+
+                                        return (
+                                            <TableRow key={interview.id}>
+                                                <TableCell className="font-medium">
+                                                    {interview.candidate?.name || 'N/A'}
+                                                </TableCell>
+                                                <TableCell>{interview.job?.title || 'N/A'}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="flex items-center gap-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            {date}
+                                                        </span>
+                                                        <span className="flex items-center gap-1 text-muted-foreground text-sm">
+                                                            <Clock className="h-3 w-3" />
+                                                            {time} ({interview.duration} phút)
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-1">
+                                                        {getTypeIcon(interview.type)}
+                                                        <span>{interviewTypeLabels[interview.type]}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-1">
+                                                        <Users className="h-3 w-3" />
+                                                        <span>{interviewers.length}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {statusStyle && (
+                                                        <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {recommendationStyle && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant={recommendationStyle.variant}>
+                                                                {recommendationStyle.label}
+                                                            </Badge>
+                                                            {feedback?.rating && (
+                                                                <span className="flex items-center gap-0.5 text-sm text-yellow-500">
+                                                                    <Star className="h-3 w-3 fill-current" />
+                                                                    {feedback.rating}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-1">
+                                                        {interview.status === 'SCHEDULED' && (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    title="Đánh giá"
+                                                                    onClick={() => {
+                                                                        setSelectedInterview(interview);
+                                                                        setFbRecommendation(feedback?.recommendation || 'UNDECIDED');
+                                                                        setFbRating(String(feedback?.rating || 3));
+                                                                        setFbNotes(feedback?.notes || '');
+                                                                        setFeedbackDialogOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <MessageSquare className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    title="Hủy"
+                                                                    onClick={() => handleCancel(interview.id)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                        {interview.status === 'COMPLETED' && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                title="Xem đánh giá"
+                                                                onClick={() => {
+                                                                    setSelectedInterview(interview);
+                                                                    setFbRecommendation(feedback?.recommendation || 'UNDECIDED');
+                                                                    setFbRating(String(feedback?.rating || 3));
+                                                                    setFbNotes(feedback?.notes || '');
+                                                                    setFeedbackDialogOpen(true);
+                                                                }}
+                                                            >
+                                                                <MessageSquare className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+
+                            {filteredInterviews.length === 0 && (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    Không có lịch phỏng vấn nào phù hợp
+                                </div>
+                            )}
+                        </>
                     )}
                 </CardContent>
             </Card>
@@ -250,13 +420,13 @@ export default function AdminInterviewsPage() {
                             <DialogHeader>
                                 <DialogTitle>Đánh giá phỏng vấn</DialogTitle>
                                 <DialogDescription>
-                                    {selectedInterview.candidateName} - {selectedInterview.jobTitle}
+                                    {selectedInterview.candidate?.name} - {selectedInterview.job?.title}
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
                                 <div>
                                     <Label>Kết quả</Label>
-                                    <Select defaultValue={selectedInterview.feedback?.recommendation || 'UNDECIDED'}>
+                                    <Select value={fbRecommendation} onValueChange={setFbRecommendation}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -270,7 +440,7 @@ export default function AdminInterviewsPage() {
                                 </div>
                                 <div>
                                     <Label>Đánh giá (1-5 sao)</Label>
-                                    <Select defaultValue={String(selectedInterview.feedback?.rating || 3)}>
+                                    <Select value={fbRating} onValueChange={setFbRating}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -287,7 +457,8 @@ export default function AdminInterviewsPage() {
                                     <Label>Nhận xét</Label>
                                     <Textarea
                                         placeholder="Nhập nhận xét về ứng viên..."
-                                        defaultValue={selectedInterview.feedback?.notes}
+                                        value={fbNotes}
+                                        onChange={(e) => setFbNotes(e.target.value)}
                                         rows={4}
                                     />
                                 </div>
@@ -296,7 +467,10 @@ export default function AdminInterviewsPage() {
                                 <Button variant="outline" onClick={() => setFeedbackDialogOpen(false)}>
                                     Hủy
                                 </Button>
-                                <Button onClick={() => setFeedbackDialogOpen(false)}>Lưu đánh giá</Button>
+                                <Button onClick={handleSaveFeedback} disabled={submitting}>
+                                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Lưu đánh giá
+                                </Button>
                             </DialogFooter>
                         </>
                     )}
@@ -315,29 +489,32 @@ export default function AdminInterviewsPage() {
                     <div className="space-y-4">
                         <div>
                             <Label>Ứng viên</Label>
-                            <Select>
+                            <Select value={schedCandidateId} onValueChange={setSchedCandidateId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Chọn ứng viên" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="1">Nguyễn Văn An - Store Manager</SelectItem>
-                                    <SelectItem value="2">Trần Thị Bình - Marketing Executive</SelectItem>
+                                    {candidates.map((c) => (
+                                        <SelectItem key={c.id} value={c.id}>
+                                            {c.name} - {c.job?.title || 'N/A'}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <Label>Ngày</Label>
-                                <Input type="date" />
+                                <Input type="date" value={schedDate} onChange={(e) => setSchedDate(e.target.value)} />
                             </div>
                             <div>
                                 <Label>Giờ</Label>
-                                <Input type="time" />
+                                <Input type="time" value={schedTime} onChange={(e) => setSchedTime(e.target.value)} />
                             </div>
                         </div>
                         <div>
                             <Label>Thời lượng (phút)</Label>
-                            <Select defaultValue="45">
+                            <Select value={schedDuration} onValueChange={setSchedDuration}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
@@ -351,7 +528,7 @@ export default function AdminInterviewsPage() {
                         </div>
                         <div>
                             <Label>Hình thức</Label>
-                            <Select defaultValue="VIDEO">
+                            <Select value={schedType} onValueChange={setSchedType}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
@@ -364,14 +541,21 @@ export default function AdminInterviewsPage() {
                         </div>
                         <div>
                             <Label>Người phỏng vấn</Label>
-                            <Input placeholder="Nhập tên người phỏng vấn" />
+                            <Input
+                                placeholder="Nhập tên người phỏng vấn"
+                                value={schedInterviewerName}
+                                onChange={(e) => setSchedInterviewerName(e.target.value)}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>
                             Hủy
                         </Button>
-                        <Button onClick={() => setScheduleDialogOpen(false)}>Tạo lịch</Button>
+                        <Button onClick={handleSchedule} disabled={submitting}>
+                            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Tạo lịch
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

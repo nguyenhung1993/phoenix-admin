@@ -1,41 +1,11 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { compare } from "bcryptjs";
+import prisma from "./prisma";
 import { Role } from "./rbac";
-
-// User role mapping by email
-const userRoles: Record<string, Role> = {
-    // MOCK ACCOUNTS
-    "admin@phoenix.com": "SUPER_ADMIN",
-    "manager@phoenix.com": "HR_MANAGER",
-    "employee@phoenix.com": "EMPLOYEE",
-};
-
-// Mock Users Database
-const mockUsers = [
-    {
-        id: "usr_admin",
-        name: "Admin User",
-        email: "admin@phoenix.com",
-        password: "123", // Simple mock password
-        image: "https://avatar.vercel.sh/admin",
-    },
-    {
-        id: "usr_manager",
-        name: "HR Manager",
-        email: "manager@phoenix.com",
-        password: "123",
-        image: "https://avatar.vercel.sh/manager",
-    },
-    {
-        id: "usr_employee",
-        name: "Nguyễn Văn Minh", // Matching ID 1 in mocks/cb.ts
-        email: "employee@phoenix.com",
-        baseSalary: 30000000, // Linked to payroll mock
-        password: "123",
-        image: "https://avatar.vercel.sh/employee",
-    },
-];
+import { authConfig } from "./auth.config";
 
 // Admin emails from env
 const getAdminEmails = (): string[] => {
@@ -49,14 +19,21 @@ export const isAdmin = (email: string | null | undefined): boolean => {
     return adminEmails.includes(email.toLowerCase());
 };
 
-// Get user role
-export const getUserRole = (email: string | null | undefined): Role => {
+// Get user role from database or fallback
+export const getUserRole = async (email: string | null | undefined): Promise<Role> => {
     if (!email) return "EMPLOYEE";
-    const normalizedEmail = email.toLowerCase();
 
-    // Check specific role mapping first
-    if (userRoles[normalizedEmail]) {
-        return userRoles[normalizedEmail];
+    try {
+        const user = await prisma.user.findUnique({
+            where: { email: email.toLowerCase() },
+            select: { role: true },
+        });
+
+        if (user?.role) {
+            return user.role as Role;
+        }
+    } catch {
+        // DB not available, fall back
     }
 
     // Fall back to admin emails env
@@ -68,6 +45,9 @@ export const getUserRole = (email: string | null | undefined): Role => {
 };
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+    ...authConfig,
+    adapter: PrismaAdapter(prisma),
+    session: { strategy: "jwt" },
     providers: [
         Google({
             clientId: process.env.GOOGLE_CLIENT_ID,
@@ -83,40 +63,73 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 const email = credentials?.email as string;
                 const password = credentials?.password as string;
 
-                // Find mock user
-                const user = mockUsers.find(u => u.email === email && u.password === password);
+                if (!email || !password) return null;
 
-                if (user) {
+                try {
+                    const user = await prisma.user.findUnique({
+                        where: { email: email.toLowerCase() },
+                    });
+
+                    if (!user || !user.password) return null;
+
+                    const isValid = await compare(password, user.password);
+                    if (!isValid) return null;
+
                     return {
-                        id: user.id === "usr_employee" ? "1" : user.id, // Map employee to "1" for payroll mock connection
+                        id: user.id,
                         name: user.name,
                         email: user.email,
                         image: user.image,
+                        role: user.role, // Pass role to token
                     };
-                }
+                } catch {
+                    // DB not available, fall back to mock for development
+                    const mockUsers = [
+                        { id: "usr_admin", name: "Admin User", email: "admin@phoenix.com", password: "123", image: "https://avatar.vercel.sh/admin", role: "SUPER_ADMIN" },
+                        { id: "usr_manager", name: "HR Manager", email: "manager@phoenix.com", password: "123", image: "https://avatar.vercel.sh/manager", role: "HR_MANAGER" },
+                        { id: "usr_employee", name: "Nguyễn Văn Minh", email: "employee@phoenix.com", password: "123", image: "https://avatar.vercel.sh/employee", role: "EMPLOYEE" },
+                    ];
 
-                return null;
+                    const mockUser = mockUsers.find(u => u.email === email && u.password === password);
+                    if (mockUser) {
+                        return { id: mockUser.id, name: mockUser.name, email: mockUser.email, image: mockUser.image, role: mockUser.role as Role };
+                    }
+                    return null;
+                }
             }
         })
     ],
-    pages: {
-        signIn: "/login",
-    },
     callbacks: {
+        ...authConfig.callbacks,
         async session({ session, token }) {
             if (token.sub) {
                 session.user.id = token.sub;
             }
-            // Add role to session using RBAC
-            const role = getUserRole(session.user?.email);
-            session.user.role = role;
+            if (token.role) {
+                session.user.role = token.role as Role;
+            } else if (session.user.email) {
+                // Determine role if not in token (e.g. OAuth first login)
+                const role = await getUserRole(session.user.email);
+                session.user.role = role;
+                // We should also update the token with the role so subsequent requests have it? 
+                // Creating a session doesn't update the token. 
+                // The jwt callback runs before session.
+            }
             return session;
         },
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
+                if ('role' in user) {
+                    token.role = user.role as Role;
+                }
+            }
+            // If role is missing (e.g. OAuth login), try to fetch it
+            if (!token.role && token.email) {
+                const role = await getUserRole(token.email);
+                token.role = role;
             }
             return token;
         },
-    },
+    }
 });

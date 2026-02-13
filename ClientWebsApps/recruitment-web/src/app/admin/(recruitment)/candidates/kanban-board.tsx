@@ -10,41 +10,37 @@ import {
     useSensor,
     useSensors,
     DragStartEvent,
-    DragOverEvent,
     DragEndEvent,
     defaultDropAnimationSideEffects,
     DropAnimation,
 } from '@dnd-kit/core';
 import {
-    arrayMove,
     SortableContext,
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Candidate, CandidateStatus, candidateStatusLabels } from '@/lib/mocks/recruitment';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CandidateItem, CandidateStatus, CandidateStatusValues, candidateStatusLabels } from '@/lib/schemas/recruitment';
+import { formatDate } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, Calendar, Mail } from 'lucide-react';
-import { formatDate } from '@/lib/mocks';
+import { Calendar } from 'lucide-react';
 
 interface KanbanBoardProps {
-    candidates: Candidate[];
+    candidates: CandidateItem[];
     onStatusChange: (candidateId: string, newStatus: CandidateStatus) => void;
-    onCandidateClick: (candidate: Candidate) => void;
+    onCandidateClick: (candidate: CandidateItem) => void;
 }
 
-const COLUMNS: CandidateStatus[] = ['NEW', 'SCREENING', 'INTERVIEW', 'OFFER', 'HIRED', 'REJECTED'];
+const COLUMNS: CandidateStatus[] = [...CandidateStatusValues];
 
 export function KanbanBoard({ candidates, onStatusChange, onCandidateClick }: KanbanBoardProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
 
     // Group candidates by status
     const columns = useMemo(() => {
-        const cols: Record<CandidateStatus, Candidate[]> = {
+        const cols: Record<CandidateStatus, CandidateItem[]> = {
             NEW: [],
             SCREENING: [],
             INTERVIEW: [],
@@ -75,18 +71,16 @@ export function KanbanBoard({ candidates, onStatusChange, onCandidateClick }: Ka
 
         if (!over) return;
 
-        const activeId = active.id as string;
+        const activeIdStr = active.id as string;
         const overId = over.id as string;
 
-        // Find the candidate and the new status
         // If dropping on a container (column), overId is the status
         // If dropping on an item, we need to find its status
         let newStatus: CandidateStatus | undefined;
 
-        if (COLUMNS.includes(overId as CandidateStatus)) {
+        if ((COLUMNS as string[]).includes(overId)) {
             newStatus = overId as CandidateStatus;
         } else {
-            // Dropped on another candidate, find that candidate's status
             const overCandidate = candidates.find(c => c.id === overId);
             if (overCandidate) {
                 newStatus = overCandidate.status;
@@ -94,9 +88,9 @@ export function KanbanBoard({ candidates, onStatusChange, onCandidateClick }: Ka
         }
 
         if (newStatus) {
-            const candidate = candidates.find(c => c.id === activeId);
+            const candidate = candidates.find(c => c.id === activeIdStr);
             if (candidate && candidate.status !== newStatus) {
-                onStatusChange(activeId, newStatus);
+                onStatusChange(activeIdStr, newStatus);
             }
         }
     };
@@ -139,14 +133,14 @@ export function KanbanBoard({ candidates, onStatusChange, onCandidateClick }: Ka
     );
 }
 
-function KanbanColumn({ id, status, candidates, onCandidateClick }: { id: string; status: CandidateStatus; candidates: Candidate[]; onCandidateClick: (candidate: Candidate) => void }) {
+function KanbanColumn({ id, status, candidates, onCandidateClick }: { id: string; status: CandidateStatus; candidates: CandidateItem[]; onCandidateClick: (candidate: CandidateItem) => void }) {
     const { setNodeRef } = useSortable({
         id: id,
         data: {
             type: 'Column',
             status: status,
         },
-        disabled: true // Disable dragging columns for now
+        disabled: true
     });
 
     const statusInfo = candidateStatusLabels[status];
@@ -172,7 +166,7 @@ function KanbanColumn({ id, status, candidates, onCandidateClick }: { id: string
     );
 }
 
-function SortableCandidateCard({ candidate, onClick }: { candidate: Candidate; onClick: () => void }) {
+function SortableCandidateCard({ candidate, onClick }: { candidate: CandidateItem; onClick: () => void }) {
     const {
         attributes,
         listeners,
@@ -195,20 +189,20 @@ function SortableCandidateCard({ candidate, onClick }: { candidate: Candidate; o
     );
 }
 
-function CandidateCard({ candidate, onClick }: { candidate: Candidate; onClick?: () => void }) {
+function CandidateCard({ candidate, onClick }: { candidate: CandidateItem; onClick?: () => void }) {
     return (
         <Card onClick={onClick} className="cursor-grab hover:shadow-md transition-shadow bg-card">
             <CardContent className="p-3 space-y-2">
                 <div className="flex items-start justify-between">
                     <div>
                         <h4 className="font-semibold text-sm line-clamp-1">{candidate.name}</h4>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{candidate.jobTitle}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{candidate.job?.title || '—'}</p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3" />
-                    <span>{formatDate(candidate.appliedDate)}</span>
+                    <span>{formatDate(candidate.appliedAt)}</span>
                 </div>
 
                 {candidate.rating && (

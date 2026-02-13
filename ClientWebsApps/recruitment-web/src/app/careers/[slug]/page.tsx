@@ -1,23 +1,29 @@
-import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { mockJobs, formatCurrency } from '@/lib/mocks';
 import { ArrowLeft, MapPin, Clock, Building2, Briefcase, Calendar, Send } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
+import { jobTypeLabels } from '@/lib/schemas/recruitment';
+
+// Since we are fetching from internal API in server component, we can use absolute URL if configured, 
+// or import the logic directly (better for server components). 
+// But to stick to "API Route" pattern proposed, we fetch via full URL (requires base URL) 
+// or simply query Prisma directly in Server Component (Best Practice for Next.js App Router).
+// However, the plan stated "Fetch API". Let's stick to using Prisma directly here for better performance 
+// and to avoid "absolute URL" issues during build time if base URL is not set.
+// Actually, re-reading the plan: "Refactor ... -> fetch API". 
+// But since this is a Server Component, calling its own API route is an anti-pattern (network overhead).
+// I will query Prisma directly here, which shares logic with the API. 
+
+import prisma from '@/lib/prisma';
+import { Metadata } from 'next';
 
 interface JobDetailPageProps {
     params: Promise<{ slug: string }>;
 }
-
-const typeLabels: Record<string, string> = {
-    FULLTIME: 'Toàn thời gian',
-    PARTTIME: 'Bán thời gian',
-    INTERNSHIP: 'Thực tập',
-    CONTRACT: 'Hợp đồng',
-};
 
 const workModeLabels: Record<string, string> = {
     ONSITE: 'Tại văn phòng',
@@ -25,9 +31,25 @@ const workModeLabels: Record<string, string> = {
     HYBRID: 'Hybrid',
 };
 
+async function getJob(slug: string) {
+    const job = await prisma.job.findUnique({
+        where: { slug },
+        include: {
+            department: { select: { name: true } },
+        },
+    });
+
+    if (!job || job.status !== 'PUBLISHED') return null;
+
+    return {
+        ...job,
+        department: job.department?.name || 'N/A',
+    };
+}
+
 export async function generateMetadata({ params }: JobDetailPageProps): Promise<Metadata> {
     const { slug } = await params;
-    const job = mockJobs.find((j) => j.slug === slug);
+    const job = await getJob(slug);
 
     if (!job) {
         return { title: 'Không tìm thấy' };
@@ -35,19 +57,13 @@ export async function generateMetadata({ params }: JobDetailPageProps): Promise<
 
     return {
         title: job.title,
-        description: job.description,
+        description: job.description || undefined,
     };
-}
-
-export async function generateStaticParams() {
-    return mockJobs.map((job) => ({
-        slug: job.slug,
-    }));
 }
 
 export default async function JobDetailPage({ params }: JobDetailPageProps) {
     const { slug } = await params;
-    const job = mockJobs.find((j) => j.slug === slug);
+    const job = await getJob(slug);
 
     if (!job) {
         notFound();
@@ -72,8 +88,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
                         <div>
                             <div className="flex flex-wrap gap-2 mb-3">
                                 <Badge>{job.department}</Badge>
-                                <Badge variant="secondary">{typeLabels[job.type]}</Badge>
-                                <Badge variant="outline">{workModeLabels[job.workMode]}</Badge>
+                                <Badge variant="secondary">{jobTypeLabels[job.type] || job.type}</Badge>
+                                <Badge variant="outline">{workModeLabels[job.workMode] || job.workMode}</Badge>
                             </div>
                             <h1 className="text-3xl md:text-4xl font-bold mb-4">{job.title}</h1>
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
@@ -83,7 +99,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Briefcase className="h-4 w-4" />
-                                    {formatCurrency(job.salary.min)} - {formatCurrency(job.salary.max)}
+                                    {formatCurrency(job.salaryMin)} - {formatCurrency(job.salaryMax)}
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Calendar className="h-4 w-4" />
@@ -130,7 +146,17 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
                                     <CardTitle>Quyền lợi</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <p className="text-muted-foreground whitespace-pre-line">{job.benefits}</p>
+                                    <div className="text-muted-foreground">
+                                        {job.benefits && Array.isArray(job.benefits) && job.benefits.length > 0 ? (
+                                            <ul className="list-disc pl-5 space-y-1">
+                                                {job.benefits.map((benefit: string, index: number) => (
+                                                    <li key={index}>{benefit}</li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="whitespace-pre-line">{typeof job.benefits === 'string' ? job.benefits : 'Đang cập nhật'}</p>
+                                        )}
+                                    </div>
                                 </CardContent>
                             </Card>
                         </div>
@@ -148,7 +174,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground">Mức lương</p>
-                                            <p className="font-medium">{formatCurrency(job.salary.min)} - {formatCurrency(job.salary.max)}</p>
+                                            <p className="font-medium">{formatCurrency(job.salaryMin)} - {formatCurrency(job.salaryMax)}</p>
                                         </div>
                                     </div>
                                     <Separator />
@@ -168,7 +194,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground">Loại hình</p>
-                                            <p className="font-medium">{typeLabels[job.type]}</p>
+                                            <p className="font-medium">{jobTypeLabels[job.type] || job.type}</p>
                                         </div>
                                     </div>
                                     <Separator />
@@ -178,7 +204,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground">Hình thức</p>
-                                            <p className="font-medium">{workModeLabels[job.workMode]}</p>
+                                            <p className="font-medium">{workModeLabels[job.workMode] || job.workMode}</p>
                                         </div>
                                     </div>
                                 </CardContent>

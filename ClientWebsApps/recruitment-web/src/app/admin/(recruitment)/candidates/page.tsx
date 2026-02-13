@@ -1,18 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import {
     Select,
     SelectContent,
@@ -23,143 +15,139 @@ import {
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { mockCandidates, candidateStatusLabels, Candidate, CandidateStatus, formatDate } from '@/lib/mocks';
-import { Search, Download, Eye, Mail, Phone, Star, UserPlus, History as HistoryIcon } from 'lucide-react';
-
-import { KanbanBoard } from './kanban-board';
-import { LayoutGrid, List as ListIcon } from 'lucide-react';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, LayoutGrid, List, Loader2, Mail, Calendar, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { KanbanBoard } from './kanban-board';
+import {
+    CandidateItem,
+    CandidateStatus,
+    CandidateStatusValues,
+    candidateStatusLabels,
+    candidateSourceLabels,
+    type CandidateActivity,
+    type CandidateSource,
+} from '@/lib/schemas/recruitment';
+import { formatDate } from '@/lib/utils';
 
-import { EmailComposeDialog } from '@/components/admin/recruitment/email-compose-dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AdminCandidatesPage() {
+    const [candidates, setCandidates] = useState<CandidateItem[]>([]);
+    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [viewMode, setViewMode] = useState<'LIST' | 'KANBAN'>('KANBAN');
-    const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+    const [selectedCandidate, setSelectedCandidate] = useState<CandidateItem | null>(null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-    const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+    const [candidateDetail, setCandidateDetail] = useState<CandidateItem | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
-    // Simulating local state mutation for drag and drop
-    const [localCandidates, setLocalCandidates] = useState<Candidate[]>(mockCandidates);
+    const fetchCandidates = useCallback(async () => {
+        try {
+            setLoading(true);
+            const params = new URLSearchParams();
+            if (search) params.set('search', search);
+            if (statusFilter !== 'ALL') params.set('status', statusFilter);
+            params.set('limit', '200');
 
-    const filteredCandidates = localCandidates.filter((candidate) => {
-        const matchesSearch =
-            candidate.name.toLowerCase().includes(search.toLowerCase()) ||
-            candidate.email.toLowerCase().includes(search.toLowerCase()) ||
-            candidate.jobTitle.toLowerCase().includes(search.toLowerCase());
-        const matchesStatus = statusFilter === 'ALL' || candidate.status === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
+            const res = await fetch(`/api/candidates?${params.toString()}`);
+            if (!res.ok) throw new Error('Failed to fetch candidates');
+            const data = await res.json();
+            setCandidates(data.data || data);
+        } catch (error) {
+            console.error('Error fetching candidates:', error);
+            toast.error('Không thể tải danh sách ứng viên');
+        } finally {
+            setLoading(false);
+        }
+    }, [search, statusFilter]);
 
-    const candidatesByStatus = {
-        ALL: localCandidates.length,
-        NEW: localCandidates.filter((c) => c.status === 'NEW').length,
-        SCREENING: localCandidates.filter((c) => c.status === 'SCREENING').length,
-        INTERVIEW: localCandidates.filter((c) => c.status === 'INTERVIEW').length,
-        OFFER: localCandidates.filter((c) => c.status === 'OFFER').length,
-        HIRED: localCandidates.filter((c) => c.status === 'HIRED').length,
-        REJECTED: localCandidates.filter((c) => c.status === 'REJECTED').length,
+    useEffect(() => {
+        const debounce = setTimeout(fetchCandidates, 300);
+        return () => clearTimeout(debounce);
+    }, [fetchCandidates]);
+
+    const handleStatusChange = async (candidateId: string, newStatus: CandidateStatus) => {
+        try {
+            const res = await fetch(`/api/candidates/${candidateId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+
+            if (!res.ok) throw new Error('Failed to update status');
+
+            // Optimistic update
+            setCandidates(prev =>
+                prev.map(c =>
+                    c.id === candidateId ? { ...c, status: newStatus } : c
+                )
+            );
+
+            const statusLabel = candidateStatusLabels[newStatus]?.label || newStatus;
+            toast.success(`Đã chuyển sang "${statusLabel}"`);
+        } catch {
+            toast.error('Không thể cập nhật trạng thái');
+            // Revert by refetching
+            fetchCandidates();
+        }
     };
 
-    const handleStatusChange = (candidateId: string, newStatus: string) => {
-        // Optimistic update
-        setLocalCandidates(prev => prev.map(c =>
-            c.id === candidateId ?
-                {
-                    ...c,
-                    status: newStatus as any,
-                    activities: [
-                        ...(c.activities || []),
-                        {
-                            id: Math.random().toString(),
-                            type: 'STATUS_CHANGE',
-                            title: 'Thay đổi trạng thái',
-                            content: `Trạng thái chuyển sang: ${candidateStatusLabels[newStatus as CandidateStatus].label}`,
-                            createdAt: new Date().toISOString(),
-                            createdBy: 'Admin'
-                        }
-                    ]
-                } : c
-        ));
-        toast.success(`Đã cập nhật trạng thái: ${candidateStatusLabels[newStatus as CandidateStatus].label}`);
+    const handleCandidateClick = async (candidate: CandidateItem) => {
+        setSelectedCandidate(candidate);
+        setDetailDialogOpen(true);
+        setCandidateDetail(null);
+
+        // Fetch full detail with activities
+        try {
+            setLoadingDetail(true);
+            const res = await fetch(`/api/candidates/${candidate.id}`);
+            if (res.ok) {
+                const data = await res.json();
+                setCandidateDetail(data);
+            }
+        } catch {
+            // Silent fail, detail dialog still shows basic info
+        } finally {
+            setLoadingDetail(false);
+        }
     };
 
-    const handleSendEmail = (subject: string, content: string) => {
-        if (!selectedCandidate) return;
-
-        setLocalCandidates(prev => prev.map(c =>
-            c.id === selectedCandidate.id ?
-                {
-                    ...c,
-                    activities: [
-                        ...(c.activities || []),
-                        {
-                            id: Math.random().toString(),
-                            type: 'EMAIL',
-                            title: `Gửi email: ${subject}`,
-                            content: content,
-                            createdAt: new Date().toISOString(),
-                            createdBy: 'Admin'
-                        }
-                    ]
-                } : c
-        ));
-    };
+    const filteredCandidates = candidates;
 
     return (
-        <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Quản lý ứng viên</h1>
-                    <p className="text-muted-foreground">Xem và quản lý hồ sơ ứng viên</p>
+                    <p className="text-muted-foreground">Theo dõi và quản lý quy trình tuyển dụng</p>
                 </div>
-                <div className="flex gap-2 bg-muted p-1 rounded-lg">
-                    <Button
-                        variant={viewMode === 'LIST' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewMode('LIST')}
-                        className="h-8 w-8 p-0"
-                    >
-                        <ListIcon className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant={viewMode === 'KANBAN' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewMode('KANBAN')}
-                        className="h-8 w-8 p-0"
-                    >
-                        <LayoutGrid className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
-
-            {/* Status Tabs - Only for List View */}
-            {viewMode === 'LIST' && (
-                <Tabs defaultValue="ALL" onValueChange={setStatusFilter}>
-                    <TabsList className="flex-wrap h-auto gap-2">
-                        {(Object.keys(candidateStatusLabels) as CandidateStatus[]).map((status) => (
-                            <TabsTrigger key={status} value={status} className="gap-2">
-                                {candidateStatusLabels[status].label}
-                                <Badge variant="secondary">
-                                    {localCandidates.filter(c => c.status === status).length}
-                                </Badge>
-                            </TabsTrigger>
-                        ))}
-                        <TabsTrigger value="ALL" className="gap-2">
-                            Tất cả <Badge variant="secondary">{candidatesByStatus.ALL}</Badge>
+                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'LIST' | 'KANBAN')}>
+                    <TabsList>
+                        <TabsTrigger value="KANBAN">
+                            <LayoutGrid className="h-4 w-4 mr-2" />
+                            Kanban
+                        </TabsTrigger>
+                        <TabsTrigger value="LIST">
+                            <List className="h-4 w-4 mr-2" />
+                            Danh sách
                         </TabsTrigger>
                     </TabsList>
                 </Tabs>
-            )}
+            </div>
 
+            {/* Filters */}
             <div className="flex items-center gap-4">
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -170,269 +158,218 @@ export default function AdminCandidatesPage() {
                         className="pl-10"
                     />
                 </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[160px]">
+                        <SelectValue placeholder="Trạng thái" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ALL">Tất cả</SelectItem>
+                        {CandidateStatusValues.map(status => (
+                            <SelectItem key={status} value={status}>
+                                {candidateStatusLabels[status].label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
 
-            {viewMode === 'LIST' ? (
-                <Card className="flex-1 overflow-auto">
-                    <CardHeader className="py-4">
-                    </CardHeader>
+            {loading ? (
+                <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+            ) : viewMode === 'KANBAN' ? (
+                <KanbanBoard
+                    candidates={filteredCandidates}
+                    onStatusChange={handleStatusChange}
+                    onCandidateClick={handleCandidateClick}
+                />
+            ) : (
+                <Card>
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Ứng viên</TableHead>
-                                    <TableHead>Vị trí ứng tuyển</TableHead>
+                                    <TableHead>Vị trí</TableHead>
                                     <TableHead>Nguồn</TableHead>
                                     <TableHead>Ngày nộp</TableHead>
+                                    <TableHead>Đánh giá</TableHead>
                                     <TableHead>Trạng thái</TableHead>
-                                    <TableHead className="text-right">Thao tác</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredCandidates.map((candidate) => {
-                                    const statusStyle = candidateStatusLabels[candidate.status];
+                                    const statusInfo = candidateStatusLabels[candidate.status] || candidateStatusLabels.NEW;
                                     return (
-                                        <TableRow key={candidate.id}>
+                                        <TableRow
+                                            key={candidate.id}
+                                            className="cursor-pointer"
+                                            onClick={() => handleCandidateClick(candidate)}
+                                        >
                                             <TableCell>
                                                 <div>
                                                     <p className="font-medium">{candidate.name}</p>
                                                     <p className="text-sm text-muted-foreground">{candidate.email}</p>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{candidate.jobTitle}</TableCell>
+                                            <TableCell>{candidate.job?.title || '—'}</TableCell>
                                             <TableCell>
-                                                <Badge variant="outline">{candidate.source}</Badge>
+                                                {candidateSourceLabels[candidate.source as CandidateSource] || candidate.source}
                                             </TableCell>
-                                            <TableCell>{formatDate(candidate.appliedDate)}</TableCell>
+                                            <TableCell>{formatDate(candidate.appliedAt)}</TableCell>
                                             <TableCell>
-                                                <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
+                                                {candidate.rating ? (
+                                                    <div className="flex gap-0.5">
+                                                        {[...Array(5)].map((_, i) => (
+                                                            <div key={i} className={`h-1.5 w-4 rounded-full ${i < candidate.rating! ? 'bg-yellow-400' : 'bg-muted'}`} />
+                                                        ))}
+                                                    </div>
+                                                ) : '—'}
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => {
-                                                            setSelectedCandidate(candidate);
-                                                            setDetailDialogOpen(true);
-                                                        }}
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" asChild>
-                                                        <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer">
-                                                            <Download className="h-4 w-4" />
-                                                        </a>
-                                                    </Button>
-                                                </div>
+                                            <TableCell>
+                                                <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                                             </TableCell>
                                         </TableRow>
                                     );
                                 })}
                             </TableBody>
                         </Table>
-
                         {filteredCandidates.length === 0 && (
                             <div className="text-center py-8 text-muted-foreground">
-                                Không có ứng viên nào phù hợp
+                                Không có ứng viên nào
                             </div>
                         )}
                     </CardContent>
                 </Card>
-            ) : null}
-            {/* Kanban View */}
-            {viewMode === 'KANBAN' && (
-                <div className="flex-1 relative min-h-0 rounded-lg border bg-muted/20">
-                    <div className="absolute inset-0 p-4">
-                        <KanbanBoard
-                            candidates={filteredCandidates}
-                            onStatusChange={handleStatusChange}
-                            onCandidateClick={(candidate) => {
-                                setSelectedCandidate(candidate);
-                                setDetailDialogOpen(true);
-                            }}
-                        />
-                    </div>
-                </div>
             )}
 
             {/* Candidate Detail Dialog */}
             <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-                <DialogContent className="max-w-[90vw] md:max-w-[1200px] h-[90vh] flex flex-col p-0 gap-0">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>{selectedCandidate?.name || 'Chi tiết ứng viên'}</DialogTitle>
+                    </DialogHeader>
+
                     {selectedCandidate && (
-                        <>
-                            <DialogHeader className="p-6 pb-4 border-b shrink-0">
-                                <div className="flex flex-col gap-1 pr-8">
-                                    <DialogTitle className="text-2xl">{selectedCandidate.name}</DialogTitle>
-                                    <DialogDescription>
-                                        Ứng tuyển: <span className="font-medium text-foreground">{selectedCandidate.jobTitle}</span>
-                                    </DialogDescription>
+                        <div className="space-y-6">
+                            {/* Basic Info */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p className="text-muted-foreground">Email</p>
+                                    <p className="flex items-center gap-1">
+                                        <Mail className="h-3.5 w-3.5" />
+                                        {selectedCandidate.email}
+                                    </p>
                                 </div>
-                            </DialogHeader>
-
-                            <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-                                {/* Sidebar Info */}
-                                <div className="w-full md:w-[300px] bg-muted/20 p-6 border-r space-y-6 overflow-y-auto shrink-0">
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                                <Mail className="h-4 w-4 text-primary" />
-                                            </div>
-                                            <div className="overflow-hidden">
-                                                <p className="text-xs text-muted-foreground">Email</p>
-                                                <a href={`mailto:${selectedCandidate.email}`} className="text-sm font-medium hover:underline truncate block" title={selectedCandidate.email}>
-                                                    {selectedCandidate.email}
-                                                </a>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                                <Phone className="h-4 w-4 text-primary" />
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-muted-foreground">Điện thoại</p>
-                                                <a href={`tel:${selectedCandidate.phone}`} className="text-sm font-medium hover:underline">
-                                                    {selectedCandidate.phone}
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4 pt-4 border-t">
-                                        <div>
-                                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-semibold">Trạng thái</p>
-                                            <Badge variant={candidateStatusLabels[selectedCandidate.status].variant} className="px-3 py-1">
-                                                {candidateStatusLabels[selectedCandidate.status].label}
-                                            </Badge>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-semibold">Ngày nộp</p>
-                                            <p className="font-medium text-sm">{formatDate(selectedCandidate.appliedDate)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-semibold">Nguồn</p>
-                                            <p className="font-medium text-sm">{selectedCandidate.source}</p>
-                                        </div>
-                                        {selectedCandidate.rating && (
-                                            <div>
-                                                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-semibold">Đánh giá</p>
-                                                <div className="flex items-center gap-1">
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <Star
-                                                            key={i}
-                                                            className={`h-4 w-4 ${i < selectedCandidate.rating! ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="pt-4 border-t">
-                                        <Button variant="outline" className="w-full" asChild>
-                                            <a href={selectedCandidate.cvUrl} target="_blank" rel="noopener noreferrer">
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Tải CV / Hồ sơ
-                                            </a>
-                                        </Button>
-                                    </div>
+                                <div>
+                                    <p className="text-muted-foreground">Điện thoại</p>
+                                    <p>{selectedCandidate.phone || '—'}</p>
                                 </div>
-
-                                {/* Main Content Tabs */}
-                                <div className="flex-1 p-6 overflow-hidden flex flex-col">
-                                    <Tabs defaultValue="history" className="flex-1 flex flex-col">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <TabsList>
-                                                <TabsTrigger value="history">Lịch sử hoạt động</TabsTrigger>
-                                                <TabsTrigger value="notes">Ghi chú & Đánh giá</TabsTrigger>
-                                            </TabsList>
-                                        </div>
-
-                                        <TabsContent value="history" className="flex-1 overflow-hidden mt-0">
-                                            <ScrollArea className="h-full pr-4">
-                                                {selectedCandidate.activities && selectedCandidate.activities.length > 0 ? (
-                                                    <div className="space-y-6 pl-2">
-                                                        {[...selectedCandidate.activities].reverse().map((activity, index) => (
-                                                            <div key={activity.id} className="relative pl-6 pb-6 border-l last:border-0 last:pb-0">
-                                                                {/* Timeline dot */}
-                                                                <div className={`absolute -left-[9px] top-0 h-4 w-4 rounded-full border-2 border-background 
-                                                                    ${activity.type === 'EMAIL' ? 'bg-blue-500' :
-                                                                        activity.type === 'STATUS_CHANGE' ? 'bg-orange-500' : 'bg-gray-400'}`}
-                                                                />
-
-                                                                <div className="flex flex-col gap-1 -mt-1">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="font-semibold text-sm">{activity.title}</span>
-                                                                        <span className="text-xs text-muted-foreground">
-                                                                            {new Date(activity.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="text-sm text-foreground/90 bg-muted/30 p-3 rounded-md mt-1">
-                                                                        {activity.content}
-                                                                    </div>
-                                                                    <p className="text-xs text-muted-foreground mt-1">
-                                                                        Thực hiện bởi: <span className="font-medium">{activity.createdBy}</span>
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
-                                                        <HistoryIcon className="h-12 w-12 mb-2 opacity-20" />
-                                                        <p>Chưa có lịch sử hoạt động</p>
-                                                    </div>
-                                                )}
-                                            </ScrollArea>
-                                        </TabsContent>
-
-                                        <TabsContent value="notes" className="mt-0 h-full">
-                                            <div className="bg-muted/30 p-4 rounded-lg h-full border">
-                                                <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                                                    {selectedCandidate.notes || 'Chưa có ghi chú nào cho ứng viên này.'}
-                                                </p>
-                                            </div>
-                                        </TabsContent>
-                                    </Tabs>
+                                <div>
+                                    <p className="text-muted-foreground">Vị trí ứng tuyển</p>
+                                    <p>{selectedCandidate.job?.title || '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Ngày ứng tuyển</p>
+                                    <p className="flex items-center gap-1">
+                                        <Calendar className="h-3.5 w-3.5" />
+                                        {formatDate(selectedCandidate.appliedAt)}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Nguồn</p>
+                                    <p>{candidateSourceLabels[selectedCandidate.source as CandidateSource] || selectedCandidate.source}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Trạng thái</p>
+                                    <Badge variant={candidateStatusLabels[selectedCandidate.status]?.variant || 'default'}>
+                                        {candidateStatusLabels[selectedCandidate.status]?.label || selectedCandidate.status}
+                                    </Badge>
                                 </div>
                             </div>
 
-                            <DialogFooter className="p-4 border-t bg-muted/10 shrink-0 gap-2 sm:gap-2">
-                                <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Đóng</Button>
-                                <div className="flex gap-2 ml-auto">
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setEmailDialogOpen(true)}
-                                        className="gap-2"
-                                    >
-                                        <Mail className="h-4 w-4" />
-                                        Gửi Email
-                                    </Button>
-                                    {(selectedCandidate.status === 'OFFER' || selectedCandidate.status === 'HIRED') && (
-                                        <Button
-                                            onClick={() => {
-                                                setDetailDialogOpen(false);
-                                                window.location.href = `/admin/employees?action=create&candidateId=${selectedCandidate.id}`;
-                                            }}
-                                            className="bg-green-600 hover:bg-green-700 text-white gap-2"
-                                        >
-                                            <UserPlus className="h-4 w-4" />
-                                            Chuyển Staff
-                                        </Button>
-                                    )}
+                            {/* Rating */}
+                            {selectedCandidate.rating && (
+                                <div>
+                                    <p className="text-sm text-muted-foreground mb-1">Đánh giá</p>
+                                    <div className="flex gap-1">
+                                        {[...Array(5)].map((_, i) => (
+                                            <div key={i} className={`h-2 w-6 rounded-full ${i < selectedCandidate.rating! ? 'bg-yellow-400' : 'bg-muted'}`} />
+                                        ))}
+                                    </div>
                                 </div>
-                            </DialogFooter>
-                        </>
+                            )}
+
+                            {/* CV Link */}
+                            {selectedCandidate.cvUrl && (
+                                <div>
+                                    <p className="text-sm text-muted-foreground mb-1">CV</p>
+                                    <a href={selectedCandidate.cvUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        Xem CV
+                                    </a>
+                                </div>
+                            )}
+
+                            {/* Notes */}
+                            {selectedCandidate.notes && (
+                                <div>
+                                    <p className="text-sm text-muted-foreground mb-1">Ghi chú</p>
+                                    <p className="text-sm bg-muted/50 p-3 rounded-md">{selectedCandidate.notes}</p>
+                                </div>
+                            )}
+
+                            {/* Activity Timeline */}
+                            <div>
+                                <p className="font-medium mb-3">Lịch sử hoạt động</p>
+                                {loadingDetail ? (
+                                    <div className="flex justify-center py-4">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    </div>
+                                ) : candidateDetail?.activities && candidateDetail.activities.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {candidateDetail.activities.map((activity: CandidateActivity) => (
+                                            <div key={activity.id} className="flex gap-3 text-sm">
+                                                <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                                                <div className="flex-1">
+                                                    <p className="font-medium">{activity.title}</p>
+                                                    <p className="text-muted-foreground">{activity.content}</p>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        {formatDate(activity.createdAt)}
+                                                        {activity.createdBy && ` • ${activity.createdBy}`}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">Chưa có hoạt động nào</p>
+                                )}
+                            </div>
+
+                            {/* Status Change Actions */}
+                            <div>
+                                <p className="font-medium mb-2">Chuyển trạng thái</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {CandidateStatusValues.filter(s => s !== selectedCandidate.status).map(status => (
+                                        <Button
+                                            key={status}
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                handleStatusChange(selectedCandidate.id, status);
+                                                setSelectedCandidate(prev => prev ? { ...prev, status } : null);
+                                            }}
+                                        >
+                                            {candidateStatusLabels[status].label}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </DialogContent>
             </Dialog>
-
-            <EmailComposeDialog
-                open={emailDialogOpen}
-                onOpenChange={setEmailDialogOpen}
-                candidate={selectedCandidate}
-                onSend={handleSendEmail}
-            />
         </div>
     );
 }

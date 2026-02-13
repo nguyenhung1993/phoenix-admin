@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,12 +31,14 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import {
-    mockOffers,
+    OfferItem,
+    OfferStatus,
     offerStatusLabels,
     formatCurrency,
-    Offer,
-} from '@/lib/mocks';
+    CandidateItem,
+} from '@/lib/schemas/recruitment';
 import {
     Search,
     Plus,
@@ -50,30 +52,76 @@ import {
     CheckCircle,
     XCircle,
     Clock,
+    Loader2,
+    Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AdminOffersPage() {
+    const [offers, setOffers] = useState<OfferItem[]>([]);
+    const [candidates, setCandidates] = useState<CandidateItem[]>([]);
+    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
-    const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+    const [selectedOffer, setSelectedOffer] = useState<OfferItem | null>(null);
     const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    const filteredOffers = mockOffers.filter((offer) => {
-        const matchesSearch =
-            offer.candidateName.toLowerCase().includes(search.toLowerCase()) ||
-            offer.jobTitle.toLowerCase().includes(search.toLowerCase());
-        const matchesStatus = statusFilter === 'ALL' || offer.status === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
+    // Create form state
+    const [formCandidateId, setFormCandidateId] = useState('');
+    const [formSalaryBase, setFormSalaryBase] = useState('');
+    const [formSalaryBonus, setFormSalaryBonus] = useState('');
+    const [formStartDate, setFormStartDate] = useState('');
+    const [formExpiryDate, setFormExpiryDate] = useState('');
+    const [formNotes, setFormNotes] = useState('');
+
+    const fetchOffers = useCallback(async () => {
+        try {
+            setLoading(true);
+            const params = new URLSearchParams();
+            if (search) params.set('search', search);
+            if (statusFilter !== 'ALL') params.set('status', statusFilter);
+
+            const res = await fetch(`/api/offers?${params}`);
+            const data = await res.json();
+            setOffers(data.data || []);
+        } catch {
+            toast.error('Không thể tải dữ liệu offer');
+        } finally {
+            setLoading(false);
+        }
+    }, [search, statusFilter]);
+
+    const fetchCandidates = async () => {
+        try {
+            const res = await fetch('/api/candidates?limit=100');
+            const data = await res.json();
+            setCandidates(data.data || []);
+        } catch {
+            console.warn('Could not load candidates');
+        }
+    };
+
+    useEffect(() => {
+        fetchOffers();
+    }, [fetchOffers]);
+
+    useEffect(() => {
+        fetchCandidates();
+    }, []);
 
     const offersByStatus = {
-        ALL: mockOffers.length,
-        DRAFT: mockOffers.filter((o) => o.status === 'DRAFT').length,
-        SENT: mockOffers.filter((o) => o.status === 'SENT').length,
-        ACCEPTED: mockOffers.filter((o) => o.status === 'ACCEPTED').length,
-        REJECTED: mockOffers.filter((o) => o.status === 'REJECTED').length,
+        ALL: offers.length,
+        DRAFT: offers.filter((o) => o.status === 'DRAFT').length,
+        SENT: offers.filter((o) => o.status === 'SENT').length,
+        ACCEPTED: offers.filter((o) => o.status === 'ACCEPTED').length,
+        REJECTED: offers.filter((o) => o.status === 'REJECTED').length,
     };
+
+    const acceptanceRate = offersByStatus.ACCEPTED + offersByStatus.REJECTED > 0
+        ? Math.round((offersByStatus.ACCEPTED / (offersByStatus.ACCEPTED + offersByStatus.REJECTED)) * 100)
+        : 0;
 
     const getStatusIcon = (status: string) => {
         switch (status) {
@@ -88,6 +136,116 @@ export default function AdminOffersPage() {
             default:
                 return <Clock className="h-4 w-4 text-yellow-500" />;
         }
+    };
+
+    const handleCreate = async () => {
+        if (!formCandidateId || !formSalaryBase || !formStartDate || !formExpiryDate) {
+            toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const res = await fetch('/api/offers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidateId: formCandidateId,
+                    salaryBase: parseFloat(formSalaryBase),
+                    salaryBonus: formSalaryBonus ? parseFloat(formSalaryBonus) : null,
+                    startDate: formStartDate,
+                    expiryDate: formExpiryDate,
+                    notes: formNotes || null,
+                    benefits: [],
+                }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            toast.success('Đã tạo Offer Letter');
+            setCreateDialogOpen(false);
+            resetForm();
+            fetchOffers();
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleSendOffer = async (offerId: string) => {
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/offers/${offerId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'SENT' }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            toast.success('Đã gửi Offer Letter');
+            setPreviewDialogOpen(false);
+            fetchOffers();
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleAcceptOffer = async (offerId: string) => {
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/offers/${offerId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'ACCEPTED' }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            toast.success('Offer đã được chấp nhận');
+            setPreviewDialogOpen(false);
+            fetchOffers();
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleRejectOffer = async (offerId: string) => {
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/offers/${offerId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'REJECTED' }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            toast.success('Offer đã bị từ chối');
+            setPreviewDialogOpen(false);
+            fetchOffers();
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDeleteOffer = async (offerId: string) => {
+        if (!confirm('Bạn có chắc muốn xóa offer này?')) return;
+        try {
+            const res = await fetch(`/api/offers/${offerId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed');
+            toast.success('Đã xóa Offer Letter');
+            fetchOffers();
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        }
+    };
+
+    const resetForm = () => {
+        setFormCandidateId('');
+        setFormSalaryBase('');
+        setFormSalaryBonus('');
+        setFormStartDate('');
+        setFormExpiryDate('');
+        setFormNotes('');
     };
 
     return (
@@ -143,9 +301,7 @@ export default function AdminOffersPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-muted-foreground">Tỷ lệ nhận</p>
-                                <p className="text-2xl font-bold">
-                                    {Math.round((offersByStatus.ACCEPTED / (offersByStatus.ACCEPTED + offersByStatus.REJECTED || 1)) * 100)}%
-                                </p>
+                                <p className="text-2xl font-bold">{acceptanceRate}%</p>
                             </div>
                             <Gift className="h-8 w-8 text-primary" />
                         </div>
@@ -189,75 +345,97 @@ export default function AdminOffersPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Ứng viên</TableHead>
-                                <TableHead>Vị trí</TableHead>
-                                <TableHead>Lương Cơ bản</TableHead>
-                                <TableHead>Ngày bắt đầu</TableHead>
-                                <TableHead>Trạng thái</TableHead>
-                                <TableHead className="text-right">Thao tác</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredOffers.map((offer) => {
-                                const statusStyle = offerStatusLabels[offer.status];
-
-                                return (
-                                    <TableRow key={offer.id}>
-                                        <TableCell>
-                                            <div>
-                                                <p className="font-medium">{offer.candidateName}</p>
-                                                <p className="text-sm text-muted-foreground">{offer.candidateEmail}</p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div>
-                                                <p>{offer.jobTitle}</p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {formatCurrency(offer.salary.base)}
-                                        </TableCell>
-                                        <TableCell>
-                                            {new Date(offer.startDate).toLocaleDateString('vi-VN')}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                {getStatusIcon(offer.status)}
-                                                <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setSelectedOffer(offer);
-                                                        setPreviewDialogOpen(true);
-                                                    }}
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                                {offer.status === 'DRAFT' && (
-                                                    <Button variant="ghost" size="icon">
-                                                        <Send className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-
-                    {filteredOffers.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                            Không có offer letter nào phù hợp
+                    {loading ? (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
+                    ) : (
+                        <>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Ứng viên</TableHead>
+                                        <TableHead>Vị trí</TableHead>
+                                        <TableHead>Lương Cơ bản</TableHead>
+                                        <TableHead>Ngày bắt đầu</TableHead>
+                                        <TableHead>Trạng thái</TableHead>
+                                        <TableHead className="text-right">Thao tác</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {offers.map((offer) => {
+                                        const statusStyle = offerStatusLabels[offer.status as OfferStatus];
+
+                                        return (
+                                            <TableRow key={offer.id}>
+                                                <TableCell>
+                                                    <div>
+                                                        <p className="font-medium">{offer.candidate?.name || 'N/A'}</p>
+                                                        <p className="text-sm text-muted-foreground">{offer.candidate?.email}</p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>{offer.job?.title || 'N/A'}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    {formatCurrency(offer.salaryBase)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {new Date(offer.startDate).toLocaleDateString('vi-VN')}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        {getStatusIcon(offer.status)}
+                                                        {statusStyle && (
+                                                            <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            title="Xem chi tiết"
+                                                            onClick={() => {
+                                                                setSelectedOffer(offer);
+                                                                setPreviewDialogOpen(true);
+                                                            }}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                        {offer.status === 'DRAFT' && (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    title="Gửi offer"
+                                                                    onClick={() => handleSendOffer(offer.id)}
+                                                                >
+                                                                    <Send className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    title="Xóa"
+                                                                    onClick={() => handleDeleteOffer(offer.id)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+
+                            {offers.length === 0 && (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    Không có offer letter nào phù hợp
+                                </div>
+                            )}
+                        </>
                     )}
                 </CardContent>
             </Card>
@@ -270,10 +448,10 @@ export default function AdminOffersPage() {
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
                                     <FileText className="h-5 w-5" />
-                                    Offer Letter - {selectedOffer.candidateName}
+                                    Offer Letter - {selectedOffer.candidate?.name}
                                 </DialogTitle>
                                 <DialogDescription>
-                                    {selectedOffer.jobTitle}
+                                    {selectedOffer.job?.title}
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -282,11 +460,11 @@ export default function AdminOffersPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label className="text-muted-foreground">Họ tên</Label>
-                                        <p className="font-medium">{selectedOffer.candidateName}</p>
+                                        <p className="font-medium">{selectedOffer.candidate?.name}</p>
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">Email</Label>
-                                        <p className="font-medium">{selectedOffer.candidateEmail}</p>
+                                        <p className="font-medium">{selectedOffer.candidate?.email}</p>
                                     </div>
                                 </div>
 
@@ -298,7 +476,7 @@ export default function AdminOffersPage() {
                                         <Briefcase className="h-5 w-5 text-muted-foreground mt-0.5" />
                                         <div>
                                             <Label className="text-muted-foreground">Vị trí</Label>
-                                            <p className="font-medium">{selectedOffer.jobTitle}</p>
+                                            <p className="font-medium">{selectedOffer.job?.title}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-3">
@@ -328,14 +506,14 @@ export default function AdminOffersPage() {
                                             <div className="p-3 bg-muted rounded-lg">
                                                 <p className="text-sm text-muted-foreground">Lương Cơ bản</p>
                                                 <p className="text-lg font-bold text-primary">
-                                                    {formatCurrency(selectedOffer.salary.base)}
+                                                    {formatCurrency(selectedOffer.salaryBase)}
                                                 </p>
                                             </div>
-                                            {selectedOffer.salary.bonus && (
+                                            {selectedOffer.salaryBonus && (
                                                 <div className="p-3 bg-muted rounded-lg">
                                                     <p className="text-sm text-muted-foreground">Thưởng</p>
                                                     <p className="text-lg font-bold text-green-600">
-                                                        {formatCurrency(selectedOffer.salary.bonus)}
+                                                        {formatCurrency(selectedOffer.salaryBonus)}
                                                     </p>
                                                 </div>
                                             )}
@@ -346,20 +524,22 @@ export default function AdminOffersPage() {
                                 <Separator />
 
                                 {/* Benefits */}
-                                <div className="flex items-start gap-3">
-                                    <Gift className="h-5 w-5 text-muted-foreground mt-0.5" />
-                                    <div>
-                                        <Label className="text-muted-foreground">Phúc lợi</Label>
-                                        <ul className="mt-2 space-y-1">
-                                            {selectedOffer.benefits.map((benefit, index) => (
-                                                <li key={index} className="flex items-center gap-2">
-                                                    <CheckCircle className="h-4 w-4 text-green-500" />
-                                                    <span>{benefit}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                {selectedOffer.benefits.length > 0 && (
+                                    <div className="flex items-start gap-3">
+                                        <Gift className="h-5 w-5 text-muted-foreground mt-0.5" />
+                                        <div>
+                                            <Label className="text-muted-foreground">Phúc lợi</Label>
+                                            <ul className="mt-2 space-y-1">
+                                                {selectedOffer.benefits.map((benefit, index) => (
+                                                    <li key={index} className="flex items-center gap-2">
+                                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                                        <span>{benefit}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                                 {selectedOffer.notes && (
                                     <>
@@ -372,15 +552,27 @@ export default function AdminOffersPage() {
                                 )}
                             </div>
 
-                            <DialogFooter>
+                            <DialogFooter className="gap-2">
                                 <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
                                     Đóng
                                 </Button>
                                 {selectedOffer.status === 'DRAFT' && (
-                                    <Button>
-                                        <Send className="mr-2 h-4 w-4" />
+                                    <Button onClick={() => handleSendOffer(selectedOffer.id)} disabled={submitting}>
+                                        {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                                         Gửi Offer
                                     </Button>
+                                )}
+                                {selectedOffer.status === 'SENT' && (
+                                    <>
+                                        <Button variant="destructive" onClick={() => handleRejectOffer(selectedOffer.id)} disabled={submitting}>
+                                            <XCircle className="mr-2 h-4 w-4" />
+                                            Từ chối
+                                        </Button>
+                                        <Button onClick={() => handleAcceptOffer(selectedOffer.id)} disabled={submitting}>
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                            Chấp nhận
+                                        </Button>
+                                    </>
                                 )}
                             </DialogFooter>
                         </>
@@ -399,57 +591,78 @@ export default function AdminOffersPage() {
                     </DialogHeader>
                     <div className="space-y-4">
                         <div>
-                            <Label>Ứng viên</Label>
-                            <Select>
+                            <Label>Ứng viên *</Label>
+                            <Select value={formCandidateId} onValueChange={setFormCandidateId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Chọn ứng viên" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="1">Nguyễn Văn An - Store Manager</SelectItem>
-                                    <SelectItem value="2">Trần Thị Bình - Marketing Executive</SelectItem>
+                                    {candidates
+                                        .filter(c => ['INTERVIEW', 'OFFER'].includes(c.status))
+                                        .map((c) => (
+                                            <SelectItem key={c.id} value={c.id}>
+                                                {c.name} - {c.job?.title || 'N/A'}
+                                            </SelectItem>
+                                        ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <Label>Lương Cơ bản (VNĐ)</Label>
-                                <Input type="number" placeholder="15000000" />
+                                <Label>Lương Cơ bản (VNĐ) *</Label>
+                                <Input
+                                    type="number"
+                                    placeholder="15000000"
+                                    value={formSalaryBase}
+                                    onChange={(e) => setFormSalaryBase(e.target.value)}
+                                />
                             </div>
                             <div>
                                 <Label>Thưởng (VNĐ)</Label>
-                                <Input type="number" placeholder="2000000" />
+                                <Input
+                                    type="number"
+                                    placeholder="2000000"
+                                    value={formSalaryBonus}
+                                    onChange={(e) => setFormSalaryBonus(e.target.value)}
+                                />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <Label>Ngày bắt đầu</Label>
-                                <Input type="date" />
+                                <Label>Ngày bắt đầu *</Label>
+                                <Input
+                                    type="date"
+                                    value={formStartDate}
+                                    onChange={(e) => setFormStartDate(e.target.value)}
+                                />
                             </div>
                             <div>
-                                <Label>Loại hợp đồng</Label>
-                                <Select defaultValue="PROBATION">
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="PROBATION">Thử việc</SelectItem>
-                                        <SelectItem value="FULLTIME">Toàn thời gian</SelectItem>
-                                        <SelectItem value="PARTTIME">Bán thời gian</SelectItem>
-                                        <SelectItem value="CONTRACT">Hợp đồng</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Label>Hạn phản hồi *</Label>
+                                <Input
+                                    type="date"
+                                    value={formExpiryDate}
+                                    onChange={(e) => setFormExpiryDate(e.target.value)}
+                                />
                             </div>
                         </div>
                         <div>
-                            <Label>Hạn phản hồi</Label>
-                            <Input type="date" />
+                            <Label>Ghi chú</Label>
+                            <Textarea
+                                placeholder="Ghi chú thêm..."
+                                value={formNotes}
+                                onChange={(e) => setFormNotes(e.target.value)}
+                                rows={3}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
                             Hủy
                         </Button>
-                        <Button onClick={() => setCreateDialogOpen(false)}>Tạo Offer</Button>
+                        <Button onClick={handleCreate} disabled={submitting}>
+                            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Tạo Offer
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
