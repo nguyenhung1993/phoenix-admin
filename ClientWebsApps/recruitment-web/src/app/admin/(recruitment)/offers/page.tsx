@@ -36,9 +36,9 @@ import {
     OfferItem,
     OfferStatus,
     offerStatusLabels,
-    formatCurrency,
     CandidateItem,
 } from '@/lib/schemas/recruitment';
+import { formatCurrency } from '@/lib/utils';
 import {
     Search,
     Plus,

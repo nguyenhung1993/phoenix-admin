@@ -5,7 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number) {
+export function formatCurrency(amount: number | null | undefined) {
+  if (!amount) return 'Thỏa thuận';
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',

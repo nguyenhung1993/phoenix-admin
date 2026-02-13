@@ -53,14 +53,19 @@ export interface JobItem {
     departmentId: string | null;
     department?: { name: string };
     location: string | null;
-    salaryMin: number;
-    salaryMax: number;
+    salaryMin: number | null;
+    salaryMax: number | null;
     type: JobType;
     workMode: string;
+    experienceLevel: string | null;
     status: JobStatus;
+    description: string | null;
+    requirements: string[];
+    benefits: string[];
     postedAt: string | null;
     expiresAt: string | null;
     createdAt: string;
+    applicants: number;
     _count?: {
         candidates: number;
     };
@@ -135,6 +140,13 @@ export interface InterviewFeedback {
     recommendation: 'HIRE' | 'NO_HIRE' | 'STRONG_HIRE' | 'MAYBE';
 }
 
+export const recommendationLabels: Record<InterviewFeedback['recommendation'], { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    STRONG_HIRE: { label: 'Tuyển ngay', variant: 'default' },
+    HIRE: { label: 'Tuyển', variant: 'outline' },
+    MAYBE: { label: 'Cân nhắc', variant: 'secondary' },
+    NO_HIRE: { label: 'Không tuyển', variant: 'destructive' },
+};
+
 export interface InterviewItem {
     id: string;
     candidateId: string;
@@ -160,6 +172,7 @@ export interface OfferItem {
     jobId: string;
     status: OfferStatus;
     salaryBase: number;
+    salaryBonus?: number | null;
     startDate: string;
     expiryDate: string;
     benefits: string[];

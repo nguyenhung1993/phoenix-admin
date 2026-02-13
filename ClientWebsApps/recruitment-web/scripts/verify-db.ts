@@ -21,7 +21,7 @@ async function main() {
         console.log('Admin user found:', admin ? 'YES' : 'NO');
         if (admin) {
             console.log('Admin Role:', admin.role);
-            console.log('Admin Password Hash:', admin.password.substring(0, 10) + '...');
+            console.log('Admin Password Hash:', admin.password?.substring(0, 10) + '...');
         }
     } catch (e) {
         console.error('DB Error:', e);

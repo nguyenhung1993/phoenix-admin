@@ -12,9 +12,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Plus, Search, FileDown } from 'lucide-react';
-import { useDebouncedCallback } from 'use-debounce'; // Wait, need to check if installed? Or standard debounce.
-// I'll use a simple timeout if use-debounce is not available. 
-// package.json didn't show it. I'll implement manual debounce.
+import { useRef, useCallback } from 'react';
 
 interface EmployeeToolbarProps {
     departments: { id: string; name: string }[];
@@ -25,8 +23,9 @@ export function EmployeeToolbar({ departments, positions }: EmployeeToolbarProps
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const handleSearch = (term: string) => {
+    const handleSearch = useCallback((term: string) => {
         const params = new URLSearchParams(searchParams);
         if (term) {
             params.set('q', term);
@@ -35,6 +34,16 @@ export function EmployeeToolbar({ departments, positions }: EmployeeToolbarProps
         }
         params.set('page', '1');
         replace(`${pathname}?${params.toString()}`);
+    }, [searchParams, pathname, replace]);
+
+    const onSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const term = event.target.value;
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+        timeoutRef.current = setTimeout(() => {
+            handleSearch(term);
+        }, 500);
     };
 
     const handleFilter = (key: string, value: string) => {
@@ -58,12 +67,7 @@ export function EmployeeToolbar({ departments, positions }: EmployeeToolbarProps
                         placeholder="Tìm kiếm nhân viên..."
                         className="w-full bg-background pl-8"
                         defaultValue={searchParams.get('q')?.toString()}
-                        onChange={(e) => {
-                            // Simple debounce
-                            const value = e.target.value;
-                            const timeoutId = setTimeout(() => handleSearch(value), 500);
-                            return () => clearTimeout(timeoutId);
-                        }}
+                        onChange={onSearchChange}
                     />
                 </div>
                 <Select

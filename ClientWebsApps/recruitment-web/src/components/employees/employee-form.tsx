@@ -156,7 +156,7 @@ export function EmployeeForm({ initialData, departments, positions }: EmployeeFo
                                 <FormItem>
                                     <FormLabel>Email</FormLabel>
                                     <FormControl>
-                                        <Input type="email" placeholder="example@phoenix.com" {...field} />
+                                        <Input type="email" placeholder="example@phoenix.com" {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -169,7 +169,7 @@ export function EmployeeForm({ initialData, departments, positions }: EmployeeFo
                                 <FormItem>
                                     <FormLabel>Số điện thoại</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="0909..." {...field} />
+                                        <Input placeholder="0909..." {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -244,7 +244,7 @@ export function EmployeeForm({ initialData, departments, positions }: EmployeeFo
                                 <FormItem>
                                     <FormLabel>Địa chỉ</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Số nhà, đường..." {...field} />
+                                        <Input placeholder="Số nhà, đường..." {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -264,7 +264,7 @@ export function EmployeeForm({ initialData, departments, positions }: EmployeeFo
                                 <FormItem>
                                     <FormLabel>Mã nhân viên</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="EMP001" {...field} />
+                                        <Input placeholder="EMP001" {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
