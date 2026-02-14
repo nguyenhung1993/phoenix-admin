@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sendEmail } from '@/lib/email';
+import { getWelcomeEmailTemplate } from '@/lib/templates';
+import { notifyAdmins } from '@/lib/notifications';
 import prisma from '@/lib/prisma';
 import { writeFile } from 'fs/promises';
 import path from 'path';
@@ -76,6 +79,23 @@ export async function POST(request: NextRequest) {
                 createdBy: 'System',
             },
         });
+
+        // Send Welcome Email
+        // Send Welcome Email (Non-blocking or soft-fail)
+        try {
+            const emailHtml = getWelcomeEmailTemplate(candidate.name, job.title);
+            await sendEmail(candidate.email, 'Application Received - Phoenix Corp', emailHtml);
+
+            // Notify Admins
+            await notifyAdmins(
+                'New Application Received',
+                `${candidate.name} applied for ${job.title}`,
+                'RECRUITMENT'
+            );
+        } catch (emailError) {
+            console.error('Failed to send email/notification:', emailError);
+            // Continue execution, do not fail the request
+        }
 
         return NextResponse.json({ message: 'Application submitted successfully', id: candidate.id }, { status: 201 });
     } catch (error) {

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { sendEmail } from '@/lib/email';
+import { getOfferEmailTemplate } from '@/lib/templates';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 // GET /api/offers/:id
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -68,6 +72,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 job: { select: { id: true, title: true } },
             },
         });
+
+        // Send Offer Email if status is SENT
+        if (body.status === 'SENT' && offer.candidate.email) {
+            const formattedDate = format(new Date(offer.startDate), 'dd/MM/yyyy', { locale: vi });
+            // Format currency
+            const formattedSalary = new Intl.NumberFormat('vi-VN').format(offer.salaryBase);
+
+            const emailHtml = getOfferEmailTemplate(
+                offer.candidate.name,
+                offer.job.title,
+                formattedSalary,
+                formattedDate
+            );
+
+            // Non-blocking email sending
+            sendEmail(offer.candidate.email, `Thư mời nhận việc - ${offer.job.title}`, emailHtml)
+                .catch(err => console.error('Failed to send offer email:', err));
+        }
 
         // Update candidate status when offer is accepted
         if (body.status === 'ACCEPTED') {

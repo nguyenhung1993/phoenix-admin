@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { sendEmail } from '@/lib/email';
+import { getInterviewEmailTemplate } from '@/lib/templates';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,11 +92,27 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        // Update candidate status to INTERVIEW
+        // Update candidate status
         await prisma.candidate.update({
             where: { id: candidateId },
             data: { status: 'INTERVIEW' },
         });
+
+        // Send Interview Invitation Email
+        if (interview.candidate.email) {
+            const formattedDate = format(new Date(interview.scheduledAt), 'HH:mm dd/MM/yyyy', { locale: vi });
+            const emailHtml = getInterviewEmailTemplate(
+                interview.candidate.name,
+                interview.job.title,
+                formattedDate,
+                interview.type,
+                interview.location,
+                interview.meetingLink
+            );
+
+            // Non-blocking email sending
+            sendEmail(interview.candidate.email, `Phỏng vấn chuyên môn - ${interview.job.title}`, emailHtml).catch(err => console.error('Failed to send interview email:', err));
+        }
 
         return NextResponse.json(interview, { status: 201 });
     } catch (error) {

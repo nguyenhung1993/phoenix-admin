@@ -3,6 +3,10 @@ import { Briefcase, Users, UserCheck, Clock } from 'lucide-react';
 import prisma from '@/lib/prisma';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { getRecruitmentFunnelStats, getRecruitmentSourceStats, getHeadcountStats } from '@/lib/reports';
+import { RecruitmentFunnelChart } from '@/components/charts/funnel-chart';
+import { SimplePieChart } from '@/components/charts/pie-chart';
+import { SimpleBarChart } from '@/components/charts/bar-chart';
 
 export const dynamic = 'force-dynamic'; // Ensure real-time data
 
@@ -12,7 +16,10 @@ async function getDashboardStats() {
         totalCandidates,
         newCandidates,
         interviewCandidates,
-        recentCandidates
+        recentCandidates,
+        funnelStats,
+        sourceStats,
+        headcountStats,
     ] = await Promise.all([
         prisma.job.count({ where: { status: 'PUBLISHED' } }),
         prisma.candidate.count(),
@@ -22,7 +29,10 @@ async function getDashboardStats() {
             take: 5,
             orderBy: { appliedDate: 'desc' },
             include: { job: true },
-        })
+        }),
+        getRecruitmentFunnelStats(),
+        getRecruitmentSourceStats(),
+        getHeadcountStats(),
     ]);
 
     return {
@@ -30,7 +40,10 @@ async function getDashboardStats() {
         totalCandidates,
         newCandidates,
         interviewCandidates,
-        recentCandidates
+        recentCandidates,
+        funnelStats,
+        sourceStats,
+        headcountStats,
     };
 }
 
@@ -40,7 +53,10 @@ export default async function AdminDashboard() {
         totalCandidates,
         newCandidates,
         interviewCandidates,
-        recentCandidates
+        recentCandidates,
+        funnelStats,
+        sourceStats,
+        headcountStats,
     } = await getDashboardStats();
 
     const stats = [
@@ -70,6 +86,19 @@ export default async function AdminDashboard() {
         },
     ];
 
+    // Transform source stats for Pie Chart
+    const sourceChartData = sourceStats.map(s => ({
+        name: s.label,
+        value: s.count,
+        fill: s.fill,
+    }));
+
+    // Transform headcount stats for Bar Chart
+    const deptChartData = headcountStats.byDepartment.map(d => ({
+        name: d.department,
+        value: d.count,
+    }));
+
     return (
         <div className="space-y-6">
             <div>
@@ -96,42 +125,81 @@ export default async function AdminDashboard() {
                 ))}
             </div>
 
-            {/* Recent Candidates */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Ứng viên gần đây</CardTitle>
-                    <CardDescription>5 ứng viên nộp hồ sơ mới nhất</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {recentCandidates.length === 0 ? (
-                            <p className="text-center text-muted-foreground py-4">Chưa có ứng viên nào.</p>
-                        ) : (
-                            recentCandidates.map((candidate) => (
-                                <div key={candidate.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                                    <div>
-                                        <p className="font-medium">{candidate.name}</p>
-                                        <p className="text-sm text-muted-foreground">{candidate.job.title}</p>
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recruitment Funnel */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Phễu Tuyển Dụng</CardTitle>
+                        <CardDescription>Số lượng ứng viên qua từng giai đoạn</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <RecruitmentFunnelChart data={funnelStats} />
+                    </CardContent>
+                </Card>
+
+                {/* Candidate Source */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Nguồn Ứng Viên</CardTitle>
+                        <CardDescription>Hiệu quả các kênh tuyển dụng</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <SimplePieChart data={sourceChartData} />
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* HRM Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Headcount by Department */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Nhân sự theo Phòng ban</CardTitle>
+                        <CardDescription>Phân bổ nhân sự hiện tại</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <SimpleBarChart data={deptChartData} />
+                    </CardContent>
+                </Card>
+
+                {/* Recent Candidates */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Ứng viên gần đây</CardTitle>
+                        <CardDescription>5 ứng viên nộp hồ sơ mới nhất</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {recentCandidates.length === 0 ? (
+                                <p className="text-center text-muted-foreground py-4">Chưa có ứng viên nào.</p>
+                            ) : (
+                                recentCandidates.map((candidate) => (
+                                    <div key={candidate.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                                        <div>
+                                            <p className="font-medium">{candidate.name}</p>
+                                            <p className="text-sm text-muted-foreground">{candidate.job?.title}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${candidate.status === 'NEW' ? 'bg-blue-100 text-blue-800' :
+                                                candidate.status === 'INTERVIEW' ? 'bg-purple-100 text-purple-800' :
+                                                    candidate.status === 'OFFER' ? 'bg-green-100 text-green-800' :
+                                                        candidate.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                                            'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                {candidate.status}
+                                            </span>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {format(new Date(candidate.appliedDate), 'dd/MM/yyyy', { locale: vi })}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${candidate.status === 'NEW' ? 'bg-blue-100 text-blue-800' :
-                                            candidate.status === 'INTERVIEW' ? 'bg-purple-100 text-purple-800' :
-                                                candidate.status === 'OFFER' ? 'bg-green-100 text-green-800' :
-                                                    candidate.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                                        'bg-yellow-100 text-yellow-800'
-                                            }`}>
-                                            {candidate.status}
-                                        </span>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {format(new Date(candidate.appliedDate), 'dd/MM/yyyy', { locale: vi })}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
+                                ))
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

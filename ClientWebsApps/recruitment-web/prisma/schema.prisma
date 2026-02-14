@@ -361,6 +361,7 @@ enum NotificationType {
   SYSTEM_ALERT
   BIRTHDAY
   TASK_ASSIGNMENT
+  RECRUITMENT
 }
 
 enum NotificationPriority {
@@ -1193,3 +1194,4 @@ model SecurityConfig {
   mfaEnabled            Boolean @default(false)
   loginRetries          Int     @default(5)
 }
+
