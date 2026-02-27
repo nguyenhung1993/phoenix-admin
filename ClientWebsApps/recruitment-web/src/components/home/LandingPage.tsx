@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Users, Heart, Target, Briefcase, Building } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowRight, Users, Heart, Target, Briefcase, Building, Quote } from 'lucide-react';
 import { AuroraBackground } from '@/components/react-bits/AuroraBackground';
 import { SplitText } from '@/components/react-bits/SplitText';
 import { TiltedCard } from '@/components/react-bits/TiltedCard';
@@ -144,6 +145,69 @@ export function LandingPage({ isLoggedIn, userRole }: LandingPageProps) {
                                     </p>
                                 </div>
                             </TiltedCard>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* CEO Message Section */}
+            <section className="py-24 bg-neutral-50 dark:bg-neutral-900 overflow-hidden relative border-y border-neutral-200 dark:border-neutral-800">
+                {/* Decorative background elements */}
+                <div className="absolute top-0 right-0 w-1/3 h-full bg-primary/5 blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/2 rounded-full" />
+                <div className="absolute bottom-0 left-0 w-1/4 h-1/2 bg-blue-500/5 blur-[100px] pointer-events-none translate-y-1/2 -translate-x-1/2 rounded-full" />
+
+                <div className="container relative z-10">
+                    <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+                        {/* Image Column */}
+                        <div className="w-full lg:w-5/12">
+                            <motion.div
+                                initial={{ opacity: 0, x: -30 }}
+                                whileInView={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.6 }}
+                                className="relative aspect-4/5 w-full max-w-md mx-auto rounded-3xl overflow-hidden shadow-2xl"
+                            >
+                                <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent z-10" />
+                                <Image
+                                    src="https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=1000&auto=format&fit=crop"
+                                    alt="Mr. Nguyen Hung - CEO Phoenix"
+                                    fill
+                                    className="object-cover object-top"
+                                    sizes="(max-width: 768px) 100vw, 400px"
+                                />
+                                <div className="absolute bottom-0 left-0 p-6 z-20 text-white">
+                                    <h3 className="text-2xl font-bold tracking-tight">Nguyễn Hùng</h3>
+                                    <p className="text-white/80 font-medium">Giám đốc Dự án / CEO Phoenix</p>
+                                </div>
+                            </motion.div>
+                        </div>
+
+                        {/* Content Column */}
+                        <div className="w-full lg:w-7/12">
+                            <motion.div
+                                initial={{ opacity: 0, y: 30 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.6, delay: 0.2 }}
+                                className="flex flex-col"
+                            >
+                                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-8">
+                                    <Quote className="w-8 h-8 text-primary" />
+                                </div>
+                                <h2 className="text-3xl lg:text-5xl font-bold leading-tight mb-8">
+                                    "Tài sản quý giá nhất của Phoenix không phải là sản phẩm, mà chính là <span className="text-primary italic">con người</span>."
+                                </h2>
+                                <div className="space-y-6 text-lg text-muted-foreground">
+                                    <p>
+                                        Tại Phoenix, chúng tôi tin rằng mỗi cá nhân đều mang trong mình một ngọn lửa nhiệt huyết và tiềm năng vô hạn. Nhiệm vụ của chúng tôi là tạo ra một môi trường làm việc cởi mở, sáng tạo, nơi ngọn lửa đó được thổi bùng thành những giá trị thiết thực.
+                                    </p>
+                                    <p>
+                                        Gia nhập Phoenix đồng nghĩa với việc bạn không chỉ đang tìm kiếm một công việc, mà là bước vào một hành trình kiến tạo tương lai, chinh phục những đỉnh cao mới cùng một đội ngũ xuất sắc. Chúng tôi luôn sẵn sàng chào đón những người đồng hành mang tinh thần chiến binh, không ngại thách thức và luôn khao khát vượt qua giới hạn của chính mình.
+                                    </p>
+                                </div>
+
+                                <div className="mt-10 pt-10 border-t border-border">
+                                    <div className="font-medium text-foreground text-lg">Chào mừng bạn đến với Phoenix!</div>
+                                </div>
+                            </motion.div>
                         </div>
                     </div>
                 </div>
