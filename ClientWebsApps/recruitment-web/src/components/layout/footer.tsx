@@ -9,7 +9,7 @@ export function Footer() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     {/* Company Info */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-primary">Phoenix VN Careers</h3>
+                        <h3 className="text-lg font-bold text-primary">Phoenix</h3>
                         <p className="text-sm text-muted-foreground">
                             Gia nhập đội ngũ Phoenix Việt Nam - Nơi bạn được phát triển và tỏa sáng.
                         </p>
@@ -40,7 +40,7 @@ export function Footer() {
                     <div className="space-y-4">
                         <h4 className="font-semibold">Công ty</h4>
                         <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li><Link href="https://phoenix.com.vn" target="_blank" className="hover:text-primary">Phoenix Vietnam</Link></li>
+                            <li><Link href="#" target="_blank" className="hover:text-primary">Phoenix Vietnam</Link></li>
                             <li><Link href="#" className="hover:text-primary">Chính sách bảo mật</Link></li>
                             <li><Link href="#" className="hover:text-primary">Điều khoản sử dụng</Link></li>
                         </ul>
@@ -69,8 +69,7 @@ export function Footer() {
                 <Separator className="my-8" />
 
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-                    <p>© 2026 Phoenix Vietnam. All rights reserved.</p>
-                    <p>Developed with ❤️ by Phoenix Team</p>
+                    <p>© 2026 Phoenix Vietnam</p>
                 </div>
             </div>
         </footer>
