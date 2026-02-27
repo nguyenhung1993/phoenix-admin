@@ -12,9 +12,13 @@ import { motion } from 'framer-motion';
 
 interface LandingPageProps {
     isLoggedIn: boolean;
+    userRole?: string;
 }
 
-export function LandingPage({ isLoggedIn }: LandingPageProps) {
+export function LandingPage({ isLoggedIn, userRole }: LandingPageProps) {
+    // Only show Portal button for logged in users who are NOT viewers
+    const showPortalButton = isLoggedIn && userRole !== 'VIEWER';
+
     return (
         <>
             {/* Hero Section with Aurora Background */}
@@ -48,7 +52,7 @@ export function LandingPage({ isLoggedIn }: LandingPageProps) {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            {isLoggedIn ? (
+                            {showPortalButton ? (
                                 <Button size="lg" className="bg-white text-black hover:bg-gray-200" asChild>
                                     <Link href="/portal">
                                         Truy cập Portal Nhân viên
