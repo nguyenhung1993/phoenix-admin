@@ -27,6 +27,7 @@ export const AuroraBackground = ({
                         className={cn(
                             `
                             absolute -inset-[10px] opacity-50 will-change-transform
+                            animate-aurora
                             [background-image:var(--white-gradient),var(--aurora)]
                             dark:[background-image:var(--dark-gradient),var(--aurora)]
                             [background-size:300%,_200%]
@@ -46,7 +47,6 @@ export const AuroraBackground = ({
                             "--white-gradient": "repeating-linear-gradient(100deg, #ffffff 0%, #ffffff 7%, transparent 10%, transparent 12%, #ffffff 16%)",
                             "--dark-gradient": "repeating-linear-gradient(100deg, #000000 0%, #000000 7%, transparent 10%, transparent 12%, #000000 16%)",
                             "--aurora": "repeating-linear-gradient(100deg, #3b82f6 10%, #a5b4fc 15%, #93c5fd 20%, #ddd6fe 25%, #60a5fa 30%)",
-                            animation: "aurora 60s linear infinite",
                         } as React.CSSProperties}
                     ></div>
                 </div>
