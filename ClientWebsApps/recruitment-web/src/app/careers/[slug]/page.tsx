@@ -301,7 +301,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
 
                     {/* Sticky Bottom Bar */}
                     <div className="sticky bottom-0 px-6 py-4 border-t bg-white/95 backdrop-blur-sm flex items-center gap-3">
-                        <Button size="lg" className="gap-2 bg-emerald-600 hover:bg-emerald-700" asChild>
+                        <Button size="lg" className="gap-2 bg-primary hover:bg-primary/80" asChild>
                             <Link href={`/careers/${job.slug}/apply`}>
                                 <Send className="h-4 w-4" />
                                 Ứng tuyển ngay
