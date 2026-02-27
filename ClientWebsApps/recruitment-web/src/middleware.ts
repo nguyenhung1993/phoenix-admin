@@ -46,6 +46,12 @@ export default auth((req) => {
             loginUrl.searchParams.set("callbackUrl", pathname);
             return NextResponse.redirect(loginUrl);
         }
+
+        // External accounts (VIEWER) cannot access the portal
+        if (userRole === "VIEWER") {
+            return NextResponse.redirect(new URL("/unauthorized", req.url));
+        }
+
         // All logged in users can access portal, no specific permission check needed for now, 
         // or we could check for 'dashboard:view' as base permission? 
         // Let's assume all authenticated users can access portal.

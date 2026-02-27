@@ -21,26 +21,38 @@ export const isAdmin = (email: string | null | undefined): boolean => {
 
 // Get user role from database or fallback
 export const getUserRole = async (email: string | null | undefined): Promise<Role> => {
-    if (!email) return "EMPLOYEE";
+    if (!email) return "VIEWER";
+
+    // First check if user is an admin
+    if (isAdmin(email)) {
+        return "SUPER_ADMIN";
+    }
 
     try {
+        // Check if the user has an explicit role in User table
         const user = await prisma.user.findUnique({
             where: { email: email.toLowerCase() },
             select: { role: true },
         });
 
-        if (user?.role) {
+        if (user?.role && user.role !== "EMPLOYEE") {
             return user.role as Role;
+        }
+
+        // Verify if they are an actual employee
+        const employee = await prisma.employee.findUnique({
+            where: { email: email.toLowerCase() },
+            select: { id: true },
+        });
+
+        if (employee) {
+            return "EMPLOYEE";
         }
     } catch {
         // DB not available, fall back
     }
 
-    // Fall back to admin emails env
-    if (isAdmin(email)) {
-        return "SUPER_ADMIN";
-    }
-
+    // Default for external users like Google login without an employee record
     return "VIEWER";
 };
 
