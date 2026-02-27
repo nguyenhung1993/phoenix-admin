@@ -13,19 +13,37 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://phoenix-admin.vercel.app'),
   title: {
     default: "Phoenix Careers - Tuyển dụng",
     template: "%s | Phoenix Careers",
   },
   description: "Gia nhập đội ngũ Phoenix - Khám phá cơ hội nghề nghiệp và phát triển bản thân cùng thương hiệu thể thao hàng đầu.",
-  keywords: ["Phoenix", "tuyển dụng", "việc làm", "careers", "thể thao", "retail"],
+  keywords: ["Phoenix", "tuyển dụng", "việc làm", "careers", "thể thao", "retail", "việc làm Hà Nội", "việc làm Hồ Chí Minh"],
+  authors: [{ name: "Phoenix HR Team" }],
+  creator: "Phoenix",
   openGraph: {
-    title: "Phoenix Careers - Tuyển dụng",
-    description: "Gia nhập đội ngũ Phoenix - Khám phá cơ hội nghề nghiệp và phát triển bản thân.",
+    title: "Phoenix Careers - Nền tảng tuyển dụng",
+    description: "Gia nhập đội ngũ Phoenix - Khám phá cơ hội nghề nghiệp và phát triển bản thân cùng thương hiệu thể thao hàng đầu.",
+    url: '/',
+    siteName: "Phoenix Careers",
     type: "website",
     locale: "vi_VN",
-    siteName: "Phoenix Careers",
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Phoenix Tuyển dụng',
+      },
+    ],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Phoenix Careers",
+    description: "Khám phá cơ hội nghề nghiệp tại Phoenix.",
+    creator: "@phoenix",
+  }
 };
 
 import { SmoothScrollProvider } from "@/components/providers/smooth-scroll-provider";

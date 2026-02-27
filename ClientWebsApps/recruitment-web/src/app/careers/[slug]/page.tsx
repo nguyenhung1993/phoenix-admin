@@ -46,9 +46,30 @@ export async function generateMetadata({ params }: JobDetailPageProps): Promise<
         return { title: 'Không tìm thấy' };
     }
 
+    const description = job.description?.substring(0, 160) || 'Chi tiết vị trí tuyển dụng tại Phoenix...';
+
     return {
         title: `${job.title} | Tuyển dụng`,
-        description: job.description || undefined,
+        description: description,
+        openGraph: {
+            title: `${job.title} | Phoenix Careers`,
+            description: description,
+            type: 'article',
+            url: `/careers/${slug}`,
+            images: [
+                {
+                    url: '/og-image-job.png', // Fallback to global if not available
+                    width: 1200,
+                    height: 630,
+                    alt: `Tuyển dụng ${job.title}`,
+                }
+            ]
+        },
+        twitter: {
+            card: "summary_large_image",
+            title: job.title,
+            description: description,
+        }
     };
 }
 
