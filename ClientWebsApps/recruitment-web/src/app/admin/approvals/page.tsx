@@ -1,58 +1,71 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { mockApprovalRequests } from '@/lib/mocks/approvals';
-import { ApprovalRequest, ApprovalStatus } from '@/lib/types/approval';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CheckCircle2, XCircle, Clock, FileText, Calendar, Monitor, Loader2 } from 'lucide-react';
 import {
-    CheckCircle2,
-    XCircle,
-    Clock,
-    FileText,
-    Calendar,
-    Monitor,
-    MoreHorizontal,
-    ArrowRight
-} from 'lucide-react';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
 import { useNotifications } from '@/lib/contexts/notification-context';
 
+interface ApprovalRequest {
+    id: string;
+    code: string;
+    type: string;
+    requesterId: string;
+    requesterName: string;
+    department?: string | null;
+    title: string;
+    description?: string | null;
+    metadata?: any;
+    status: string;
+    currentStepOrder: number;
+    totalSteps: number;
+    steps: any[];
+    createdAt: string;
+}
+
 export default function ApprovalsPage() {
-    const [requests, setRequests] = useState<ApprovalRequest[]>(mockApprovalRequests);
+    const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+    const [loading, setLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
     const [comment, setComment] = useState('');
     const [action, setAction] = useState<'APPROVE' | 'REJECT' | null>(null);
 
-    // Mock "My Role" - In a real app, this comes from the user session
     const MY_CURRENT_ROLE = 'MANAGER';
 
-    const pendingRequests = requests.filter(r =>
-        r.status === 'PENDING' &&
-        r.steps.find(s => s.order === r.currentStepOrder)?.role === MY_CURRENT_ROLE
-    );
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/approval-requests');
+                const json = await res.json();
+                setRequests(json.data || []);
+            } catch {
+                setRequests([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const pendingRequests = requests.filter(r => {
+        if (r.status !== 'PENDING') return false;
+        const steps = Array.isArray(r.steps) ? r.steps : [];
+        const currentStep = steps.find((s: any) => s.order === r.currentStepOrder);
+        return currentStep?.role === MY_CURRENT_ROLE;
+    });
 
     const fileTypeIcons: Record<string, any> = {
-        'LEAVE': Calendar,
-        'ASSET_REQUEST': Monitor,
-        'OVERTIME': Clock,
-        'PROMOTION': FileText
+        'LEAVE': Calendar, 'ASSET_REQUEST': Monitor, 'OVERTIME': Clock, 'PROMOTION': FileText
     };
 
     const handleAction = (request: ApprovalRequest, type: 'APPROVE' | 'REJECT') => {
@@ -63,73 +76,47 @@ export default function ApprovalsPage() {
 
     const { addNotification } = useNotifications();
 
-    const confirmAction = () => {
+    const confirmAction = async () => {
         if (!selectedRequest || !action) return;
 
         const updatedRequests = requests.map(req => {
             if (req.id !== selectedRequest.id) return req;
-
-            const currentStepIndex = req.steps.findIndex(s => s.order === req.currentStepOrder);
-            const newSteps = [...req.steps];
-
-            // Update current step
+            const currentStepIndex = (req.steps as any[]).findIndex((s: any) => s.order === req.currentStepOrder);
+            const newSteps = [...(req.steps as any[])];
             newSteps[currentStepIndex] = {
                 ...newSteps[currentStepIndex],
                 status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
-                approvedBy: 'Tôi (Admin)', // Mock user
-                approvedAt: new Date().toISOString(),
-                comment: comment
+                approvedBy: 'Tôi (Admin)', approvedAt: new Date().toISOString(), comment
             };
 
-            let newStatus: ApprovalStatus = req.status;
+            let newStatus = req.status;
             let newStepOrder = req.currentStepOrder;
 
             if (action === 'REJECT') {
                 newStatus = 'REJECTED';
             } else {
-                // Check if there is next step
-                if (currentStepIndex < req.steps.length - 1) {
-                    newStepOrder = req.steps[currentStepIndex + 1].order;
-                    // Next step remains pending
+                if (currentStepIndex < newSteps.length - 1) {
+                    newStepOrder = newSteps[currentStepIndex + 1].order;
                 } else {
-                    newStatus = 'APPROVED'; // All steps done
+                    newStatus = 'APPROVED';
                 }
             }
 
-            return {
-                ...req,
-                status: newStatus,
-                currentStepOrder: newStepOrder,
-                steps: newSteps
-            };
+            return { ...req, status: newStatus, currentStepOrder: newStepOrder, steps: newSteps };
         });
 
         setRequests(updatedRequests);
 
-        // SIMULATE NOTIFICATION
         if (action === 'APPROVE') {
-            addNotification({
-                title: 'Yêu cầu được phê duyệt',
-                message: `Yêu cầu ${selectedRequest.code} của ${selectedRequest.requesterName} đã được phê duyệt bước ${selectedRequest.currentStepOrder}.`,
-                type: 'LEAVE_REQUEST', // Mocking generic type or derived from request
-                priority: 'HIGH'
-            });
+            addNotification({ title: 'Yêu cầu được phê duyệt', message: `Yêu cầu ${selectedRequest.code} đã được phê duyệt.`, type: 'LEAVE_REQUEST', priority: 'HIGH' });
         } else {
-            addNotification({
-                title: 'Yêu cầu bị từ chối',
-                message: `Yêu cầu ${selectedRequest.code} của ${selectedRequest.requesterName} đã bị từ chối.`,
-                type: 'SYSTEM_ALERT',
-                priority: 'HIGH'
-            });
+            addNotification({ title: 'Yêu cầu bị từ chối', message: `Yêu cầu ${selectedRequest.code} đã bị từ chối.`, type: 'SYSTEM_ALERT', priority: 'HIGH' });
         }
 
         setSelectedRequest(null);
-        // Toast is already handled by addNotification for the current user, but for specific action feedback we might keep toast or remove it if redundant.
-        // specific toast for action completion
-        // toast.success(action === 'APPROVE' ? 'Đã phê duyệt yêu cầu' : 'Đã từ chối yêu cầu');
     };
 
-    const getStatusColor = (status: ApprovalStatus) => {
+    const getStatusColor = (status: string) => {
         switch (status) {
             case 'APPROVED': return 'bg-green-500/15 text-green-700 dark:text-green-400 hover:bg-green-500/25';
             case 'REJECTED': return 'bg-red-500/15 text-red-700 dark:text-red-400 hover:bg-red-500/25';
@@ -137,6 +124,15 @@ export default function ApprovalsPage() {
             default: return 'bg-gray-500/15 text-gray-700 dark:text-gray-400';
         }
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -166,41 +162,22 @@ export default function ApprovalsPage() {
                                     <Card key={req.id} className="flex flex-col">
                                         <CardHeader className="pb-3">
                                             <div className="flex justify-between items-start mb-2">
-                                                <div className="p-2 bg-primary/10 rounded-lg">
-                                                    <Icon className="h-5 w-5 text-primary" />
-                                                </div>
-                                                <Badge variant="outline" className="font-normal">
-                                                    {req.code}
-                                                </Badge>
+                                                <div className="p-2 bg-primary/10 rounded-lg"><Icon className="h-5 w-5 text-primary" /></div>
+                                                <Badge variant="outline" className="font-normal">{req.code}</Badge>
                                             </div>
                                             <CardTitle className="text-lg leading-tight">{req.title}</CardTitle>
-                                            <CardDescription>
-                                                từ <span className="font-medium text-foreground">{req.requesterName}</span> • {req.department}
-                                            </CardDescription>
+                                            <CardDescription>từ <span className="font-medium text-foreground">{req.requesterName}</span> • {req.department}</CardDescription>
                                         </CardHeader>
                                         <CardContent className="flex-1 pb-3">
-                                            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                                                {req.description}
-                                            </p>
+                                            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{req.description}</p>
                                             <div className="flex items-center text-xs text-muted-foreground">
                                                 <Clock className="h-3 w-3 mr-1" />
                                                 {format(new Date(req.createdAt), 'dd/MM/yyyy HH:mm')}
                                             </div>
                                         </CardContent>
                                         <div className="p-4 pt-0 mt-auto flex gap-2">
-                                            <Button
-                                                className="flex-1 bg-green-600 hover:bg-green-700"
-                                                onClick={() => handleAction(req, 'APPROVE')}
-                                            >
-                                                Phê duyệt
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
-                                                onClick={() => handleAction(req, 'REJECT')}
-                                            >
-                                                Từ chối
-                                            </Button>
+                                            <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleAction(req, 'APPROVE')}>Phê duyệt</Button>
+                                            <Button variant="outline" className="flex-1 border-destructive text-destructive hover:bg-destructive/10" onClick={() => handleAction(req, 'REJECT')}>Từ chối</Button>
                                         </div>
                                     </Card>
                                 );
@@ -237,16 +214,11 @@ export default function ApprovalsPage() {
             <Dialog open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>
-                            {action === 'APPROVE' ? 'Xác nhận phê duyệt' : 'Từ chối yêu cầu'}
-                        </DialogTitle>
+                        <DialogTitle>{action === 'APPROVE' ? 'Xác nhận phê duyệt' : 'Từ chối yêu cầu'}</DialogTitle>
                         <DialogDescription>
-                            {action === 'APPROVE'
-                                ? 'Bạn có chắc chắn muốn duyệt yêu cầu này? Hành động này sẽ chuyển tiếp yêu cầu đến bước tiếp theo (nếu có).'
-                                : 'Vui lòng nhập lý do từ chối yêu cầu này.'}
+                            {action === 'APPROVE' ? 'Bạn có chắc chắn muốn duyệt yêu cầu này?' : 'Vui lòng nhập lý do từ chối yêu cầu này.'}
                         </DialogDescription>
                     </DialogHeader>
-
                     <div className="py-4">
                         <label className="text-sm font-medium mb-2 block">Ghi chú / Lý do:</label>
                         <Textarea
@@ -256,14 +228,9 @@ export default function ApprovalsPage() {
                             className={cn(action === 'REJECT' && !comment && "border-red-500 focus-visible:ring-red-500")}
                         />
                     </div>
-
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setSelectedRequest(null)}>Hủy</Button>
-                        <Button
-                            variant={action === 'REJECT' ? "destructive" : "default"}
-                            onClick={confirmAction}
-                            disabled={action === 'REJECT' && !comment}
-                        >
+                        <Button variant={action === 'REJECT' ? "destructive" : "default"} onClick={confirmAction} disabled={action === 'REJECT' && !comment}>
                             Xác nhận
                         </Button>
                     </DialogFooter>

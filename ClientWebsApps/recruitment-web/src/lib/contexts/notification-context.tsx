@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Notification, NotificationType, NotificationPriority } from '@/lib/types/notification';
-import { mockNotifications } from '@/lib/mocks/notifications';
 import { toast } from 'sonner';
 
 interface NotificationContextType {
@@ -20,8 +19,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
     useEffect(() => {
-        // Load mock data on mount
-        setNotifications(mockNotifications);
+        // Load notifications from API on mount
+        fetch('/api/notifications').then(r => r.json()).then(data => {
+            setNotifications(Array.isArray(data) ? data : []);
+        }).catch(console.error);
     }, []);
 
     const unreadCount = notifications.filter(n => !n.isRead).length;

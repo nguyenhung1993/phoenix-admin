@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { mockWorkflows } from '@/lib/mocks/approvals';
+
 import { ApprovalWorkflow, ApprovalRole } from '@/lib/types/approval';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import {
@@ -35,7 +35,11 @@ const ROLE_OPTIONS: { value: ApprovalRole; label: string }[] = [
 ];
 
 export function ApprovalWorkflowSettings() {
-    const [workflows, setWorkflows] = useState<ApprovalWorkflow[]>(mockWorkflows);
+    const [workflows, setWorkflows] = useState<ApprovalWorkflow[]>([]);
+
+    useEffect(() => {
+        fetch('/api/approval-workflows').then(r => r.json()).then(setWorkflows).catch(console.error);
+    }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingWorkflow, setEditingWorkflow] = useState<ApprovalWorkflow | null>(null);
 
@@ -89,28 +93,29 @@ export function ApprovalWorkflowSettings() {
         setFormData({ ...formData, steps: newSteps });
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.name || !formData.type || (formData.steps?.length || 0) === 0) {
             toast.error("Vui lòng điền đầy đủ thông tin");
             return;
         }
 
         if (editingWorkflow) {
-            setWorkflows(prev => prev.map(w => w.id === editingWorkflow.id ? { ...w, ...formData } as ApprovalWorkflow : w));
+            const res = await fetch('/api/approval-workflows', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingWorkflow.id, ...formData }) });
+            const updated = await res.json();
+            setWorkflows(prev => prev.map(w => w.id === editingWorkflow.id ? updated : w));
             toast.success("Đã cập nhật quy trình");
         } else {
-            const newWorkflow: ApprovalWorkflow = {
-                ...formData as ApprovalWorkflow,
-                id: `WF-${Date.now()}`
-            };
+            const res = await fetch('/api/approval-workflows', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+            const newWorkflow = await res.json();
             setWorkflows(prev => [...prev, newWorkflow]);
             toast.success("Đã tạo quy trình mới");
         }
         setIsDialogOpen(false);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (confirm("Bạn có chắc chắn muốn xóa quy trình này?")) {
+            await fetch(`/api/approval-workflows?id=${id}`, { method: 'DELETE' });
             setWorkflows(prev => prev.filter(w => w.id !== id));
             toast.success("Đã xóa quy trình");
         }

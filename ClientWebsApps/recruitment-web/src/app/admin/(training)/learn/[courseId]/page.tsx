@@ -1,56 +1,102 @@
 'use client';
 
-// Note: In Next.js App Router, dynamic routes receive params.
-// We need to use `useParams` or props.
-
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { mockCourses, Course, CourseModule, Lesson } from '@/lib/mocks/training';
 import {
     ChevronLeft,
     PlayCircle,
     FileText,
     HelpCircle,
     CheckCircle2,
-    Circle,
-    Menu,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+interface Lesson {
+    id: string;
+    title: string;
+    description?: string;
+    duration: string;
+    type: string;
+    videoUrl?: string;
+    content?: string;
+}
+
+interface CourseModule {
+    id: string;
+    title: string;
+    lessons: Lesson[];
+}
+
+interface CourseDetail {
+    id: string;
+    title: string;
+    totalLessons: number;
+    modules: CourseModule[];
+}
 
 export default function CourseLearnPage() {
     const params = useParams();
     const router = useRouter();
     const courseId = params.courseId as string;
 
-    const [course, setCourse] = useState<Course | null>(null);
+    const [course, setCourse] = useState<CourseDetail | null>(null);
     const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
     const [completedLessons, setCompletedLessons] = useState<string[]>([]);
     const [expandedModules, setExpandedModules] = useState<string[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Mock fetch course
-        const foundCourse = mockCourses.find(c => c.id === courseId);
-        if (foundCourse) {
-            setCourse(foundCourse);
-            // Default select first lesson of first module
-            if (foundCourse.modules.length > 0 && foundCourse.modules[0].lessons.length > 0) {
-                setActiveLesson(foundCourse.modules[0].lessons[0]);
-                setExpandedModules([foundCourse.modules[0].id]);
+        const fetchCourse = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/courses');
+                const json = await res.json();
+                const allCourses = json.data || [];
+                const foundCourse = allCourses.find((c: any) => c.id === courseId);
+                if (foundCourse) {
+                    // Parse modules from JSON
+                    const modules: CourseModule[] = Array.isArray(foundCourse.modules) ? foundCourse.modules : [];
+                    const courseDetail: CourseDetail = {
+                        id: foundCourse.id,
+                        title: foundCourse.title,
+                        totalLessons: foundCourse.totalLessons || modules.reduce((sum: number, m: CourseModule) => sum + m.lessons.length, 0),
+                        modules,
+                    };
+                    setCourse(courseDetail);
+                    if (modules.length > 0 && modules[0].lessons.length > 0) {
+                        setActiveLesson(modules[0].lessons[0]);
+                        setExpandedModules([modules[0].id]);
+                    }
+                }
+            } catch {
+                setCourse(null);
+            } finally {
+                setLoading(false);
             }
-        }
+        };
+        fetchCourse();
     }, [courseId]);
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải khóa học...</span>
+            </div>
+        );
+    }
+
     if (!course) {
-        return <div className="p-8 text-center text-muted-foreground">Đang tải khóa học...</div>;
+        return <div className="p-8 text-center text-muted-foreground">Không tìm thấy khóa học</div>;
     }
 
     const toggleModule = (moduleId: string) => {
@@ -84,7 +130,7 @@ export default function CourseLearnPage() {
                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                         <span className="flex items-center"><PlayCircle className="h-3 w-3 mr-1" /> {completedLessons.length}/{course.totalLessons} bài học</span>
                         <span>•</span>
-                        <span>{Math.round((completedLessons.length / course.totalLessons) * 100)}%</span>
+                        <span>{course.totalLessons > 0 ? Math.round((completedLessons.length / course.totalLessons) * 100) : 0}%</span>
                     </div>
                 </div>
 
@@ -196,7 +242,7 @@ export default function CourseLearnPage() {
                     </>
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                        Chọn một bài học để bắt đầu
+                        {course.modules.length === 0 ? 'Khóa học chưa có nội dung' : 'Chọn một bài học để bắt đầu'}
                     </div>
                 )}
             </div>

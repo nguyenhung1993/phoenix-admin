@@ -1,67 +1,87 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { generateMockPayroll, PayrollSlip } from '@/lib/mocks/cb';
-import { formatCurrency } from '@/lib/mocks';
-import { Calculator, CheckCircle2, Eye, Download, Printer } from 'lucide-react';
-import { toast } from 'sonner';
+import { Download, Loader2 } from 'lucide-react';
+
+function formatCurrency(value: number): string {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+}
 
 export default function PayrollPage() {
-    const [month, setMonth] = useState('2');
-    const [year, setYear] = useState('2026');
-    const currentUserId = '1';
-
-    // Mock initial data
-    const allPayroll = generateMockPayroll(parseInt(month), parseInt(year));
-    const initialSlip = allPayroll.find(p => p.employeeId === currentUserId);
+    const now = new Date();
+    const [month, setMonth] = useState(String(now.getMonth() + 1));
+    const [year, setYear] = useState(String(now.getFullYear()));
+    const [loading, setLoading] = useState(true);
+    const [payrollSlip, setPayrollSlip] = useState<any>(null);
 
     // Dynamic Calculation State
-    const [baseSalary, setBaseSalary] = useState(initialSlip?.baseSalary || 30000000);
-    const [standardDays, setStandardDays] = useState(initialSlip?.standardWorkDays || 22);
-    const [actualDays, setActualDays] = useState(initialSlip?.actualWorkDays || 22);
-    const [otHours, setOtHours] = useState(initialSlip?.overtimeHours || 0);
-    const [bonus, setBonus] = useState(initialSlip?.bonus || 0);
+    const [baseSalary, setBaseSalary] = useState(30000000);
+    const [standardDays, setStandardDays] = useState(22);
+    const [actualDays, setActualDays] = useState(22);
+    const [otHours, setOtHours] = useState(0);
+    const [bonus, setBonus] = useState(0);
+    const [allowancesVal, setAllowancesVal] = useState(1500000);
+
+    useEffect(() => {
+        const fetchPayroll = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch(`/api/payroll?month=${month}&year=${year}`);
+                const json = await res.json();
+                const slips = json.data || [];
+                if (slips.length > 0) {
+                    const slip = slips[0];
+                    setPayrollSlip(slip);
+                    setBaseSalary(slip.baseSalary);
+                    setStandardDays(slip.standardWorkDays);
+                    setActualDays(slip.actualWorkDays);
+                    setOtHours(slip.overtimeHours);
+                    setBonus(slip.bonus);
+                    setAllowancesVal(slip.allowances);
+                } else {
+                    setPayrollSlip(null);
+                }
+            } catch {
+                setPayrollSlip(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchPayroll();
+    }, [month, year]);
 
     // Recalculate Logic
     const dailyRate = baseSalary / standardDays;
     const salaryByWorkDays = dailyRate * actualDays;
     const overtimePay = (dailyRate / 8) * 1.5 * otHours;
-    const allowances = initialSlip?.allowances || 1500000;
 
-    const totalIncome = salaryByWorkDays + overtimePay + allowances + bonus;
+    const totalIncome = salaryByWorkDays + overtimePay + allowancesVal + bonus;
 
     const insuranceSalary = baseSalary;
     const bhxh = insuranceSalary * 0.08;
     const bhyt = insuranceSalary * 0.015;
     const bhtn = insuranceSalary * 0.01;
-    // Simplified tax calculation
     const taxableIncome = totalIncome - (bhxh + bhyt + bhtn) - 11000000;
     const tax = Math.max(0, taxableIncome * 0.05);
 
     const totalDeductions = bhxh + bhyt + bhtn + tax;
     const netSalary = totalIncome - totalDeductions;
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -168,7 +188,7 @@ export default function PayrollPage() {
                                 </div>
                                 <div className="flex justify-between items-center border-b border-dashed pb-2">
                                     <span className="text-muted-foreground">Phụ cấp</span>
-                                    <span className="font-medium">{formatCurrency(allowances)}</span>
+                                    <span className="font-medium">{formatCurrency(allowancesVal)}</span>
                                 </div>
                                 <div className="flex justify-between items-center pb-2">
                                     <span className="text-muted-foreground">Thưởng hiệu suất</span>

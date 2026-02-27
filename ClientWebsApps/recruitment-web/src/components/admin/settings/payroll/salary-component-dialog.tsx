@@ -32,7 +32,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { SalaryComponent } from "@/lib/mocks/settings-hr"
+import { SalaryComponent } from "@/lib/types/hrm"
 
 const salaryComponentSchema = z.object({
     code: z.string().min(2, "Mã thành phần phải có ít nhất 2 ký tự"),
@@ -75,7 +75,7 @@ export function SalaryComponentDialog({
             form.reset({
                 code: initialData.code,
                 name: initialData.name,
-                type: initialData.type,
+                type: initialData.type as "EARNING" | "DEDUCTION",
                 isTaxable: initialData.isTaxable,
                 description: initialData.description || "",
                 isActive: initialData.isActive,

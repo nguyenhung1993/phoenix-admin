@@ -1,22 +1,55 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { mockCourses, Course } from '@/lib/mocks/training';
-import { PlayCircle, CheckCircle, Clock, BookOpen } from 'lucide-react';
+import { PlayCircle, CheckCircle, BookOpen, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
+interface EnrollmentItem {
+    id: string;
+    courseId: string;
+    courseTitle: string;
+    courseThumbnail: string;
+    courseCategory: string;
+    courseInstructor: string | null;
+    courseDuration: string | null;
+    courseTotalLessons: number;
+    progress: number;
+    status: string;
+}
+
 export default function MyLearningPage() {
-    // Mock: User is enrolled in first 2 courses
-    const myCourses = mockCourses.slice(0, 2).map(c => ({
-        ...c,
-        progress: Math.floor(Math.random() * 100), // Random progress
-        lastAccessed: '2026-02-08',
-    }));
+    const [enrollments, setEnrollments] = useState<EnrollmentItem[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/enrollments');
+                const json = await res.json();
+                setEnrollments(json.data || []);
+            } catch {
+                setEnrollments([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -26,14 +59,14 @@ export default function MyLearningPage() {
             </div>
 
             {/* Resume Learning Section */}
-            {myCourses.length > 0 && (
+            {enrollments.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {myCourses.map((course) => (
-                        <Card key={course.id} className="flex flex-col md:flex-row overflow-hidden">
+                    {enrollments.map((enr) => (
+                        <Card key={enr.id} className="flex flex-col md:flex-row overflow-hidden">
                             <div className="relative w-full md:w-1/3 aspect-video md:aspect-auto">
                                 <Image
-                                    src={course.thumbnail}
-                                    alt={course.title}
+                                    src={enr.courseThumbnail}
+                                    alt={enr.courseTitle}
                                     fill
                                     className="object-cover"
                                 />
@@ -44,28 +77,28 @@ export default function MyLearningPage() {
                             <div className="flex-1 p-4 flex flex-col justify-between">
                                 <div>
                                     <div className="flex justify-between items-start mb-2">
-                                        <Badge variant="secondary" className="text-xs">{course.category}</Badge>
-                                        <span className="text-xs text-muted-foreground text-right">{course.duration}</span>
+                                        <Badge variant="secondary" className="text-xs">{enr.courseCategory}</Badge>
+                                        <span className="text-xs text-muted-foreground text-right">{enr.courseDuration}</span>
                                     </div>
-                                    <h3 className="font-semibold text-lg line-clamp-1 mb-1">{course.title}</h3>
+                                    <h3 className="font-semibold text-lg line-clamp-1 mb-1">{enr.courseTitle}</h3>
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                                         <BookOpen className="h-4 w-4" />
-                                        <span>{course.totalLessons - 2}/{course.totalLessons} bài học</span>
+                                        <span>{Math.round(enr.courseTotalLessons * enr.progress / 100)}/{enr.courseTotalLessons} bài học</span>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-xs">
-                                        <span>Hoàn thành {course.progress}%</span>
-                                        {course.progress === 100 ? (
+                                        <span>Hoàn thành {Math.round(enr.progress)}%</span>
+                                        {enr.progress >= 100 ? (
                                             <span className="text-green-600 flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Đã xong</span>
                                         ) : (
                                             <span className="text-blue-600">Đang học</span>
                                         )}
                                     </div>
-                                    <Progress value={course.progress} className="h-2" />
+                                    <Progress value={enr.progress} className="h-2" />
                                     <Button asChild className="w-full mt-2">
-                                        <Link href={`/admin/learn/${course.id}`}>
-                                            {course.progress > 0 ? 'Tiếp tục học' : 'Bắt đầu ngay'}
+                                        <Link href={`/admin/learn/${enr.courseId}`}>
+                                            {enr.progress > 0 ? 'Tiếp tục học' : 'Bắt đầu ngay'}
                                         </Link>
                                     </Button>
                                 </div>
@@ -75,32 +108,12 @@ export default function MyLearningPage() {
                 </div>
             )}
 
-            {/* Recommended / All Assigned Courses could go here */}
-            <div className="mt-8">
-                <h2 className="text-xl font-semibold mb-4">Danh sách được giao</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Just duplicating for UI demo */}
-                    {myCourses.map((course) => (
-                        <Link href={`/admin/learn/${course.id}`} key={`list-${course.id}`} className="group">
-                            <Card className="h-full hover:shadow-md transition-shadow">
-                                <div className="relative aspect-video rounded-t-lg overflow-hidden">
-                                    <Image
-                                        src={course.thumbnail}
-                                        alt={course.title}
-                                        fill
-                                        className="object-cover group-hover:scale-105 transition-transform"
-                                    />
-                                </div>
-                                <CardContent className="p-3">
-                                    <h4 className="font-medium line-clamp-2 mb-1 group-hover:text-primary transition-colors">{course.title}</h4>
-                                    <p className="text-xs text-muted-foreground mb-2">{course.instructor}</p>
-                                    <Progress value={course.progress} className="h-1.5" />
-                                </CardContent>
-                            </Card>
-                        </Link>
-                    ))}
+            {enrollments.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                    <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p>Bạn chưa đăng ký khóa học nào</p>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

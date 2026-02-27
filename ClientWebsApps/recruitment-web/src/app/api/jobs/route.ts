@@ -72,7 +72,10 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const {
             title, slug, departmentId, location, type, experienceLevel,
-            salaryMin, salaryMax, description, requirements, benefits, status: jobStatus,
+            educationLevel, specialization, deadline,
+            salaryMin, salaryMax, description, requirements, benefits,
+            workAddress, workSchedule, applicationMethod,
+            status: jobStatus,
         } = body;
 
         if (!title || !slug) {
@@ -90,11 +93,17 @@ export async function POST(request: NextRequest) {
                 location,
                 type: type || 'FULL_TIME',
                 experienceLevel,
+                educationLevel,
+                specialization: specialization || [],
+                deadline: deadline ? new Date(deadline) : null,
                 salaryMin,
                 salaryMax,
                 description,
                 requirements: requirements || [],
                 benefits: benefits || [],
+                workAddress,
+                workSchedule,
+                applicationMethod,
                 status: jobStatus || 'DRAFT',
             },
             include: {

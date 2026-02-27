@@ -31,7 +31,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Department } from "@/lib/mocks/hrm"
+import { Department } from "@/lib/types/hrm"
 
 const departmentSchema = z.object({
     code: z.string().min(2, "Mã phòng ban phải có ít nhất 2 ký tự"),

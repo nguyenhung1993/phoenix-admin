@@ -20,7 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Candidate } from '@/lib/mocks/recruitment';
+interface Candidate { id: string; name: string; email: string; jobTitle: string;[key: string]: unknown; }
 import { toast } from 'sonner';
 
 interface EmailComposeDialogProps {

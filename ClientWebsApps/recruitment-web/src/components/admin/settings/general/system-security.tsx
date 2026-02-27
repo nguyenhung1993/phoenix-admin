@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,13 +10,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAuditLogs, getSecurityConfig } from '@/lib/mocks/settings';
+
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function SystemSecurity() {
-    const [securityConfig, setSecurityConfig] = useState(getSecurityConfig());
-    const [auditLogs] = useState(getAuditLogs());
+    const [securityConfig, setSecurityConfig] = useState<any>({ passwordMinLength: 8, requireSpecialChar: true, mfaEnabled: false, sessionTimeoutMinutes: 30 });
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
+    useEffect(() => {
+        fetch('/api/security-config').then(r => r.json()).then(setSecurityConfig).catch(console.error);
+        fetch('/api/audit-logs?limit=10').then(r => r.json()).then(setAuditLogs).catch(console.error);
+    }, []);
 
     const handleResetSystem = () => {
         if (confirm('CẢNH BÁO: Hành động này sẽ xóa toàn bộ dữ liệu test và đưa hệ thống về trạng thái ban đầu. Bạn có chắc chắn không?')) {

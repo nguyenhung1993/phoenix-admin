@@ -16,6 +16,12 @@ export async function GET(request: NextRequest) {
         const jobId = searchParams.get('jobId');
         const status = searchParams.get('status');
         const search = searchParams.get('search');
+        const source = searchParams.get('source');
+        const rating = searchParams.get('rating');
+        const dateFrom = searchParams.get('dateFrom');
+        const dateTo = searchParams.get('dateTo');
+        const sortBy = searchParams.get('sortBy') || 'appliedDate';
+        const sortOrder = searchParams.get('sortOrder') || 'desc';
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '50');
 
@@ -23,12 +29,25 @@ export async function GET(request: NextRequest) {
 
         if (jobId) where.jobId = jobId;
         if (status) where.status = status;
+        if (source) where.source = source;
+        if (rating) where.rating = { gte: parseInt(rating) };
         if (search) {
             where.OR = [
                 { name: { contains: search, mode: 'insensitive' } },
                 { email: { contains: search, mode: 'insensitive' } },
             ];
         }
+        if (dateFrom || dateTo) {
+            const dateFilter: Record<string, Date> = {};
+            if (dateFrom) dateFilter.gte = new Date(dateFrom);
+            if (dateTo) dateFilter.lte = new Date(dateTo + 'T23:59:59.999Z');
+            where.appliedDate = dateFilter;
+        }
+
+        // Build orderBy
+        const validSortFields = ['appliedDate', 'name', 'rating', 'status'];
+        const orderField = validSortFields.includes(sortBy) ? sortBy : 'appliedDate';
+        const orderDirection = sortOrder === 'asc' ? 'asc' : 'desc';
 
         const [candidates, total] = await Promise.all([
             prisma.candidate.findMany({
@@ -39,7 +58,7 @@ export async function GET(request: NextRequest) {
                 },
                 skip: (page - 1) * limit,
                 take: limit,
-                orderBy: { appliedDate: 'desc' },
+                orderBy: { [orderField]: orderDirection },
             }),
             prisma.candidate.count({ where }),
         ]);

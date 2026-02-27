@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -9,32 +9,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, CheckCircle2, XCircle, Clock, FileText } from 'lucide-react';
+import { Plus, CheckCircle2, XCircle, Clock, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { mockApprovalRequests } from '@/lib/mocks/approvals';
-import { ApprovalRequest, ApprovalWorkflow, ApprovalStatus } from '@/lib/types/approval';
 import { useNotifications } from '@/lib/contexts/notification-context';
 
 const requestTypeLabels: Record<string, { label: string; color: string }> = {
@@ -45,25 +29,59 @@ const requestTypeLabels: Record<string, { label: string; color: string }> = {
     'RESIGNATION': { label: 'Xin thôi việc', color: 'text-red-600 bg-red-50 border-red-200' },
 };
 
-const requestStatusLabels: Record<ApprovalStatus, { label: string; variant: "default" | "destructive" | "outline" | "secondary" }> = {
+const requestStatusLabels: Record<string, { label: string; variant: 'default' | 'destructive' | 'outline' | 'secondary' }> = {
     'PENDING': { label: 'Chờ duyệt', variant: 'outline' },
     'APPROVED': { label: 'Đã duyệt', variant: 'default' },
     'REJECTED': { label: 'Từ chối', variant: 'destructive' },
     'CANCELLED': { label: 'Đã hủy', variant: 'secondary' },
 };
 
+interface ApprovalRequest {
+    id: string;
+    code: string;
+    type: string;
+    requesterId: string;
+    requesterName: string;
+    department?: string | null;
+    title: string;
+    description?: string | null;
+    metadata?: any;
+    status: string;
+    currentStepOrder: number;
+    totalSteps: number;
+    steps: any[];
+    createdAt: string;
+}
+
 export default function RequestsPage() {
     const [activeTab, setActiveTab] = useState('my-requests');
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
-    const [newRequestType, setNewRequestType] = useState<ApprovalWorkflow['type']>('LEAVE');
-
-    // Mock filtering
-    const myRequests = mockApprovalRequests; // Show all for demo
-    const pendingApprovals = mockApprovalRequests.filter(r => r.status === 'PENDING');
+    const [newRequestType, setNewRequestType] = useState('LEAVE');
+    const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+    const [loading, setLoading] = useState(true);
 
     const { addNotification } = useNotifications();
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/approval-requests');
+                const json = await res.json();
+                setRequests(json.data || []);
+            } catch {
+                setRequests([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const myRequests = requests;
+    const pendingApprovals = requests.filter(r => r.status === 'PENDING');
 
     const handleCreate = () => {
         setCreateDialogOpen(false);
@@ -86,6 +104,15 @@ export default function RequestsPage() {
         });
         toast.success('Đã phê duyệt yêu cầu.');
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -113,12 +140,9 @@ export default function RequestsPage() {
                     </TabsTrigger>
                 </TabsList>
 
-                {/* MY REQUESTS */}
                 <TabsContent value="my-requests" className="mt-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Danh sách yêu cầu của tôi</CardTitle>
-                        </CardHeader>
+                        <CardHeader><CardTitle>Danh sách yêu cầu của tôi</CardTitle></CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
@@ -153,11 +177,11 @@ export default function RequestsPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                            {myRequests.length === 0 && <div className="text-center py-8 text-muted-foreground">Chưa có yêu cầu nào</div>}
                         </CardContent>
                     </Card>
                 </TabsContent>
 
-                {/* APPROVALS */}
                 <TabsContent value="approvals" className="mt-4">
                     <Card>
                         <CardHeader>
@@ -191,10 +215,7 @@ export default function RequestsPage() {
                                                 <div className="text-xs text-muted-foreground line-clamp-2">{req.description}</div>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button size="sm" onClick={() => {
-                                                    setSelectedRequest(req);
-                                                    setApproveDialogOpen(true);
-                                                }}>
+                                                <Button size="sm" onClick={() => { setSelectedRequest(req); setApproveDialogOpen(true); }}>
                                                     Xem & Duyệt
                                                 </Button>
                                             </TableCell>
@@ -202,6 +223,7 @@ export default function RequestsPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                            {pendingApprovals.length === 0 && <div className="text-center py-8 text-muted-foreground">Không có yêu cầu nào cần duyệt</div>}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -210,16 +232,12 @@ export default function RequestsPage() {
             {/* CREATE DIALOG */}
             <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                 <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Tạo yêu cầu mới</DialogTitle>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Tạo yêu cầu mới</DialogTitle></DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="grid gap-2">
                             <Label>Loại yêu cầu</Label>
-                            <Select value={newRequestType} onValueChange={(v) => setNewRequestType(v as ApprovalWorkflow['type'])}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
+                            <Select value={newRequestType} onValueChange={setNewRequestType}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="LEAVE">Xin nghỉ phép</SelectItem>
                                     <SelectItem value="OVERTIME">Đăng ký tăng ca</SelectItem>
@@ -227,40 +245,19 @@ export default function RequestsPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        <div className="grid gap-2">
-                            <Label>Tiêu đề</Label>
-                            <Input placeholder="Vd: Xin nghỉ phép đi du lịch..." />
-                        </div>
-
+                        <div className="grid gap-2"><Label>Tiêu đề</Label><Input placeholder="Vd: Xin nghỉ phép đi du lịch..." /></div>
                         {newRequestType === 'LEAVE' ? (
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label>Từ ngày</Label>
-                                    <Input type="date" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Đến ngày</Label>
-                                    <Input type="date" />
-                                </div>
+                                <div className="grid gap-2"><Label>Từ ngày</Label><Input type="date" /></div>
+                                <div className="grid gap-2"><Label>Đến ngày</Label><Input type="date" /></div>
                             </div>
                         ) : newRequestType === 'OVERTIME' ? (
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label>Ngày tăng ca</Label>
-                                    <Input type="date" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Số giờ</Label>
-                                    <Input type="number" placeholder="4" />
-                                </div>
+                                <div className="grid gap-2"><Label>Ngày tăng ca</Label><Input type="date" /></div>
+                                <div className="grid gap-2"><Label>Số giờ</Label><Input type="number" placeholder="4" /></div>
                             </div>
                         ) : null}
-
-                        <div className="grid gap-2">
-                            <Label>Lý do / Mô tả chi tiết</Label>
-                            <Textarea placeholder="Nhập lý do chi tiết..." />
-                        </div>
+                        <div className="grid gap-2"><Label>Lý do / Mô tả chi tiết</Label><Textarea placeholder="Nhập lý do chi tiết..." /></div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Hủy</Button>
@@ -272,9 +269,7 @@ export default function RequestsPage() {
             {/* APPROVE DIALOG */}
             <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Phê duyệt yêu cầu</DialogTitle>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Phê duyệt yêu cầu</DialogTitle></DialogHeader>
                     {selectedRequest && (
                         <div className="space-y-4">
                             <div className="bg-muted p-4 rounded-md space-y-2 text-sm">
@@ -286,18 +281,9 @@ export default function RequestsPage() {
                                 <div className="border-t pt-2 mt-2 space-y-1">
                                     <div><strong>Mô tả:</strong> {selectedRequest.description}</div>
                                     <div><strong>Mã phiếu:</strong> {selectedRequest.code}</div>
-                                    {selectedRequest.metadata && (
-                                        <div className="mt-2 text-xs text-muted-foreground">
-                                            {/* Render metadata safely if needed */}
-                                            <pre>{JSON.stringify(selectedRequest.metadata, null, 2)}</pre>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
-                            <div className="grid gap-2">
-                                <Label>Ghi chú duyệt</Label>
-                                <Textarea placeholder="Đồng ý / Từ chối vì..." />
-                            </div>
+                            <div className="grid gap-2"><Label>Ghi chú duyệt</Label><Textarea placeholder="Đồng ý / Từ chối vì..." /></div>
                         </div>
                     )}
                     <DialogFooter className="gap-2 sm:gap-0">

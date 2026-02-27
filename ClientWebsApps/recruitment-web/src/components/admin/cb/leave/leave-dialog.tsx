@@ -36,7 +36,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { leaveTypeLabels, LeaveType } from '@/lib/mocks/leave';
+type LeaveType = 'ANNUAL' | 'SICK' | 'PERSONAL' | 'MATERNITY' | 'PATERNITY' | 'UNPAID' | 'COMPENSATORY' | 'WEDDING' | 'BEREAVEMENT';
+const leaveTypeLabels: Record<string, { label: string; color: string }> = {
+    ANNUAL: { label: 'Nghỉ phép năm', color: 'bg-blue-100' },
+    SICK: { label: 'Nghỉ ốm', color: 'bg-red-100' },
+    PERSONAL: { label: 'Nghỉ việc riêng', color: 'bg-yellow-100' },
+    MATERNITY: { label: 'Nghỉ thai sản', color: 'bg-pink-100' },
+    PATERNITY: { label: 'Nghỉ chăm con', color: 'bg-indigo-100' },
+    UNPAID: { label: 'Nghỉ không lương', color: 'bg-gray-100' },
+    COMPENSATORY: { label: 'Nghỉ bù', color: 'bg-green-100' },
+    WEDDING: { label: 'Nghỉ cưới', color: 'bg-purple-100' },
+    BEREAVEMENT: { label: 'Nghỉ tang', color: 'bg-slate-100' },
+};
 
 const leaveSchema = z.object({
     leaveType: z.string().min(1, 'Vui lòng chọn loại nghỉ phép'),

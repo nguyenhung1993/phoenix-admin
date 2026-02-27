@@ -84,7 +84,7 @@ export default function CareersPage() {
     return (
         <>
             {/* Hero Section */}
-            <section className="bg-gradient-to-br from-primary/5 via-background to-background py-12 md:py-16">
+            <section className="bg-linear-to-br from-primary/5 via-background to-background py-12 md:py-16">
                 <div className="container text-center">
                     <Badge variant="secondary" className="mb-4">
                         🔥 {loading ? '...' : jobs.length} vị trí đang tuyển

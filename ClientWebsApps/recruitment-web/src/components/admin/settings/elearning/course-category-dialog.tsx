@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { CourseCategory } from "@/lib/mocks/settings-hr"
+import { CourseCategory } from "@/lib/types/hrm"
 
 const courseCategorySchema = z.object({
     name: z.string().min(2, "Tên danh mục phải có ít nhất 2 ký tự"),

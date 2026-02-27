@@ -58,10 +58,16 @@ export interface JobItem {
     type: JobType;
     workMode: string;
     experienceLevel: string | null;
+    educationLevel: string | null;
+    specialization: string[];
+    deadline: string | null;
     status: JobStatus;
     description: string | null;
     requirements: string[];
     benefits: string[];
+    workAddress: string | null;
+    workSchedule: string | null;
+    applicationMethod: string | null;
     postedAt: string | null;
     expiresAt: string | null;
     createdAt: string;

@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { PublicHoliday } from "@/lib/mocks/settings-hr"
+import { PublicHoliday } from "@/lib/types/hrm"
 
 const holidaySchema = z.object({
     name: z.string().min(2, "Tên ngày lễ phải có ít nhất 2 ký tự"),

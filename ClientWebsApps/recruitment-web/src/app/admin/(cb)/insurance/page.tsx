@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,40 +14,118 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    mockInsuranceRecords,
-    insuranceTypeLabels,
-    insuranceStatusLabels,
-    InsuranceType,
-    formatCurrency,
-} from '@/lib/mocks';
-import {
     Shield,
     Users,
     Building2,
     Wallet,
     FileText,
     Download,
+    Loader2,
 } from 'lucide-react';
+
+function formatCurrency(value: number): string {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+}
+
+const insuranceTypeLabels: Record<string, { label: string; color: string }> = {
+    BHXH: { label: 'BHXH', color: 'bg-blue-100 text-blue-700' },
+    BHYT: { label: 'BHYT', color: 'bg-green-100 text-green-700' },
+    BHTN: { label: 'BHTN', color: 'bg-orange-100 text-orange-700' },
+};
+
+const insuranceStatusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    ACTIVE: { label: 'Đang tham gia', variant: 'default' },
+    INACTIVE: { label: 'Ngừng tham gia', variant: 'secondary' },
+    SUSPENDED: { label: 'Tạm dừng', variant: 'outline' },
+};
+
+type InsuranceType = 'BHXH' | 'BHYT' | 'BHTN';
+
+interface InsuranceRecord {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    insuranceNumber: string | null;
+    type: InsuranceType;
+    startDate: string;
+    status: string;
+    baseSalary: number;
+    monthlyContribution: number;
+}
 
 export default function InsurancePage() {
     const [typeFilter, setTypeFilter] = useState<InsuranceType | 'ALL'>('ALL');
+    const [records, setRecords] = useState<InsuranceRecord[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredRecords = mockInsuranceRecords.filter((record) => {
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/reports/hrm/insurance');
+                const json = await res.json();
+                // Map API response to InsuranceRecord format
+                const employees = json.data || [];
+                const insuranceRecords: InsuranceRecord[] = [];
+
+                employees.forEach((emp: any) => {
+                    const baseSalary = emp.baseSalary || 0;
+                    // Generate BHXH, BHYT, BHTN records per employee
+                    const types: { type: InsuranceType; employeeRate: number }[] = [
+                        { type: 'BHXH', employeeRate: 0.08 },
+                        { type: 'BHYT', employeeRate: 0.015 },
+                        { type: 'BHTN', employeeRate: 0.01 },
+                    ];
+                    types.forEach(({ type, employeeRate }) => {
+                        insuranceRecords.push({
+                            id: `${emp.id}-${type}`,
+                            employeeId: emp.id,
+                            employeeName: emp.employeeName,
+                            insuranceNumber: emp.insuranceNumber || null,
+                            type,
+                            startDate: emp.startDate || new Date().toISOString(),
+                            status: 'ACTIVE',
+                            baseSalary,
+                            monthlyContribution: baseSalary * employeeRate,
+                        });
+                    });
+                });
+
+                setRecords(insuranceRecords);
+            } catch {
+                setRecords([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const filteredRecords = records.filter((record) => {
         return typeFilter === 'ALL' || record.type === typeFilter;
     });
 
     const recordsByType = {
-        ALL: mockInsuranceRecords.length,
-        BHXH: mockInsuranceRecords.filter(r => r.type === 'BHXH').length,
-        BHYT: mockInsuranceRecords.filter(r => r.type === 'BHYT').length,
-        BHTN: mockInsuranceRecords.filter(r => r.type === 'BHTN').length,
+        ALL: records.length,
+        BHXH: records.filter(r => r.type === 'BHXH').length,
+        BHYT: records.filter(r => r.type === 'BHYT').length,
+        BHTN: records.filter(r => r.type === 'BHTN').length,
     };
 
-    const totalContributions = mockInsuranceRecords
+    const totalContributions = records
         .filter(r => r.status === 'ACTIVE')
         .reduce((sum, r) => sum + r.monthlyContribution, 0);
 
-    const activeRecords = mockInsuranceRecords.filter(r => r.status === 'ACTIVE').length;
+    const activeRecords = records.filter(r => r.status === 'ACTIVE').length;
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -153,13 +231,13 @@ export default function InsurancePage() {
                         </TableHeader>
                         <TableBody>
                             {filteredRecords.map((record) => {
-                                const typeStyle = insuranceTypeLabels[record.type];
-                                const statusStyle = insuranceStatusLabels[record.status];
+                                const typeStyle = insuranceTypeLabels[record.type] || { label: record.type, color: 'bg-gray-100' };
+                                const statusStyle = insuranceStatusLabels[record.status] || { label: record.status, variant: 'secondary' as const };
 
                                 return (
                                     <TableRow key={record.id}>
                                         <TableCell className="font-medium">{record.employeeName}</TableCell>
-                                        <TableCell className="font-mono text-sm">{record.insuranceNumber}</TableCell>
+                                        <TableCell className="font-mono text-sm">{record.insuranceNumber || '-'}</TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded text-xs font-medium ${typeStyle.color}`}>
                                                 {typeStyle.label}

@@ -1,18 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Plus, MoreHorizontal, Banknote, Coins } from 'lucide-react';
-import { mockSalaryComponents, SalaryComponent } from '@/lib/mocks/settings-hr';
+interface SalaryComponent { id: string; code: string; name: string; type: string; method?: string; formula?: string; isSystem: boolean; isActive: boolean; isTaxable?: boolean; description?: string; order?: number; }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { SalaryComponentDialog } from './salary-component-dialog';
 import { toast } from 'sonner';
 
 export function SalaryComponentList() {
-    const [components, setComponents] = useState<SalaryComponent[]>(mockSalaryComponents);
+    const [components, setComponents] = useState<SalaryComponent[]>([]);
+
+    useEffect(() => {
+        fetch('/api/salary-components').then(r => r.json()).then(setComponents).catch(console.error);
+    }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedComponent, setSelectedComponent] = useState<SalaryComponent | null>(null);
 
@@ -26,26 +30,24 @@ export function SalaryComponentList() {
         setIsDialogOpen(true);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm("Bạn có chắc chắn muốn xóa thành phần lương này?")) {
+            await fetch(`/api/salary-components?id=${id}`, { method: 'DELETE' });
             setComponents(prev => prev.filter(c => c.id !== id));
             toast.success("Đã xóa thành phần lương thành công");
         }
     };
 
-    const handleSubmit = (values: any, id?: string) => {
+    const handleSubmit = async (values: any, id?: string) => {
         if (id) {
-            // Update
-            setComponents(prev => prev.map(c => c.id === id ? { ...c, ...values } : c));
+            const res = await fetch('/api/salary-components', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...values }) });
+            const updated = await res.json();
+            setComponents(prev => prev.map(c => c.id === id ? updated : c));
             toast.success("Cập nhật thành phần lương thành công");
         } else {
-            // Create
-            const newComponent: SalaryComponent = {
-                id: Math.random().toString(36).substr(2, 9),
-                isSystem: false,
-                ...values
-            };
-            setComponents(prev => [...prev, newComponent]);
+            const res = await fetch('/api/salary-components', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+            const newComp = await res.json();
+            setComponents(prev => [...prev, newComp]);
             toast.success("Tạo thành phần lương thành công");
         }
         setIsDialogOpen(false);

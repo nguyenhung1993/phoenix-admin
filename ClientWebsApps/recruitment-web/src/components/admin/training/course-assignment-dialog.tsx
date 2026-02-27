@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -16,8 +16,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Course } from '@/lib/mocks/training';
-import { mockEmployees } from '@/lib/mocks/hrm';
+
+interface Course { id: string; title: string;[key: string]: unknown; }
+interface Employee { id: string; fullName: string; email: string; positionName?: string; avatar?: string; }
 
 interface CourseAssignmentDialogProps {
     open: boolean;
@@ -29,10 +30,15 @@ export function CourseAssignmentDialog({ open, onOpenChange, course }: CourseAss
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [employees, setEmployees] = useState<Employee[]>([]);
+
+    useEffect(() => {
+        fetch('/api/employees').then(r => r.json()).then(setEmployees).catch(console.error);
+    }, []);
 
     if (!course) return null;
 
-    const filteredEmployees = mockEmployees.filter(emp =>
+    const filteredEmployees = employees.filter(emp =>
         emp.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.email.toLowerCase().includes(searchQuery.toLowerCase())
     );

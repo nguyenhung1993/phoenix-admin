@@ -31,7 +31,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ReviewCycle } from '@/lib/mocks/performance';
+interface ReviewCycle { id: string; name: string; startDate: string; endDate: string; type: 'ANNUAL' | 'BI_ANNUAL' | 'QUARTERLY' | 'PROBATION'; status: 'PLANNING' | 'IN_PROGRESS' | 'COMPLETED' | 'LOCKED';[key: string]: unknown; }
 
 const reviewCycleSchema = z.object({
     name: z.string().min(1, 'Vui lòng nhập tên kỳ đánh giá'),

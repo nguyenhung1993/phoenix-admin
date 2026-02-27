@@ -59,12 +59,19 @@ export function JobForm({ initialData }: JobFormProps) {
     const [location, setLocation] = useState(initialData?.location || '');
     const [type, setType] = useState<string>(initialData?.type || 'FULL_TIME');
     const [experienceLevel, setExperienceLevel] = useState(initialData?.experienceLevel || '');
+    const [educationLevel, setEducationLevel] = useState(initialData?.educationLevel || '');
+    const [specialization, setSpecialization] = useState<string[]>(initialData?.specialization || []);
+    const [specInput, setSpecInput] = useState('');
+    const [deadline, setDeadline] = useState(initialData?.deadline ? new Date(initialData.deadline).toISOString().split('T')[0] : '');
     const [salaryMin, setSalaryMin] = useState(initialData?.salaryMin?.toString() || '');
     const [salaryMax, setSalaryMax] = useState(initialData?.salaryMax?.toString() || '');
     const [status, setStatus] = useState<string>(initialData?.status || 'DRAFT');
     const [description, setDescription] = useState(initialData?.description || '');
     const [requirements, setRequirements] = useState<string[]>(initialData?.requirements || ['']);
     const [benefits, setBenefits] = useState<string[]>(initialData?.benefits || ['']);
+    const [workAddress, setWorkAddress] = useState(initialData?.workAddress || '');
+    const [workSchedule, setWorkSchedule] = useState(initialData?.workSchedule || '');
+    const [applicationMethod, setApplicationMethod] = useState(initialData?.applicationMethod || '');
 
     // Auto-generate slug from title
     useEffect(() => {
@@ -97,12 +104,18 @@ export function JobForm({ initialData }: JobFormProps) {
                 location: location.trim() || null,
                 type,
                 experienceLevel: experienceLevel.trim() || null,
+                educationLevel: educationLevel.trim() || null,
+                specialization,
+                deadline: deadline || null,
                 salaryMin: salaryMin ? parseFloat(salaryMin) : null,
                 salaryMax: salaryMax ? parseFloat(salaryMax) : null,
                 status,
                 description: description.trim() || null,
                 requirements: requirements.filter(r => r.trim()),
                 benefits: benefits.filter(b => b.trim()),
+                workAddress: workAddress.trim() || null,
+                workSchedule: workSchedule.trim() || null,
+                applicationMethod: applicationMethod.trim() || null,
             };
 
             const url = isEditing ? `/api/jobs/${initialData.id}` : '/api/jobs';
@@ -258,8 +271,67 @@ export function JobForm({ initialData }: JobFormProps) {
                                     id="experience"
                                     value={experienceLevel}
                                     onChange={e => setExperienceLevel(e.target.value)}
-                                    placeholder="3-5 năm"
+                                    placeholder="3 năm kinh nghiệm"
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="education">Trình độ học vấn</Label>
+                                <Input
+                                    id="education"
+                                    value={educationLevel}
+                                    onChange={e => setEducationLevel(e.target.value)}
+                                    placeholder="Đại Học trở lên"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="deadline">Hạn nộp hồ sơ</Label>
+                                    <Input
+                                        id="deadline"
+                                        type="date"
+                                        value={deadline}
+                                        onChange={e => setDeadline(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Chuyên môn (tags)</Label>
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                    {specialization.map((spec, i) => (
+                                        <Badge key={i} variant="secondary" className="gap-1">
+                                            {spec}
+                                            <button type="button" onClick={() => setSpecialization(prev => prev.filter((_, idx) => idx !== i))}>
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    ))}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={specInput}
+                                        onChange={e => setSpecInput(e.target.value)}
+                                        placeholder="Nhập chuyên môn và nhấn Thêm"
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                if (specInput.trim()) {
+                                                    setSpecialization(prev => [...prev, specInput.trim()]);
+                                                    setSpecInput('');
+                                                }
+                                            }
+                                        }}
+                                    />
+                                    <Button type="button" variant="outline" size="sm" onClick={() => {
+                                        if (specInput.trim()) {
+                                            setSpecialization(prev => [...prev, specInput.trim()]);
+                                            setSpecInput('');
+                                        }
+                                    }}>
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
 
@@ -363,6 +435,45 @@ export function JobForm({ initialData }: JobFormProps) {
                     </CardContent>
                 </Card>
 
+                {/* Work Details */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Thông tin bổ sung</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="workAddress">Địa chỉ làm việc chi tiết</Label>
+                            <Textarea
+                                id="workAddress"
+                                value={workAddress}
+                                onChange={e => setWorkAddress(e.target.value)}
+                                placeholder="Hà Nội: Tầng GA, số 69 Nguyễn Hy Quang, Phường Đống Đa, Hà Nội"
+                                rows={2}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="workSchedule">Thời gian làm việc</Label>
+                            <Textarea
+                                id="workSchedule"
+                                value={workSchedule}
+                                onChange={e => setWorkSchedule(e.target.value)}
+                                placeholder="Thứ 2 - Thứ 6 (từ 09:00 đến 18:30)"
+                                rows={2}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="applicationMethod">Cách thức ứng tuyển</Label>
+                            <Textarea
+                                id="applicationMethod"
+                                value={applicationMethod}
+                                onChange={e => setApplicationMethod(e.target.value)}
+                                placeholder="Ứng viên nộp hồ sơ trực tuyến bằng cách bấm Ứng tuyển ngay dưới đây."
+                                rows={2}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Submit */}
                 <div className="flex gap-4">
                     <Button type="submit" disabled={loading}>
@@ -374,6 +485,6 @@ export function JobForm({ initialData }: JobFormProps) {
                     </Button>
                 </div>
             </form>
-        </div>
+        </div >
     );
 }

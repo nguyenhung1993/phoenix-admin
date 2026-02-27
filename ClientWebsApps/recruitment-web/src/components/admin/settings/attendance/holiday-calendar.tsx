@@ -1,18 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Plus, MoreHorizontal, CalendarDays } from 'lucide-react';
-import { mockPublicHolidays, PublicHoliday } from '@/lib/mocks/settings-hr';
+interface PublicHoliday { id: string; name: string; date: string; daysOff: number; description?: string; }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { HolidayDialog } from './holiday-dialog';
 import { toast } from 'sonner';
 
 export function HolidayCalendar() {
-    const [holidays, setHolidays] = useState<PublicHoliday[]>(mockPublicHolidays);
+    const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
+
+    useEffect(() => {
+        fetch('/api/public-holidays').then(r => r.json()).then(setHolidays).catch(console.error);
+    }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedHoliday, setSelectedHoliday] = useState<PublicHoliday | null>(null);
 
@@ -26,24 +30,23 @@ export function HolidayCalendar() {
         setIsDialogOpen(true);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm("Bạn có chắc chắn muốn xóa ngày lễ này?")) {
+            await fetch(`/api/public-holidays?id=${id}`, { method: 'DELETE' });
             setHolidays(prev => prev.filter(h => h.id !== id));
             toast.success("Đã xóa ngày lễ thành công");
         }
     };
 
-    const handleSubmit = (values: any, id?: string) => {
+    const handleSubmit = async (values: any, id?: string) => {
         if (id) {
-            // Update
-            setHolidays(prev => prev.map(h => h.id === id ? { ...h, ...values } : h));
+            const res = await fetch('/api/public-holidays', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...values }) });
+            const updated = await res.json();
+            setHolidays(prev => prev.map(h => h.id === id ? updated : h));
             toast.success("Cập nhật ngày lễ thành công");
         } else {
-            // Create
-            const newHoliday: PublicHoliday = {
-                id: Math.random().toString(36).substr(2, 9),
-                ...values
-            };
+            const res = await fetch('/api/public-holidays', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+            const newHoliday = await res.json();
             setHolidays(prev => [...prev, newHoliday]);
             toast.success("Tạo ngày lễ thành công");
         }

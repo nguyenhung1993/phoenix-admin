@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,67 +27,21 @@ import {
     Building,
     Users,
     Wallet,
+    Loader2,
 } from 'lucide-react';
 import { exportToExcel } from '@/lib/export-utils';
 
-// Mock Insurance data
-const mockInsuranceData = [
-    {
-        id: 'emp-001',
-        code: 'NV001',
-        name: 'Nguyễn Văn A',
-        socialInsuranceNo: '0123456789',
-        baseSalary: 25000000,
-        bhxh: { employee: 2000000, company: 4375000 },
-        bhyt: { employee: 375000, company: 750000 },
-        bhtn: { employee: 250000, company: 250000 },
-        status: 'ACTIVE',
-    },
-    {
-        id: 'emp-002',
-        code: 'NV002',
-        name: 'Trần Thị B',
-        socialInsuranceNo: '0123456790',
-        baseSalary: 35000000,
-        bhxh: { employee: 2800000, company: 6125000 },
-        bhyt: { employee: 525000, company: 1050000 },
-        bhtn: { employee: 350000, company: 350000 },
-        status: 'ACTIVE',
-    },
-    {
-        id: 'emp-003',
-        code: 'NV003',
-        name: 'Lê Văn C',
-        socialInsuranceNo: '0123456791',
-        baseSalary: 18000000,
-        bhxh: { employee: 1440000, company: 3150000 },
-        bhyt: { employee: 270000, company: 540000 },
-        bhtn: { employee: 180000, company: 180000 },
-        status: 'ACTIVE',
-    },
-    {
-        id: 'emp-004',
-        code: 'NV004',
-        name: 'Phạm Thị D',
-        socialInsuranceNo: '0123456792',
-        baseSalary: 36000000,
-        bhxh: { employee: 2592000, company: 5670000 },
-        bhyt: { employee: 486000, company: 972000 },
-        bhtn: { employee: 324000, company: 324000 },
-        status: 'ACTIVE',
-    },
-    {
-        id: 'emp-005',
-        code: 'NV005',
-        name: 'Hoàng Văn E',
-        socialInsuranceNo: '0123456793',
-        baseSalary: 15000000,
-        bhxh: { employee: 1200000, company: 2625000 },
-        bhyt: { employee: 225000, company: 450000 },
-        bhtn: { employee: 150000, company: 150000 },
-        status: 'NEW',
-    },
-];
+interface InsuranceRecord {
+    id: string;
+    code: string;
+    name: string;
+    socialInsuranceNo: string;
+    baseSalary: number;
+    bhxh: { employee: number; company: number };
+    bhyt: { employee: number; company: number };
+    bhtn: { employee: number; company: number };
+    status: string;
+}
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -98,11 +52,28 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function InsuranceReportPage() {
-    const [period, setPeriod] = useState('2024-01');
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [insuranceData, setInsuranceData] = useState<InsuranceRecord[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredData = mockInsuranceData.filter((emp) => {
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/reports/hrm/insurance');
+                const data = await res.json();
+                setInsuranceData(Array.isArray(data) ? data : []);
+            } catch {
+                setInsuranceData([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const filteredData = insuranceData.filter((emp) => {
         const matchesSearch =
             emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             emp.code.toLowerCase().includes(searchTerm.toLowerCase());
@@ -135,7 +106,7 @@ export default function InsuranceReportPage() {
             'BHTN (DN)': emp.bhtn.company,
             'Trạng thái': emp.status === 'ACTIVE' ? 'Đang tham gia' : emp.status === 'NEW' ? 'Mới đăng ký' : 'Đã dừng',
         }));
-        exportToExcel(exportData, `BHXH_${period}`, 'Bảo hiểm');
+        exportToExcel(exportData, `BHXH_report`, 'Bảo hiểm');
     };
 
     return (
@@ -149,11 +120,11 @@ export default function InsuranceReportPage() {
                     <p className="text-muted-foreground">Tổng hợp đóng BHXH, BHYT, BHTN</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleExportExcel}>
+                    <Button variant="outline" onClick={handleExportExcel} disabled={loading || filteredData.length === 0}>
                         <Download className="h-4 w-4 mr-2" />
                         Xuất D02-TS
                     </Button>
-                    <Button variant="outline" onClick={handleExportExcel}>
+                    <Button variant="outline" onClick={handleExportExcel} disabled={loading || filteredData.length === 0}>
                         <Download className="h-4 w-4 mr-2" />
                         Xuất Excel
                     </Button>
@@ -246,16 +217,6 @@ export default function InsuranceReportPage() {
 
             {/* Filters */}
             <div className="flex flex-wrap gap-4">
-                <Select value={period} onValueChange={setPeriod}>
-                    <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Chọn kỳ" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="2024-01">Tháng 1/2024</SelectItem>
-                        <SelectItem value="2024-02">Tháng 2/2024</SelectItem>
-                        <SelectItem value="2024-03">Tháng 3/2024</SelectItem>
-                    </SelectContent>
-                </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-48">
                         <SelectValue placeholder="Trạng thái" />
@@ -285,84 +246,95 @@ export default function InsuranceReportPage() {
                 <CardHeader>
                     <CardTitle>Chi tiết đóng bảo hiểm</CardTitle>
                     <CardDescription>
-                        Danh sách {filteredData.length} nhân viên
+                        {loading ? 'Đang tải...' : `Danh sách ${filteredData.length} nhân viên`}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Mã NV</TableHead>
-                                    <TableHead>Họ tên</TableHead>
-                                    <TableHead>Số sổ BHXH</TableHead>
-                                    <TableHead className="text-right">Lương đóng BH</TableHead>
-                                    <TableHead className="text-right">BHXH</TableHead>
-                                    <TableHead className="text-right">BHYT</TableHead>
-                                    <TableHead className="text-right">BHTN</TableHead>
-                                    <TableHead>Trạng thái</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredData.map((emp) => (
-                                    <TableRow key={emp.id}>
-                                        <TableCell>
-                                            <Badge variant="outline">{emp.code}</Badge>
-                                        </TableCell>
-                                        <TableCell className="font-medium">{emp.name}</TableCell>
-                                        <TableCell className="font-mono text-sm">
-                                            {emp.socialInsuranceNo}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {formatCurrency(emp.baseSalary)}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="text-xs">
-                                                <div>NV: {formatCurrency(emp.bhxh.employee)}</div>
-                                                <div className="text-muted-foreground">
-                                                    DN: {formatCurrency(emp.bhxh.company)}
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="text-xs">
-                                                <div>NV: {formatCurrency(emp.bhyt.employee)}</div>
-                                                <div className="text-muted-foreground">
-                                                    DN: {formatCurrency(emp.bhyt.company)}
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="text-xs">
-                                                <div>NV: {formatCurrency(emp.bhtn.employee)}</div>
-                                                <div className="text-muted-foreground">
-                                                    DN: {formatCurrency(emp.bhtn.company)}
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={emp.status === 'ACTIVE' ? 'default' : 'secondary'}
-                                                className={
-                                                    emp.status === 'ACTIVE'
-                                                        ? 'bg-green-500'
-                                                        : emp.status === 'NEW'
-                                                            ? 'bg-blue-500'
-                                                            : ''
-                                                }
-                                            >
-                                                {emp.status === 'ACTIVE'
-                                                    ? 'Đang tham gia'
-                                                    : emp.status === 'NEW'
-                                                        ? 'Mới đăng ký'
-                                                        : 'Đã dừng'}
-                                            </Badge>
-                                        </TableCell>
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+                        </div>
+                    ) : filteredData.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            Chưa có dữ liệu bảo hiểm
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Mã NV</TableHead>
+                                        <TableHead>Họ tên</TableHead>
+                                        <TableHead>Số sổ BHXH</TableHead>
+                                        <TableHead className="text-right">Lương đóng BH</TableHead>
+                                        <TableHead className="text-right">BHXH</TableHead>
+                                        <TableHead className="text-right">BHYT</TableHead>
+                                        <TableHead className="text-right">BHTN</TableHead>
+                                        <TableHead>Trạng thái</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredData.map((emp) => (
+                                        <TableRow key={emp.id}>
+                                            <TableCell>
+                                                <Badge variant="outline">{emp.code}</Badge>
+                                            </TableCell>
+                                            <TableCell className="font-medium">{emp.name}</TableCell>
+                                            <TableCell className="font-mono text-sm">
+                                                {emp.socialInsuranceNo}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {formatCurrency(emp.baseSalary)}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="text-xs">
+                                                    <div>NV: {formatCurrency(emp.bhxh.employee)}</div>
+                                                    <div className="text-muted-foreground">
+                                                        DN: {formatCurrency(emp.bhxh.company)}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="text-xs">
+                                                    <div>NV: {formatCurrency(emp.bhyt.employee)}</div>
+                                                    <div className="text-muted-foreground">
+                                                        DN: {formatCurrency(emp.bhyt.company)}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="text-xs">
+                                                    <div>NV: {formatCurrency(emp.bhtn.employee)}</div>
+                                                    <div className="text-muted-foreground">
+                                                        DN: {formatCurrency(emp.bhtn.company)}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant={emp.status === 'ACTIVE' ? 'default' : 'secondary'}
+                                                    className={
+                                                        emp.status === 'ACTIVE'
+                                                            ? 'bg-green-500'
+                                                            : emp.status === 'NEW'
+                                                                ? 'bg-blue-500'
+                                                                : ''
+                                                    }
+                                                >
+                                                    {emp.status === 'ACTIVE'
+                                                        ? 'Đang tham gia'
+                                                        : emp.status === 'NEW'
+                                                            ? 'Mới đăng ký'
+                                                            : 'Đã dừng'}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

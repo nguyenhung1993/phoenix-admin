@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,13 +21,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
-    mockPerformanceResults,
-    mockKPIPeriods,
-    rankingConfigs,
-    calibrationStatusLabels,
-    getRankingFromScore,
-} from '@/lib/mocks/performance';
-import {
     BarChart3,
     Download,
     Filter,
@@ -38,15 +31,74 @@ import {
     TrendingDown,
     Minus,
     Award,
+    Loader2,
 } from 'lucide-react';
 
+const rankingConfigs = [
+    { label: 'A', name: 'Xuất sắc', minScore: 90, maxScore: 100, color: 'green' },
+    { label: 'B', name: 'Tốt', minScore: 75, maxScore: 89, color: 'blue' },
+    { label: 'C', name: 'Đạt', minScore: 60, maxScore: 74, color: 'yellow' },
+    { label: 'D', name: 'Cần cải thiện', minScore: 0, maxScore: 59, color: 'red' },
+];
+
+function getRankingFromScore(score: number) {
+    return rankingConfigs.find(c => score >= c.minScore && score <= c.maxScore) || rankingConfigs[3];
+}
+
+interface ReviewCycleOption {
+    id: string;
+    name: string;
+}
+
+interface EvaluationResult {
+    id: string;
+    reviewCycleId: string;
+    employeeName: string;
+    departmentName: string;
+    selfScore: number | null;
+    managerScore: number | null;
+    finalScore: number | null;
+    status: string;
+}
+
 export default function ResultsPage() {
-    const [selectedPeriod, setSelectedPeriod] = useState<string>(mockKPIPeriods[1]?.id || '');
+    const [selectedPeriod, setSelectedPeriod] = useState<string>('');
+    const [cycles, setCycles] = useState<ReviewCycleOption[]>([]);
+    const [evaluations, setEvaluations] = useState<EvaluationResult[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // Filter results by period
-    const periodResults = mockPerformanceResults.filter(r => r.periodId === selectedPeriod);
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [cycleRes, evalRes] = await Promise.all([
+                    fetch('/api/reviews'),
+                    fetch('/api/evaluations'),
+                ]);
+                const cycleJson = await cycleRes.json();
+                const evalJson = await evalRes.json();
+                const cycleData = cycleJson.data || [];
+                setCycles(cycleData.map((c: any) => ({ id: c.id, name: c.name })));
+                setEvaluations(evalJson.data || []);
+                if (cycleData.length > 0) setSelectedPeriod(cycleData[0].id);
+            } catch {
+                setCycles([]);
+                setEvaluations([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
-    // Calculate distribution
+    const periodResults = evaluations
+        .filter(r => r.reviewCycleId === selectedPeriod && r.finalScore !== null)
+        .map(r => ({
+            ...r,
+            ranking: getRankingFromScore(r.finalScore || 0).label,
+        }))
+        .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
+
     const distribution = rankingConfigs.map(config => ({
         ...config,
         count: periodResults.filter(r => r.ranking === config.label).length,
@@ -55,24 +107,24 @@ export default function ResultsPage() {
             : 0,
     }));
 
-    // Calculate averages by department
+    // Dept stats
     const deptStats = periodResults.reduce((acc, result) => {
-        if (!acc[result.departmentId]) {
-            acc[result.departmentId] = {
-                name: result.departmentName,
-                scores: [],
-            };
-        }
-        acc[result.departmentId].scores.push(result.finalScore);
+        const dept = result.departmentName || 'Khác';
+        if (!acc[dept]) acc[dept] = { name: dept, scores: [] };
+        acc[dept].scores.push(result.finalScore || 0);
         return acc;
     }, {} as Record<string, { name: string; scores: number[] }>);
 
-    const departmentAverages = Object.entries(deptStats).map(([id, data]) => ({
-        id,
+    const departmentAverages = Object.entries(deptStats).map(([key, data]) => ({
+        id: key,
         name: data.name,
         avgScore: Math.round(data.scores.reduce((a, b) => a + b, 0) / data.scores.length),
         count: data.scores.length,
     })).sort((a, b) => b.avgScore - a.avgScore);
+
+    const overallAvg = periodResults.length > 0
+        ? Math.round(periodResults.reduce((sum, r) => sum + (r.finalScore || 0), 0) / periodResults.length)
+        : 0;
 
     const getScoreTrend = (score: number, avg: number) => {
         if (score > avg + 5) return { icon: TrendingUp, color: 'text-green-500' };
@@ -80,9 +132,14 @@ export default function ResultsPage() {
         return { icon: Minus, color: 'text-gray-500' };
     };
 
-    const overallAvg = periodResults.length > 0
-        ? Math.round(periodResults.reduce((sum, r) => sum + r.finalScore, 0) / periodResults.length)
-        : 0;
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -101,10 +158,8 @@ export default function ResultsPage() {
                             <SelectValue placeholder="Chọn kỳ" />
                         </SelectTrigger>
                         <SelectContent>
-                            {mockKPIPeriods.map(period => (
-                                <SelectItem key={period.id} value={period.id}>
-                                    {period.name}
-                                </SelectItem>
+                            {cycles.map(period => (
+                                <SelectItem key={period.id} value={period.id}>{period.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -144,18 +199,15 @@ export default function ResultsPage() {
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Bảng xếp hạng nhân viên</CardTitle>
-                        <CardDescription>
-                            Điểm tổng hợp từ KPI, năng lực và đánh giá 360°
-                        </CardDescription>
+                        <CardDescription>Điểm tổng hợp</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Nhân viên</TableHead>
-                                    <TableHead className="text-center">KPI</TableHead>
-                                    <TableHead className="text-center">Năng lực</TableHead>
-                                    <TableHead className="text-center">360°</TableHead>
+                                    <TableHead className="text-center">Tự đánh giá</TableHead>
+                                    <TableHead className="text-center">Quản lý</TableHead>
                                     <TableHead className="text-center">Tổng</TableHead>
                                     <TableHead className="text-center">Xếp loại</TableHead>
                                     <TableHead className="text-center">Duyệt</TableHead>
@@ -163,9 +215,8 @@ export default function ResultsPage() {
                             </TableHeader>
                             <TableBody>
                                 {periodResults.map((result) => {
-                                    const rankConfig = getRankingFromScore(result.finalScore);
-                                    const calibrationInfo = calibrationStatusLabels[result.calibrationStatus];
-                                    const trend = getScoreTrend(result.finalScore, overallAvg);
+                                    const rankConfig = getRankingFromScore(result.finalScore || 0);
+                                    const trend = getScoreTrend(result.finalScore || 0, overallAvg);
                                     const TrendIcon = trend.icon;
 
                                     return (
@@ -181,9 +232,8 @@ export default function ResultsPage() {
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-center">{result.kpiScore}</TableCell>
-                                            <TableCell className="text-center">{result.competencyScore}</TableCell>
-                                            <TableCell className="text-center">{result.review360Score}</TableCell>
+                                            <TableCell className="text-center">{result.selfScore || '-'}</TableCell>
+                                            <TableCell className="text-center">{result.managerScore || '-'}</TableCell>
                                             <TableCell className="text-center">
                                                 <div className="flex items-center justify-center gap-1">
                                                     <span className="font-bold text-lg">{result.finalScore}</span>
@@ -197,12 +247,12 @@ export default function ResultsPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                {result.calibrationStatus === 'APPROVED' ? (
+                                                {result.status === 'APPROVED' ? (
                                                     <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
-                                                ) : result.calibrationStatus === 'REJECTED' ? (
-                                                    <XCircle className="h-5 w-5 text-red-500 mx-auto" />
-                                                ) : (
+                                                ) : result.status === 'DRAFT' ? (
                                                     <Clock className="h-5 w-5 text-orange-500 mx-auto" />
+                                                ) : (
+                                                    <XCircle className="h-5 w-5 text-red-500 mx-auto" />
                                                 )}
                                             </TableCell>
                                         </TableRow>
@@ -210,6 +260,9 @@ export default function ResultsPage() {
                                 })}
                             </TableBody>
                         </Table>
+                        {periodResults.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">Không có kết quả nào</div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -246,6 +299,9 @@ export default function ResultsPage() {
                                 </div>
                             );
                         })}
+                        {departmentAverages.length === 0 && (
+                            <div className="text-center py-4 text-muted-foreground">Không có dữ liệu</div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

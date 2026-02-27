@@ -1,19 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Plus, MoreHorizontal, GraduationCap, BookOpen } from 'lucide-react';
-import { mockCourseCategories, CourseCategory } from '@/lib/mocks/settings-hr';
+interface CourseCategory { id: string; name: string; description?: string; courseCount: number; isActive: boolean; }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { CourseCategoryDialog } from './course-category-dialog';
 import { toast } from 'sonner';
 
 export function CourseCategoryList() {
-    const [categories, setCategories] = useState<CourseCategory[]>(mockCourseCategories);
+    const [categories, setCategories] = useState<CourseCategory[]>([]);
+
+    useEffect(() => {
+        fetch('/api/course-categories').then(r => r.json()).then(setCategories).catch(console.error);
+    }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<CourseCategory | null>(null);
 
@@ -27,26 +31,24 @@ export function CourseCategoryList() {
         setIsDialogOpen(true);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm("Bạn có chắc chắn muốn xóa danh mục này?")) {
+            await fetch(`/api/course-categories?id=${id}`, { method: 'DELETE' });
             setCategories(prev => prev.filter(c => c.id !== id));
             toast.success("Đã xóa danh mục thành công");
         }
     };
 
-    const handleSubmit = (values: any, id?: string) => {
+    const handleSubmit = async (values: any, id?: string) => {
         if (id) {
-            // Update
-            setCategories(prev => prev.map(c => c.id === id ? { ...c, ...values } : c));
+            const res = await fetch('/api/course-categories', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...values }) });
+            const updated = await res.json();
+            setCategories(prev => prev.map(c => c.id === id ? updated : c));
             toast.success("Cập nhật danh mục thành công");
         } else {
-            // Create
-            const newCategory: CourseCategory = {
-                id: Math.random().toString(36).substr(2, 9),
-                courseCount: 0,
-                ...values
-            };
-            setCategories(prev => [...prev, newCategory]);
+            const res = await fetch('/api/course-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+            const newCat = await res.json();
+            setCategories(prev => [...prev, newCat]);
             toast.success("Tạo danh mục thành công");
         }
         setIsDialogOpen(false);

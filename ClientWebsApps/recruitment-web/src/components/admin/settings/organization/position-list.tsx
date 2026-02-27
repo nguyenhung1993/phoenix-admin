@@ -1,20 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Plus, MoreHorizontal } from 'lucide-react';
-import { mockPositions, levelLabels, formatCurrency, Position } from '@/lib/mocks/hrm';
+interface Position { id: string; code: string; name: string; level: string; minSalary: number; maxSalary: number; departmentId?: string; isActive: boolean; }
+const levelLabels: Record<string, { label: string; color: string }> = { INTERN: { label: 'Intern', color: 'bg-slate-100' }, JUNIOR: { label: 'Junior', color: 'bg-blue-100' }, SENIOR: { label: 'Senior', color: 'bg-green-100' }, LEAD: { label: 'Lead', color: 'bg-purple-100' }, MANAGER: { label: 'Manager', color: 'bg-orange-100' }, DIRECTOR: { label: 'Director', color: 'bg-red-100' } };
+const formatCurrency = (v: number) => new Intl.NumberFormat('vi-VN').format(v);
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { PositionDialog } from './position-dialog';
 import { toast } from 'sonner';
 
 export function PositionList() {
-    const [positions, setPositions] = useState<Position[]>(mockPositions);
+    const [positions, setPositions] = useState<Position[]>([]);
+
+    useEffect(() => {
+        fetch('/api/positions').then(r => r.json()).then(setPositions).catch(console.error);
+    }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
 
@@ -28,24 +34,23 @@ export function PositionList() {
         setIsDialogOpen(true);
     };
 
-    const handleDelete = (id: string) => {
-        if (window.confirm("Bạn có chắc chắn muốn xóa chức danh này? Hành động này không thể hoàn tác.")) {
+    const handleDelete = async (id: string) => {
+        if (window.confirm("Bạn có chắc chắn muốn xóa chức danh này?")) {
+            await fetch(`/api/positions?id=${id}`, { method: 'DELETE' });
             setPositions(prev => prev.filter(p => p.id !== id));
             toast.success("Đã xóa chức danh thành công");
         }
     };
 
-    const handleSubmit = (values: any, id?: string) => {
+    const handleSubmit = async (values: any, id?: string) => {
         if (id) {
-            // Update
-            setPositions(prev => prev.map(p => p.id === id ? { ...p, ...values } : p));
+            const res = await fetch('/api/positions', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...values }) });
+            const updated = await res.json();
+            setPositions(prev => prev.map(p => p.id === id ? updated : p));
             toast.success("Cập nhật chức danh thành công");
         } else {
-            // Create
-            const newPos: Position = {
-                id: Math.random().toString(36).substr(2, 9),
-                ...values
-            };
+            const res = await fetch('/api/positions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+            const newPos = await res.json();
             setPositions(prev => [...prev, newPos]);
             toast.success("Tạo chức danh thành công");
         }

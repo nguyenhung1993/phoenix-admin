@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,14 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportToExcel, exportToPDF } from '@/lib/export-utils';
-import { mockEmployees, employeeStatusLabels } from '@/lib/mocks/hrm';
+
+const employeeStatusLabels: Record<string, { label: string }> = {
+    ACTIVE: { label: 'Đang làm việc' },
+    PROBATION: { label: 'Thử việc' },
+    ON_LEAVE: { label: 'Nghỉ phép' },
+    RESIGNED: { label: 'Đã nghỉ' },
+    TERMINATED: { label: 'Chấm dứt' },
+};
 
 interface ReportType {
     id: string;
@@ -108,13 +115,6 @@ const periods = [
     { value: '2024', label: 'Năm 2024' },
 ];
 
-// Sample data for export
-const sampleEmployeeData = [
-    { 'Mã NV': 'NV001', 'Họ tên': 'Nguyễn Văn A', 'Phòng ban': 'Kinh doanh', 'Chức vụ': 'Nhân viên', 'Trạng thái': 'Đang làm việc' },
-    { 'Mã NV': 'NV002', 'Họ tên': 'Trần Thị B', 'Phòng ban': 'Nhân sự', 'Chức vụ': 'Trưởng phòng', 'Trạng thái': 'Đang làm việc' },
-    { 'Mã NV': 'NV003', 'Họ tên': 'Lê Văn C', 'Phòng ban': 'Kỹ thuật', 'Chức vụ': 'Nhân viên', 'Trạng thái': 'Đang làm việc' },
-];
-
 export default function ExportPage() {
     const [selectedPeriod, setSelectedPeriod] = useState('2024-01');
     const [exporting, setExporting] = useState<string | null>(null);
@@ -122,30 +122,61 @@ export default function ExportPage() {
     const handleExport = async (reportId: string, format: 'excel' | 'pdf') => {
         setExporting(`${reportId}-${format}`);
 
-        // Get report info
         const report = reportTypes.find(r => r.id === reportId);
         const filename = `${report?.name.replace(/\s+/g, '_')}_${selectedPeriod}`;
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
         let dataToExport: any[] = [];
 
-        if (reportId === 'employee-list') {
-            // Transform mockEmployees to export format
-            dataToExport = mockEmployees.map(emp => ({
-                'Mã NV': emp.employeeCode,
-                'Họ tên': emp.fullName,
-                'Phòng ban': emp.departmentName,
-                'Chức vụ': emp.positionName,
-                'Trạng thái': employeeStatusLabels[emp.status]?.label || emp.status,
-                'Ngày vào làm': emp.hireDate,
-                'Email': emp.email,
-                'Số điện thoại': emp.phone,
-            }));
-        } else {
-            // Fallback to sample data for other reports (can be expanded later)
-            dataToExport = sampleEmployeeData;
+        try {
+            if (reportId === 'employee-list') {
+                const res = await fetch('/api/employees');
+                const employees = await res.json();
+                dataToExport = (employees.data || employees).map((emp: any) => ({
+                    'Mã NV': emp.employeeCode,
+                    'Họ tên': emp.fullName,
+                    'Phòng ban': emp.department?.name || '',
+                    'Chức vụ': emp.position?.name || '',
+                    'Trạng thái': employeeStatusLabels[emp.status]?.label || emp.status,
+                    'Ngày vào làm': emp.hireDate ? new Date(emp.hireDate).toLocaleDateString('vi-VN') : '',
+                    'Email': emp.email,
+                    'Số điện thoại': emp.phone || '',
+                }));
+            } else if (reportId === 'pit-report') {
+                const res = await fetch(`/api/reports/hrm/pit?month=${selectedPeriod.split('-')[1] || 1}&year=${selectedPeriod.split('-')[0] || 2024}`);
+                const pitData = await res.json();
+                dataToExport = pitData.map((emp: any) => ({
+                    'Mã NV': emp.code,
+                    'Họ tên': emp.name,
+                    'Mã số thuế': emp.taxCode,
+                    'Thu nhập': emp.grossIncome,
+                    'BHXH': emp.socialInsurance,
+                    'Giảm trừ PT': emp.dependentDeduction,
+                    'TN chịu thuế': emp.taxableIncome,
+                    'Thuế TNCN': emp.pitAmount,
+                }));
+            } else if (reportId === 'insurance-d02' || reportId === 'insurance-01c') {
+                const res = await fetch('/api/reports/hrm/insurance');
+                const insData = await res.json();
+                dataToExport = insData.map((emp: any) => ({
+                    'Mã NV': emp.code,
+                    'Họ tên': emp.name,
+                    'Số sổ BHXH': emp.socialInsuranceNo,
+                    'Lương đóng BH': emp.baseSalary,
+                    'BHXH (NV)': emp.bhxh.employee,
+                    'BHXH (DN)': emp.bhxh.company,
+                    'BHYT (NV)': emp.bhyt.employee,
+                    'BHYT (DN)': emp.bhyt.company,
+                    'BHTN (NV)': emp.bhtn.employee,
+                    'BHTN (DN)': emp.bhtn.company,
+                }));
+            } else {
+                // Placeholder for other report types
+                dataToExport = [{ 'Thông báo': 'Chức năng đang phát triển' }];
+            }
+        } catch {
+            dataToExport = [{ 'Lỗi': 'Không thể tải dữ liệu' }];
         }
+
 
         if (format === 'excel') {
             await exportToExcel(dataToExport, filename, report?.name || 'Sheet1');

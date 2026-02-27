@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,67 +26,21 @@ import {
     Search,
     Filter,
     Calculator,
+    Loader2,
 } from 'lucide-react';
 import { exportToExcel } from '@/lib/export-utils';
 
-// Mock PIT data
-const mockPITData = [
-    {
-        id: 'emp-001',
-        code: 'NV001',
-        name: 'Nguyễn Văn A',
-        taxCode: '8234567890',
-        grossIncome: 25000000,
-        socialInsurance: 2625000,
-        dependentDeduction: 4400000,
-        taxableIncome: 17975000,
-        pitAmount: 1796250,
-    },
-    {
-        id: 'emp-002',
-        code: 'NV002',
-        name: 'Trần Thị B',
-        taxCode: '8234567891',
-        grossIncome: 35000000,
-        socialInsurance: 3675000,
-        dependentDeduction: 8800000,
-        taxableIncome: 22525000,
-        pitAmount: 2702500,
-    },
-    {
-        id: 'emp-003',
-        code: 'NV003',
-        name: 'Lê Văn C',
-        taxCode: '8234567892',
-        grossIncome: 18000000,
-        socialInsurance: 1890000,
-        dependentDeduction: 4400000,
-        taxableIncome: 11710000,
-        pitAmount: 585500,
-    },
-    {
-        id: 'emp-004',
-        code: 'NV004',
-        name: 'Phạm Thị D',
-        taxCode: '8234567893',
-        grossIncome: 45000000,
-        socialInsurance: 4725000,
-        dependentDeduction: 4400000,
-        taxableIncome: 35875000,
-        pitAmount: 5381250,
-    },
-    {
-        id: 'emp-005',
-        code: 'NV005',
-        name: 'Hoàng Văn E',
-        taxCode: '8234567894',
-        grossIncome: 15000000,
-        socialInsurance: 1575000,
-        dependentDeduction: 0,
-        taxableIncome: 13425000,
-        pitAmount: 685625,
-    },
-];
+interface PITRecord {
+    id: string;
+    code: string;
+    name: string;
+    taxCode: string;
+    grossIncome: number;
+    socialInsurance: number;
+    dependentDeduction: number;
+    taxableIncome: number;
+    pitAmount: number;
+}
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -97,10 +51,34 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function PITReportPage() {
-    const [period, setPeriod] = useState('2024-01');
+    const [period, setPeriod] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
     const [searchTerm, setSearchTerm] = useState('');
+    const [pitData, setPitData] = useState<PITRecord[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredData = mockPITData.filter(
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const parts = period.split('-');
+                const month = parts[1] || '1';
+                const year = parts[0] || '2024';
+                const res = await fetch(`/api/reports/hrm/pit?month=${month}&year=${year}`);
+                const data = await res.json();
+                setPitData(Array.isArray(data) ? data : []);
+            } catch {
+                setPitData([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, [period]);
+
+    const filteredData = pitData.filter(
         (emp) =>
             emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             emp.code.toLowerCase().includes(searchTerm.toLowerCase())
@@ -131,6 +109,15 @@ export default function PITReportPage() {
         exportToExcel(exportData, `Thue_TNCN_${period}`, 'Thuế TNCN');
     };
 
+    const now = new Date();
+    const periodOptions = [];
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = `Tháng ${d.getMonth() + 1}/${d.getFullYear()}`;
+        periodOptions.push({ value, label });
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -142,7 +129,7 @@ export default function PITReportPage() {
                     <p className="text-muted-foreground">Tổng hợp thuế thu nhập cá nhân theo kỳ</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleExportExcel}>
+                    <Button variant="outline" onClick={handleExportExcel} disabled={loading || filteredData.length === 0}>
                         <Download className="h-4 w-4 mr-2" />
                         Xuất Excel
                     </Button>
@@ -201,11 +188,9 @@ export default function PITReportPage() {
                                     <SelectValue placeholder="Chọn kỳ" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="2024-01">Tháng 1/2024</SelectItem>
-                                    <SelectItem value="2024-02">Tháng 2/2024</SelectItem>
-                                    <SelectItem value="2024-03">Tháng 3/2024</SelectItem>
-                                    <SelectItem value="2024-Q1">Quý 1/2024</SelectItem>
-                                    <SelectItem value="2024">Năm 2024</SelectItem>
+                                    {periodOptions.map(opt => (
+                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -232,71 +217,82 @@ export default function PITReportPage() {
                         Chi tiết thuế TNCN
                     </CardTitle>
                     <CardDescription>
-                        Danh sách {filteredData.length} nhân viên
+                        {loading ? 'Đang tải...' : `Danh sách ${filteredData.length} nhân viên`}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Mã NV</TableHead>
-                                    <TableHead>Họ tên</TableHead>
-                                    <TableHead>Mã số thuế</TableHead>
-                                    <TableHead className="text-right">Thu nhập</TableHead>
-                                    <TableHead className="text-right">BHXH</TableHead>
-                                    <TableHead className="text-right">Giảm trừ PT</TableHead>
-                                    <TableHead className="text-right">TN chịu thuế</TableHead>
-                                    <TableHead className="text-right">Thuế TNCN</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredData.map((emp) => (
-                                    <TableRow key={emp.id}>
-                                        <TableCell>
-                                            <Badge variant="outline">{emp.code}</Badge>
-                                        </TableCell>
-                                        <TableCell className="font-medium">{emp.name}</TableCell>
-                                        <TableCell className="font-mono text-sm">{emp.taxCode}</TableCell>
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+                        </div>
+                    ) : filteredData.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            Chưa có dữ liệu thuế TNCN cho kỳ này
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Mã NV</TableHead>
+                                        <TableHead>Họ tên</TableHead>
+                                        <TableHead>Mã số thuế</TableHead>
+                                        <TableHead className="text-right">Thu nhập</TableHead>
+                                        <TableHead className="text-right">BHXH</TableHead>
+                                        <TableHead className="text-right">Giảm trừ PT</TableHead>
+                                        <TableHead className="text-right">TN chịu thuế</TableHead>
+                                        <TableHead className="text-right">Thuế TNCN</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredData.map((emp) => (
+                                        <TableRow key={emp.id}>
+                                            <TableCell>
+                                                <Badge variant="outline">{emp.code}</Badge>
+                                            </TableCell>
+                                            <TableCell className="font-medium">{emp.name}</TableCell>
+                                            <TableCell className="font-mono text-sm">{emp.taxCode}</TableCell>
+                                            <TableCell className="text-right">
+                                                {formatCurrency(emp.grossIncome)}
+                                            </TableCell>
+                                            <TableCell className="text-right text-muted-foreground">
+                                                {formatCurrency(emp.socialInsurance)}
+                                            </TableCell>
+                                            <TableCell className="text-right text-muted-foreground">
+                                                {formatCurrency(emp.dependentDeduction)}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {formatCurrency(emp.taxableIncome)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-semibold text-primary">
+                                                {formatCurrency(emp.pitAmount)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {/* Totals Row */}
+                                    <TableRow className="bg-muted/50 font-bold">
+                                        <TableCell colSpan={3}>TỔNG CỘNG</TableCell>
                                         <TableCell className="text-right">
-                                            {formatCurrency(emp.grossIncome)}
-                                        </TableCell>
-                                        <TableCell className="text-right text-muted-foreground">
-                                            {formatCurrency(emp.socialInsurance)}
-                                        </TableCell>
-                                        <TableCell className="text-right text-muted-foreground">
-                                            {formatCurrency(emp.dependentDeduction)}
+                                            {formatCurrency(totals.grossIncome)}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {formatCurrency(emp.taxableIncome)}
+                                            {formatCurrency(totals.socialInsurance)}
                                         </TableCell>
-                                        <TableCell className="text-right font-semibold text-primary">
-                                            {formatCurrency(emp.pitAmount)}
+                                        <TableCell className="text-right">
+                                            {formatCurrency(totals.dependentDeduction)}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {formatCurrency(totals.taxableIncome)}
+                                        </TableCell>
+                                        <TableCell className="text-right text-primary">
+                                            {formatCurrency(totals.pitAmount)}
                                         </TableCell>
                                     </TableRow>
-                                ))}
-                                {/* Totals Row */}
-                                <TableRow className="bg-muted/50 font-bold">
-                                    <TableCell colSpan={3}>TỔNG CỘNG</TableCell>
-                                    <TableCell className="text-right">
-                                        {formatCurrency(totals.grossIncome)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {formatCurrency(totals.socialInsurance)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {formatCurrency(totals.dependentDeduction)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {formatCurrency(totals.taxableIncome)}
-                                    </TableCell>
-                                    <TableCell className="text-right text-primary">
-                                        {formatCurrency(totals.pitAmount)}
-                                    </TableCell>
-                                </TableRow>
-                            </TableBody>
-                        </Table>
-                    </div>
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

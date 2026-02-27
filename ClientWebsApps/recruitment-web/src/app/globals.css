@@ -65,8 +65,8 @@ html {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -74,20 +74,29 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.7 0 0);
-  border-radius: 4px;
+  background: oklch(0.75 0 0 / 50%);
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.5 0 0);
+  background: oklch(0.55 0 0 / 70%);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: oklch(0.4 0 0);
+  background: oklch(0.4 0 0 / 40%);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.5 0 0);
+  background: oklch(0.5 0 0 / 60%);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.75 0 0 / 50%) transparent;
+}
+
+.dark * {
+  scrollbar-color: oklch(0.4 0 0 / 40%) transparent;
 }
 
 :root {
@@ -206,11 +215,7 @@ html {
   /* Thin auto-hide scrollbar - shows only on hover/scroll */
   .scrollbar-thin {
     scrollbar-width: thin;
-    /* Firefox */
     scrollbar-color: transparent transparent;
-    /* thumb track */
-    overflow-y: overlay;
-    /* Scrollbar doesn't take up layout space */
   }
 
   .scrollbar-thin:hover {
@@ -218,7 +223,8 @@ html {
   }
 
   .scrollbar-thin::-webkit-scrollbar {
-    width: 2px;
+    width: 3px;
+    height: 3px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -227,8 +233,7 @@ html {
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background: transparent;
-    border-radius: 2px;
-    transition: background 0.2s ease;
+    border-radius: 999px;
   }
 
   .scrollbar-thin:hover::-webkit-scrollbar-thumb {
@@ -237,6 +242,39 @@ html {
 
   .dark .scrollbar-thin:hover::-webkit-scrollbar-thumb {
     background: oklch(0.5 0 0 / 30%);
+  }
+
+  /* Kanban board scrollbar - compact & visible */
+  .scrollbar-kanban {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.7 0 0 / 30%) transparent;
+  }
+
+  .scrollbar-kanban::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .scrollbar-kanban::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 999px;
+  }
+
+  .scrollbar-kanban::-webkit-scrollbar-thumb {
+    background: oklch(0.7 0 0 / 30%);
+    border-radius: 999px;
+  }
+
+  .scrollbar-kanban::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.55 0 0 / 50%);
+  }
+
+  .dark .scrollbar-kanban::-webkit-scrollbar-thumb {
+    background: oklch(0.4 0 0 / 30%);
+  }
+
+  .dark .scrollbar-kanban::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.5 0 0 / 50%);
   }
 
   /* Completely hide scrollbar but allow scrolling */

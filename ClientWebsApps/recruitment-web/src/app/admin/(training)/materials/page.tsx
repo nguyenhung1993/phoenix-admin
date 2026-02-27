@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -21,15 +21,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
-    mockMaterials,
-    getCourses,
-    Material,
-    MaterialType
-} from '@/lib/mocks/training';
-import {
     FileText,
     Video,
-    File,
     Link as LinkIcon,
     Presentation,
     Upload,
@@ -38,29 +31,70 @@ import {
     Eye,
     Trash2,
     FolderOpen,
+    Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Icon mapping for material types
+type MaterialType = 'PDF' | 'VIDEO' | 'SLIDE' | 'LINK';
+
 const materialIcons: Record<MaterialType, React.ReactNode> = {
-    pdf: <FileText className="h-5 w-5 text-red-500" />,
-    video: <Video className="h-5 w-5 text-blue-500" />,
-    slide: <Presentation className="h-5 w-5 text-orange-500" />,
-    link: <LinkIcon className="h-5 w-5 text-green-500" />,
+    PDF: <FileText className="h-5 w-5 text-red-500" />,
+    VIDEO: <Video className="h-5 w-5 text-blue-500" />,
+    SLIDE: <Presentation className="h-5 w-5 text-orange-500" />,
+    LINK: <LinkIcon className="h-5 w-5 text-green-500" />,
 };
 
 const materialLabels: Record<MaterialType, string> = {
-    pdf: 'Tài liệu PDF',
-    video: 'Video',
-    slide: 'Slide bài giảng',
-    link: 'Liên kết ngoài',
+    PDF: 'Tài liệu PDF',
+    VIDEO: 'Video',
+    SLIDE: 'Slide bài giảng',
+    LINK: 'Liên kết ngoài',
 };
 
+interface MaterialItem {
+    id: string;
+    title: string;
+    courseId: string;
+    courseName: string;
+    type: MaterialType;
+    url: string;
+    size: string | null;
+    createdAt: string;
+}
+
+interface CourseOption {
+    id: string;
+    title: string;
+}
+
 export default function MaterialsPage() {
-    const [materials, setMaterials] = useState<Material[]>(mockMaterials);
+    const [materials, setMaterials] = useState<MaterialItem[]>([]);
+    const [courses, setCourses] = useState<CourseOption[]>([]);
     const [courseFilter, setCourseFilter] = useState('ALL');
     const [searchQuery, setSearchQuery] = useState('');
-    const courses = getCourses();
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [matRes, courseRes] = await Promise.all([
+                    fetch('/api/materials'),
+                    fetch('/api/courses'),
+                ]);
+                const matJson = await matRes.json();
+                const courseJson = await courseRes.json();
+                setMaterials(matJson.data || []);
+                setCourses((courseJson.data || []).map((c: any) => ({ id: c.id, title: c.title })));
+            } catch {
+                setMaterials([]);
+                setCourses([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const filteredMaterials = materials.filter((mat) => {
         const matchesCourse = courseFilter === 'ALL' || mat.courseId === courseFilter;
@@ -68,22 +102,32 @@ export default function MaterialsPage() {
         return matchesCourse && matchesSearch;
     });
 
-    const getCourseName = (courseId: string) => {
-        return courses.find(c => c.id === courseId)?.title || 'Unknown Course';
-    };
-
     const stats = {
         total: materials.length,
-        pdf: materials.filter(m => m.type === 'pdf').length,
-        video: materials.filter(m => m.type === 'video').length,
-        slide: materials.filter(m => m.type === 'slide').length,
+        pdf: materials.filter(m => m.type === 'PDF').length,
+        video: materials.filter(m => m.type === 'VIDEO').length,
+        slide: materials.filter(m => m.type === 'SLIDE').length,
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (confirm('Bạn có chắc chắn muốn xóa tài liệu này?')) {
-            setMaterials(materials.filter(m => m.id !== id));
-            toast.success('Đã xóa tài liệu');
+            try {
+                await fetch(`/api/materials?id=${id}`, { method: 'DELETE' });
+                setMaterials(materials.filter(m => m.id !== id));
+                toast.success('Đã xóa tài liệu');
+            } catch {
+                toast.error('Có lỗi xảy ra');
+            }
         }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
     }
 
     return (
@@ -198,7 +242,7 @@ export default function MaterialsPage() {
                                             <span className="font-medium">{material.title}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground">{getCourseName(material.courseId)}</TableCell>
+                                    <TableCell className="text-muted-foreground">{material.courseName}</TableCell>
                                     <TableCell>
                                         <Badge variant="outline">{materialLabels[material.type]}</Badge>
                                     </TableCell>

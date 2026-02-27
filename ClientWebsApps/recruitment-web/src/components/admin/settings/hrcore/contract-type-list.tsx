@@ -1,19 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Plus, MoreHorizontal, FileText } from 'lucide-react';
-import { mockContractTypes, ContractType } from '@/lib/mocks/settings-hr';
+interface ContractType { id: string; code: string; name: string; durationMonths?: number; description?: string; isSystem: boolean; isActive: boolean; }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ContractTypeDialog } from './contract-type-dialog';
 import { toast } from 'sonner';
 
 export function ContractTypeList() {
-    const [contractTypes, setContractTypes] = useState<ContractType[]>(mockContractTypes);
+    const [contractTypes, setContractTypes] = useState<ContractType[]>([]);
+
+    useEffect(() => {
+        fetch('/api/contract-types').then(r => r.json()).then(setContractTypes).catch(console.error);
+    }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedContractType, setSelectedContractType] = useState<ContractType | null>(null);
 
@@ -27,25 +31,23 @@ export function ContractTypeList() {
         setIsDialogOpen(true);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm("Bạn có chắc chắn muốn xóa loại hợp đồng này?")) {
+            await fetch(`/api/contract-types?id=${id}`, { method: 'DELETE' });
             setContractTypes(prev => prev.filter(t => t.id !== id));
             toast.success("Đã xóa loại hợp đồng thành công");
         }
     };
 
-    const handleSubmit = (values: any, id?: string) => {
+    const handleSubmit = async (values: any, id?: string) => {
         if (id) {
-            // Update
-            setContractTypes(prev => prev.map(t => t.id === id ? { ...t, ...values } : t));
+            const res = await fetch('/api/contract-types', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...values }) });
+            const updated = await res.json();
+            setContractTypes(prev => prev.map(t => t.id === id ? updated : t));
             toast.success("Cập nhật loại hợp đồng thành công");
         } else {
-            // Create
-            const newType: ContractType = {
-                id: Math.random().toString(36).substr(2, 9),
-                isSystem: false,
-                ...values
-            };
+            const res = await fetch('/api/contract-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+            const newType = await res.json();
             setContractTypes(prev => [...prev, newType]);
             toast.success("Tạo loại hợp đồng thành công");
         }

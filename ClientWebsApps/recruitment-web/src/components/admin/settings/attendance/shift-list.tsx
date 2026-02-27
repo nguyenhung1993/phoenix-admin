@@ -1,19 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Plus, MoreHorizontal, Clock } from 'lucide-react';
-import { mockShiftTypes, ShiftType } from '@/lib/mocks/settings-hr';
+interface ShiftType { id: string; code: string; name: string; startTime: string; endTime: string; breakStartTime?: string; breakEndTime?: string; workDays: string[]; isActive: boolean; isDefault: boolean; }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ShiftDialog } from './shift-dialog';
 import { toast } from 'sonner';
 
 export function ShiftList() {
-    const [shifts, setShifts] = useState<ShiftType[]>(mockShiftTypes);
+    const [shifts, setShifts] = useState<ShiftType[]>([]);
+
+    useEffect(() => {
+        fetch('/api/shift-types').then(r => r.json()).then(setShifts).catch(console.error);
+    }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedShift, setSelectedShift] = useState<ShiftType | null>(null);
 
@@ -27,24 +31,23 @@ export function ShiftList() {
         setIsDialogOpen(true);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm("Bạn có chắc chắn muốn xóa ca làm việc này?")) {
+            await fetch(`/api/shift-types?id=${id}`, { method: 'DELETE' });
             setShifts(prev => prev.filter(s => s.id !== id));
             toast.success("Đã xóa ca làm việc thành công");
         }
     };
 
-    const handleSubmit = (values: any, id?: string) => {
+    const handleSubmit = async (values: any, id?: string) => {
         if (id) {
-            // Update
-            setShifts(prev => prev.map(s => s.id === id ? { ...s, ...values } : s));
+            const res = await fetch('/api/shift-types', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...values }) });
+            const updated = await res.json();
+            setShifts(prev => prev.map(s => s.id === id ? updated : s));
             toast.success("Cập nhật ca làm việc thành công");
         } else {
-            // Create
-            const newShift: ShiftType = {
-                id: Math.random().toString(36).substr(2, 9),
-                ...values
-            };
+            const res = await fetch('/api/shift-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+            const newShift = await res.json();
             setShifts(prev => [...prev, newShift]);
             toast.success("Tạo ca làm việc thành công");
         }

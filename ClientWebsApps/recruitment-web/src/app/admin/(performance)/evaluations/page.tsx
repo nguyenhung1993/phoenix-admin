@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,23 +22,15 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
-    mockEvaluation360s,
-    mockKPIPeriods,
-    evaluation360StatusLabels,
-    reviewerTypeLabels,
-    Evaluation360,
-} from '@/lib/mocks';
-import {
     Users,
     Plus,
     Eye,
-    Send,
     Clock,
     CheckCircle,
     AlertCircle,
-    Mail,
     MoreHorizontal,
     Filter,
+    Loader2,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -54,26 +46,92 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 
+const evalStatusLabels: Record<string, { label: string; color: string }> = {
+    DRAFT: { label: 'Nháp', color: 'gray' },
+    SUBMITTED: { label: 'Đã gửi', color: 'blue' },
+    REVIEWED: { label: 'Đã xem', color: 'orange' },
+    APPROVED: { label: 'Hoàn thành', color: 'green' },
+};
+
+interface EvaluationItem {
+    id: string;
+    reviewCycleId: string;
+    reviewCycleName: string;
+    employeeId: string;
+    employeeCode: string;
+    employeeName: string;
+    departmentName: string;
+    reviewerName: string | null;
+    status: string;
+    selfScore: number | null;
+    managerScore: number | null;
+    finalScore: number | null;
+    kpiResults: any;
+    strengths: string | null;
+    weaknesses: string | null;
+    developmentPlan: string | null;
+    submittedAt: string | null;
+    reviewedAt: string | null;
+}
+
+interface ReviewCycleOption {
+    id: string;
+    name: string;
+}
+
 export default function EvaluationsPage() {
     const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
-    const [selectedEval, setSelectedEval] = useState<Evaluation360 | null>(null);
+    const [selectedEval, setSelectedEval] = useState<EvaluationItem | null>(null);
     const [detailOpen, setDetailOpen] = useState(false);
+    const [evaluations, setEvaluations] = useState<EvaluationItem[]>([]);
+    const [reviewCycles, setReviewCycles] = useState<ReviewCycleOption[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // Filter evaluations by period
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [evalRes, cycleRes] = await Promise.all([
+                    fetch('/api/evaluations'),
+                    fetch('/api/reviews'),
+                ]);
+                const evalJson = await evalRes.json();
+                const cycleJson = await cycleRes.json();
+                setEvaluations(evalJson.data || []);
+                setReviewCycles((cycleJson.data || []).map((c: any) => ({ id: c.id, name: c.name })));
+            } catch {
+                setEvaluations([]);
+                setReviewCycles([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
     const filteredEvaluations = selectedPeriod === 'all'
-        ? mockEvaluation360s
-        : mockEvaluation360s.filter(e => e.periodId === selectedPeriod);
+        ? evaluations
+        : evaluations.filter(e => e.reviewCycleId === selectedPeriod);
 
-    // Calculate review progress
-    const getReviewProgress = (eval360: Evaluation360) => {
-        const submitted = eval360.reviews.filter(r => r.status === 'SUBMITTED').length;
-        const total = eval360.reviews.length;
-        return { submitted, total, percent: total > 0 ? Math.round((submitted / total) * 100) : 0 };
+    const handleViewDetail = (ev: EvaluationItem) => {
+        setSelectedEval(ev);
+        setDetailOpen(true);
     };
 
-    const handleViewDetail = (eval360: Evaluation360) => {
-        setSelectedEval(eval360);
-        setDetailOpen(true);
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
+
+    const stats = {
+        total: filteredEvaluations.length,
+        draft: filteredEvaluations.filter(e => e.status === 'DRAFT').length,
+        submitted: filteredEvaluations.filter(e => e.status === 'SUBMITTED').length,
+        approved: filteredEvaluations.filter(e => e.status === 'APPROVED').length,
     };
 
     return (
@@ -82,9 +140,9 @@ export default function EvaluationsPage() {
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
                         <Users className="h-6 w-6 text-primary" />
-                        Đánh giá 360°
+                        Đánh giá nhân viên
                     </h1>
-                    <p className="text-muted-foreground">Quản lý đánh giá đa chiều từ nhiều nguồn</p>
+                    <p className="text-muted-foreground">Quản lý đánh giá năng lực nhân viên</p>
                 </div>
                 <div className="flex gap-2">
                     <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -94,9 +152,9 @@ export default function EvaluationsPage() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Tất cả kỳ</SelectItem>
-                            {mockKPIPeriods.map(period => (
-                                <SelectItem key={period.id} value={period.id}>
-                                    {period.name}
+                            {reviewCycles.map(cycle => (
+                                <SelectItem key={cycle.id} value={cycle.id}>
+                                    {cycle.name}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -115,7 +173,7 @@ export default function EvaluationsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-muted-foreground">Tổng số</p>
-                                <p className="text-2xl font-bold">{filteredEvaluations.length}</p>
+                                <p className="text-2xl font-bold">{stats.total}</p>
                             </div>
                             <Users className="h-8 w-8 text-muted-foreground/50" />
                         </div>
@@ -125,10 +183,8 @@ export default function EvaluationsPage() {
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-muted-foreground">Đang thực hiện</p>
-                                <p className="text-2xl font-bold text-blue-600">
-                                    {filteredEvaluations.filter(e => e.status === 'IN_PROGRESS').length}
-                                </p>
+                                <p className="text-sm text-muted-foreground">Đang soạn</p>
+                                <p className="text-2xl font-bold text-blue-600">{stats.draft}</p>
                             </div>
                             <Clock className="h-8 w-8 text-blue-500/50" />
                         </div>
@@ -138,12 +194,10 @@ export default function EvaluationsPage() {
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-muted-foreground">Hoàn thành</p>
-                                <p className="text-2xl font-bold text-green-600">
-                                    {filteredEvaluations.filter(e => e.status === 'COMPLETED').length}
-                                </p>
+                                <p className="text-sm text-muted-foreground">Đã gửi</p>
+                                <p className="text-2xl font-bold text-orange-600">{stats.submitted}</p>
                             </div>
-                            <CheckCircle className="h-8 w-8 text-green-500/50" />
+                            <AlertCircle className="h-8 w-8 text-orange-500/50" />
                         </div>
                     </CardContent>
                 </Card>
@@ -151,12 +205,10 @@ export default function EvaluationsPage() {
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-muted-foreground">Chờ xử lý</p>
-                                <p className="text-2xl font-bold text-orange-600">
-                                    {filteredEvaluations.filter(e => e.status === 'PENDING').length}
-                                </p>
+                                <p className="text-sm text-muted-foreground">Hoàn thành</p>
+                                <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
                             </div>
-                            <AlertCircle className="h-8 w-8 text-orange-500/50" />
+                            <CheckCircle className="h-8 w-8 text-green-500/50" />
                         </div>
                     </CardContent>
                 </Card>
@@ -166,9 +218,7 @@ export default function EvaluationsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Danh sách đánh giá</CardTitle>
-                    <CardDescription>
-                        Theo dõi tiến độ đánh giá 360° của từng nhân viên
-                    </CardDescription>
+                    <CardDescription>Theo dõi tiến độ đánh giá nhân viên</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -176,43 +226,35 @@ export default function EvaluationsPage() {
                             <TableRow>
                                 <TableHead>Nhân viên</TableHead>
                                 <TableHead>Kỳ đánh giá</TableHead>
-                                <TableHead>Mẫu phiếu</TableHead>
-                                <TableHead>Tiến độ</TableHead>
+                                <TableHead>Người đánh giá</TableHead>
                                 <TableHead>Trạng thái</TableHead>
                                 <TableHead>Điểm</TableHead>
                                 <TableHead className="w-[80px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredEvaluations.map((eval360) => {
-                                const statusInfo = evaluation360StatusLabels[eval360.status];
-                                const progress = getReviewProgress(eval360);
-
+                            {filteredEvaluations.map((ev) => {
+                                const statusInfo = evalStatusLabels[ev.status] || { label: ev.status, color: 'gray' };
                                 return (
-                                    <TableRow key={eval360.id}>
+                                    <TableRow key={ev.id}>
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="h-8 w-8">
                                                     <AvatarFallback>
-                                                        {eval360.targetEmployeeName.charAt(0)}
+                                                        {ev.employeeName.charAt(0)}
                                                     </AvatarFallback>
                                                 </Avatar>
-                                                <span className="font-medium">{eval360.targetEmployeeName}</span>
+                                                <div>
+                                                    <span className="font-medium">{ev.employeeName}</span>
+                                                    <div className="text-xs text-muted-foreground">{ev.departmentName}</div>
+                                                </div>
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline">{eval360.periodName}</Badge>
+                                            <Badge variant="outline">{ev.reviewCycleName}</Badge>
                                         </TableCell>
-                                        <TableCell>
-                                            <span className="text-sm">{eval360.templateName}</span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="w-32 space-y-1">
-                                                <Progress value={progress.percent} className="h-2" />
-                                                <span className="text-xs text-muted-foreground">
-                                                    {progress.submitted}/{progress.total} đánh giá
-                                                </span>
-                                            </div>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {ev.reviewerName || '-'}
                                         </TableCell>
                                         <TableCell>
                                             <Badge
@@ -223,8 +265,8 @@ export default function EvaluationsPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {eval360.finalScore ? (
-                                                <span className="font-bold text-lg">{eval360.finalScore}</span>
+                                            {ev.finalScore ? (
+                                                <span className="font-bold text-lg">{ev.finalScore}</span>
                                             ) : (
                                                 <span className="text-muted-foreground">-</span>
                                             )}
@@ -237,17 +279,9 @@ export default function EvaluationsPage() {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleViewDetail(eval360)}>
+                                                    <DropdownMenuItem onClick={() => handleViewDetail(ev)}>
                                                         <Eye className="h-4 w-4 mr-2" />
                                                         Xem chi tiết
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem>
-                                                        <Mail className="h-4 w-4 mr-2" />
-                                                        Gửi nhắc nhở
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem>
-                                                        <Send className="h-4 w-4 mr-2" />
-                                                        Hoàn tất đánh giá
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -257,6 +291,9 @@ export default function EvaluationsPage() {
                             })}
                         </TableBody>
                     </Table>
+                    {filteredEvaluations.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">Không có đánh giá nào</div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -266,52 +303,48 @@ export default function EvaluationsPage() {
                     {selectedEval && (
                         <>
                             <DialogHeader>
-                                <DialogTitle>Đánh giá 360° - {selectedEval.targetEmployeeName}</DialogTitle>
+                                <DialogTitle>Đánh giá - {selectedEval.employeeName}</DialogTitle>
                                 <DialogDescription>
-                                    {selectedEval.periodName} • {selectedEval.templateName}
+                                    {selectedEval.reviewCycleName}
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
-                                <h4 className="font-semibold">Danh sách người đánh giá</h4>
-                                <div className="space-y-2">
-                                    {selectedEval.reviews.map((review) => {
-                                        const typeInfo = reviewerTypeLabels[review.reviewerType];
-                                        return (
-                                            <div
-                                                key={review.id}
-                                                className="flex items-center justify-between p-3 border rounded-lg"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <Avatar className="h-8 w-8">
-                                                        <AvatarFallback>{review.reviewerName.charAt(0)}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <div className="font-medium">{review.reviewerName}</div>
-                                                        <Badge variant="outline" className={`text-${typeInfo.color}-700`}>
-                                                            {typeInfo.label}
-                                                        </Badge>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {review.status === 'SUBMITTED' ? (
-                                                        <>
-                                                            <CheckCircle className="h-4 w-4 text-green-500" />
-                                                            <span className="text-sm text-green-600">Đã nộp</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Button size="sm" asChild>
-                                                                <a href={`/admin/evaluations/review/${review.id}`}>
-                                                                    Đánh giá
-                                                                </a>
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Nhân viên</p>
+                                        <p className="font-medium">{selectedEval.employeeName}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Phòng ban</p>
+                                        <p className="font-medium">{selectedEval.departmentName}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Người đánh giá</p>
+                                        <p className="font-medium">{selectedEval.reviewerName || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Trạng thái</p>
+                                        <Badge>{evalStatusLabels[selectedEval.status]?.label || selectedEval.status}</Badge>
+                                    </div>
                                 </div>
+                                {selectedEval.finalScore !== null && (
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Điểm tổng kết</p>
+                                        <p className="text-3xl font-bold">{selectedEval.finalScore}</p>
+                                    </div>
+                                )}
+                                {selectedEval.strengths && (
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Điểm mạnh</p>
+                                        <p className="font-medium">{selectedEval.strengths}</p>
+                                    </div>
+                                )}
+                                {selectedEval.weaknesses && (
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Điểm cần cải thiện</p>
+                                        <p className="font-medium">{selectedEval.weaknesses}</p>
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}

@@ -59,12 +59,18 @@ export async function PATCH(
                 location: body.location || null,
                 type: body.type,
                 experienceLevel: body.experienceLevel || null,
+                educationLevel: body.educationLevel || null,
+                specialization: body.specialization || [],
+                deadline: body.deadline ? new Date(body.deadline) : null,
                 salaryMin: body.salaryMin ? parseFloat(body.salaryMin) : null,
                 salaryMax: body.salaryMax ? parseFloat(body.salaryMax) : null,
                 status: body.status,
                 description: body.description || null,
                 requirements: body.requirements || [],
                 benefits: body.benefits || [],
+                workAddress: body.workAddress || null,
+                workSchedule: body.workSchedule || null,
+                applicationMethod: body.applicationMethod || null,
             },
             include: {
                 department: { select: { id: true, name: true } },
@@ -72,9 +78,9 @@ export async function PATCH(
         });
 
         return NextResponse.json(updated);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error updating job:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
     }
 }
 

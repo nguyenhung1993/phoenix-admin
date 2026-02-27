@@ -12,16 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
-    mockEvaluation360s,
-    mockEvaluationTemplates,
-    reviewerTypeLabels,
-    Review360,
-    EvaluationTemplate,
-    EvaluationSection,
-    EvaluationCriteria,
-    CriteriaResponse,
-} from '@/lib/mocks';
-import {
     ArrowLeft,
     Star,
     Send,
@@ -29,6 +19,7 @@ import {
     User,
     CheckCircle,
     AlertCircle,
+    Loader2,
 } from 'lucide-react';
 import {
     AlertDialog,
@@ -40,6 +31,40 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+
+interface EvaluationCriteria {
+    id: string;
+    name: string;
+    description?: string;
+    weight: number;
+    maxScore?: number;
+    ratingScale: {
+        type: string;
+        min?: number;
+        max?: number;
+        options?: { value: number; label: string }[];
+    };
+}
+
+interface EvaluationSection {
+    id: string;
+    name: string;
+    weight: number;
+    criteria: EvaluationCriteria[];
+}
+
+interface EvaluationTemplate {
+    id: string;
+    name: string;
+    description: string | null;
+    sections: EvaluationSection[];
+}
+
+interface CriteriaResponse {
+    criteriaId: string;
+    score: number;
+    comment: string;
+}
 
 // Star Rating Component
 function StarRating({ value, maxStars = 5, onChange }: { value: number; maxStars?: number; onChange: (value: number) => void }) {
@@ -84,7 +109,7 @@ function CriteriaInput({
     onCommentChange: (comment: string) => void;
 }) {
     const renderInput = () => {
-        switch (criteria.ratingScale.type) {
+        switch (criteria.ratingScale?.type) {
             case 'NUMERIC':
                 return (
                     <div className="space-y-3">
@@ -140,12 +165,10 @@ function CriteriaInput({
                 <p className="text-sm text-muted-foreground">{criteria.description}</p>
                 <div className="flex gap-2 mt-1">
                     <Badge variant="outline" className="text-xs">Trọng số: {criteria.weight}%</Badge>
-                    <Badge variant="outline" className="text-xs">Điểm tối đa: {criteria.maxScore}</Badge>
+                    {criteria.maxScore && <Badge variant="outline" className="text-xs">Điểm tối đa: {criteria.maxScore}</Badge>}
                 </div>
             </div>
-
             {renderInput()}
-
             <div>
                 <Label htmlFor={`comment-${criteria.id}`} className="text-sm text-muted-foreground">
                     Nhận xét (tùy chọn)
@@ -168,39 +191,48 @@ export default function ReviewPage() {
     const router = useRouter();
     const reviewId = params.id as string;
 
-    const [review, setReview] = useState<Review360 | null>(null);
-    const [evaluation, setEvaluation] = useState<typeof mockEvaluation360s[0] | null>(null);
     const [template, setTemplate] = useState<EvaluationTemplate | null>(null);
     const [responses, setResponses] = useState<CriteriaResponse[]>([]);
     const [generalComments, setGeneralComments] = useState('');
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [evalInfo, setEvalInfo] = useState<{ targetEmployeeName: string; reviewerName: string } | null>(null);
 
-    // Find review and evaluation data
     useEffect(() => {
-        for (const eval360 of mockEvaluation360s) {
-            const foundReview = eval360.reviews.find(r => r.id === reviewId);
-            if (foundReview) {
-                setReview(foundReview);
-                setEvaluation(eval360);
-                setGeneralComments(foundReview.comments || '');
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                // Fetch templates
+                const tplRes = await fetch('/api/evaluation-templates');
+                const tplJson = await tplRes.json();
+                const templates = tplJson.data || [];
 
-                // Find template
-                const foundTemplate = mockEvaluationTemplates.find(t => t.id === eval360.templateId);
-                if (foundTemplate) {
-                    setTemplate(foundTemplate);
+                // Use first active template as fallback (in real app, would be linked to evaluation)
+                const activeTemplate = templates.find((t: any) => t.status === 'ACTIVE') || templates[0];
+                if (activeTemplate) {
+                    setTemplate(activeTemplate);
 
-                    // Initialize responses for all criteria
-                    const allCriteria = foundTemplate.sections.flatMap(s => s.criteria);
-                    const initialResponses = allCriteria.map(c => {
-                        const existing = foundReview.responses.find(r => r.criteriaId === c.id);
-                        return existing || { criteriaId: c.id, score: 0, comment: '' };
-                    });
-                    setResponses(initialResponses);
+                    // Initialize responses
+                    const allCriteria = (activeTemplate.sections || []).flatMap((s: EvaluationSection) => s.criteria || []);
+                    setResponses(allCriteria.map((c: EvaluationCriteria) => ({
+                        criteriaId: c.id,
+                        score: 0,
+                        comment: '',
+                    })));
                 }
-                break;
+
+                setEvalInfo({
+                    targetEmployeeName: 'Nhân viên',
+                    reviewerName: 'Quản lý',
+                });
+            } catch {
+                setTemplate(null);
+            } finally {
+                setLoading(false);
             }
-        }
+        };
+        fetchData();
     }, [reviewId]);
 
     const handleScoreChange = (criteriaId: string, score: number) => {
@@ -217,7 +249,6 @@ export default function ReviewPage() {
 
     const handleSubmit = () => {
         setIsSubmitting(true);
-        // In real app, call API here
         setTimeout(() => {
             setIsSubmitting(false);
             router.push('/admin/evaluations');
@@ -226,17 +257,26 @@ export default function ReviewPage() {
 
     const calculateProgress = () => {
         if (!template) return 0;
-        const allCriteria = template.sections.flatMap(s => s.criteria);
+        const allCriteria = (template.sections || []).flatMap((s: EvaluationSection) => s.criteria || []);
         const filled = responses.filter(r => r.score > 0).length;
-        return Math.round((filled / allCriteria.length) * 100);
+        return allCriteria.length > 0 ? Math.round((filled / allCriteria.length) * 100) : 0;
     };
 
-    if (!review || !evaluation || !template) {
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
+
+    if (!template) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Không tìm thấy đánh giá</p>
+                    <p className="text-muted-foreground">Không tìm thấy mẫu đánh giá</p>
                     <Button variant="link" asChild className="mt-2">
                         <Link href="/admin/evaluations">← Quay lại danh sách</Link>
                     </Button>
@@ -245,22 +285,6 @@ export default function ReviewPage() {
         );
     }
 
-    if (review.status === 'SUBMITTED') {
-        return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                    <p className="text-lg font-medium">Bạn đã hoàn thành đánh giá này</p>
-                    <p className="text-muted-foreground">Ngày nộp: {review.submittedAt}</p>
-                    <Button variant="link" asChild className="mt-2">
-                        <Link href="/admin/evaluations">← Quay lại danh sách</Link>
-                    </Button>
-                </div>
-            </div>
-        );
-    }
-
-    const typeInfo = reviewerTypeLabels[review.reviewerType];
     const progress = calculateProgress();
 
     return (
@@ -274,9 +298,7 @@ export default function ReviewPage() {
                 </Button>
                 <div className="flex-1">
                     <h1 className="text-2xl font-bold">Đánh giá 360°</h1>
-                    <p className="text-muted-foreground">
-                        {evaluation.periodName} • {template.name}
-                    </p>
+                    <p className="text-muted-foreground">{template.name}</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" disabled={isSubmitting}>
@@ -296,23 +318,12 @@ export default function ReviewPage() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <Avatar className="h-16 w-16">
-                                <AvatarFallback className="text-xl">
-                                    {evaluation.targetEmployeeName.charAt(0)}
-                                </AvatarFallback>
+                                <AvatarFallback className="text-xl">NV</AvatarFallback>
                             </Avatar>
                             <div>
-                                <h2 className="text-xl font-semibold">{evaluation.targetEmployeeName}</h2>
+                                <h2 className="text-xl font-semibold">{evalInfo?.targetEmployeeName}</h2>
                                 <p className="text-muted-foreground">Nhân viên được đánh giá</p>
                             </div>
-                        </div>
-                        <div className="text-right">
-                            <Badge className={`bg-${typeInfo.color}-100 text-${typeInfo.color}-700`}>
-                                <User className="h-3 w-3 mr-1" />
-                                {typeInfo.label}
-                            </Badge>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Người đánh giá: {review.reviewerName}
-                            </p>
                         </div>
                     </div>
 
@@ -333,7 +344,7 @@ export default function ReviewPage() {
             </Card>
 
             {/* Evaluation Sections */}
-            {template.sections.map((section) => (
+            {(template.sections || []).map((section: EvaluationSection) => (
                 <Card key={section.id}>
                     <CardHeader>
                         <CardTitle>{section.name}</CardTitle>
@@ -342,7 +353,7 @@ export default function ReviewPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {section.criteria.map((criteria) => {
+                        {(section.criteria || []).map((criteria: EvaluationCriteria) => {
                             const response = responses.find(r => r.criteriaId === criteria.id) ||
                                 { criteriaId: criteria.id, score: 0, comment: '' };
                             return (

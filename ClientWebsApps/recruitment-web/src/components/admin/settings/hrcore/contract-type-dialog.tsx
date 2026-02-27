@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { ContractType } from "@/lib/mocks/settings-hr"
+import { ContractType } from "@/lib/types/hrm"
 
 const contractTypeSchema = z.object({
     code: z.string().min(2, "Mã loại hợp đồng phải có ít nhất 2 ký tự"),

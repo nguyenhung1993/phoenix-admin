@@ -1,7 +1,6 @@
 'use client';
 
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -24,7 +23,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { mockDepartments, Department } from '@/lib/mocks';
 import { buildDeptTree } from '@/lib/tree-utils';
 import OrgChart from '@/components/admin/org-chart';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -38,7 +36,19 @@ import {
     ChevronRight,
     List,
     Network,
+    Loader2,
 } from 'lucide-react';
+
+interface Department {
+    id: string;
+    code: string;
+    name: string;
+    parentId: string | null;
+    managerId: string | null;
+    isActive: boolean;
+    employeeCount: number;
+    managerName: string | null;
+}
 
 export default function AdminDepartmentsPage() {
     const [viewMode, setViewMode] = useState<'list' | 'chart'>('list');
@@ -46,14 +56,70 @@ export default function AdminDepartmentsPage() {
     const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [departments, setDepartments] = useState<Department[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredDepartments = mockDepartments.filter((dept) =>
+    // Create form state
+    const [newCode, setNewCode] = useState('');
+    const [newName, setNewName] = useState('');
+
+    const fetchDepartments = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/departments');
+            const json = await res.json();
+            setDepartments(json.data || []);
+        } catch {
+            setDepartments([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchDepartments(); }, []);
+
+    const filteredDepartments = departments.filter((dept) =>
         dept.name.toLowerCase().includes(search.toLowerCase()) ||
         dept.code.toLowerCase().includes(search.toLowerCase())
     );
 
-    const totalEmployees = mockDepartments.reduce((sum, d) => sum + d.employeeCount, 0);
-    const chartData = buildDeptTree(mockDepartments);
+    const totalEmployees = departments.reduce((sum, d) => sum + (d.employeeCount || 0), 0);
+    const chartData = buildDeptTree(departments as any);
+
+    const handleCreate = async () => {
+        if (!newCode || !newName) {
+            toast.error('Vui lòng nhập mã và tên phòng ban');
+            return;
+        }
+        try {
+            const res = await fetch('/api/departments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: newCode, name: newName }),
+            });
+            if (res.ok) {
+                setCreateDialogOpen(false);
+                setNewCode('');
+                setNewName('');
+                toast.success('Đã tạo phòng ban mới thành công!');
+                fetchDepartments();
+            } else {
+                const err = await res.json();
+                toast.error(err.error || 'Lỗi tạo phòng ban');
+            }
+        } catch {
+            toast.error('Lỗi kết nối server');
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -90,7 +156,7 @@ export default function AdminDepartmentsPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Tổng phòng ban</p>
-                                    <p className="text-2xl font-bold">{mockDepartments.length}</p>
+                                    <p className="text-2xl font-bold">{departments.length}</p>
                                 </div>
                                 <Building className="h-8 w-8 text-muted-foreground" />
                             </div>
@@ -112,7 +178,7 @@ export default function AdminDepartmentsPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">TB nhân viên/PB</p>
-                                    <p className="text-2xl font-bold">{Math.round(totalEmployees / mockDepartments.length)}</p>
+                                    <p className="text-2xl font-bold">{departments.length > 0 ? Math.round(totalEmployees / departments.length) : 0}</p>
                                 </div>
                                 <User className="h-8 w-8 text-muted-foreground" />
                             </div>
@@ -125,7 +191,7 @@ export default function AdminDepartmentsPage() {
                 <OrgChart data={chartData} />
             ) : (
                 <div className="space-y-6">
-                    {/* Department Lists */}
+                    {/* Department Cards */}
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredDepartments.map((dept) => (
                             <Card key={dept.id} className="hover:shadow-md transition-shadow cursor-pointer"
@@ -263,23 +329,19 @@ export default function AdminDepartmentsPage() {
                     <div className="space-y-4">
                         <div>
                             <Label>Mã phòng ban</Label>
-                            <Input placeholder="VD: SALES" />
+                            <Input placeholder="VD: SALES" value={newCode} onChange={(e) => setNewCode(e.target.value)} />
                         </div>
                         <div>
                             <Label>Tên phòng ban</Label>
-                            <Input placeholder="VD: Kinh doanh" />
+                            <Input placeholder="VD: Kinh doanh" value={newName} onChange={(e) => setNewName(e.target.value)} />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Hủy</Button>
-                        <Button onClick={() => {
-                            setCreateDialogOpen(false);
-                            toast.success('Đã tạo phòng ban mới thành công!');
-                        }}>Tạo</Button>
+                        <Button onClick={handleCreate}>Tạo</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
     );
 }
-

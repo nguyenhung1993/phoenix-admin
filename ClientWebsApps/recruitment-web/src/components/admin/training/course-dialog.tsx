@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,7 +32,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { courseCategories, Course } from '@/lib/mocks/training';
+
+interface Course { id: string; title: string; description: string; category: string; level: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'; duration: string; thumbnail?: string;[key: string]: unknown; }
 
 const courseSchema = z.object({
     title: z.string().min(1, 'Vui lòng nhập tên khóa học'),
@@ -53,6 +54,11 @@ interface CourseDialogProps {
 
 export function CourseDialog({ open, onOpenChange, courseToEdit }: CourseDialogProps) {
     const [isLoading, setIsLoading] = useState(false);
+    const [courseCategories, setCourseCategories] = useState<{ id: string; name: string }[]>([]);
+
+    useEffect(() => {
+        fetch('/api/course-categories').then(r => r.json()).then(setCourseCategories).catch(console.error);
+    }, []);
 
     const form = useForm<CourseFormValues>({
         resolver: zodResolver(courseSchema),

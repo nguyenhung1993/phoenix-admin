@@ -1,26 +1,83 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { mockCourses, Course } from '@/lib/mocks/training';
-import { PlayCircle, CheckCircle, Clock, BookOpen, Search } from 'lucide-react';
+import { PlayCircle, CheckCircle, Clock, BookOpen, Search, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 
-export default function ELearningPage() {
-    // Mock: User is enrolled in first 2 courses
-    const myCourses = mockCourses.slice(0, 2).map(c => ({
-        ...c,
-        progress: Math.floor(Math.random() * 100), // Random progress
-        lastAccessed: '2026-02-08',
-    }));
+interface CourseItem {
+    id: string;
+    title: string;
+    description: string | null;
+    thumbnail: string;
+    instructor: string | null;
+    duration: string | null;
+    totalModules: number;
+    totalLessons: number;
+    category: string;
+    level: string;
+    students: number;
+    rating: number;
+    status: string;
+}
 
-    // Other courses (not enrolled or recommended)
-    const otherCourses = mockCourses.filter(c => !myCourses.find(mc => mc.id === c.id));
+interface EnrollmentItem {
+    id: string;
+    courseId: string;
+    courseTitle: string;
+    courseThumbnail: string;
+    courseCategory: string;
+    courseInstructor: string | null;
+    courseDuration: string | null;
+    courseTotalLessons: number;
+    courseLevel: string;
+    progress: number;
+    status: string;
+}
+
+export default function ELearningPage() {
+    const [enrollments, setEnrollments] = useState<EnrollmentItem[]>([]);
+    const [allCourses, setAllCourses] = useState<CourseItem[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [enrRes, courseRes] = await Promise.all([
+                    fetch('/api/enrollments'),
+                    fetch('/api/courses'),
+                ]);
+                const enrJson = await enrRes.json();
+                const courseJson = await courseRes.json();
+                setEnrollments(enrJson.data || []);
+                setAllCourses(courseJson.data || []);
+            } catch {
+                setEnrollments([]);
+                setAllCourses([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const enrolledIds = new Set(enrollments.map(e => e.courseId));
+    const otherCourses = allCourses.filter(c => !enrolledIds.has(c.id));
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
@@ -36,19 +93,19 @@ export default function ELearningPage() {
             </div>
 
             {/* Resume Learning Section */}
-            {myCourses.length > 0 && (
+            {enrollments.length > 0 && (
                 <section>
                     <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                         <Clock className="h-5 w-5 text-primary" />
                         Tiếp tục học
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {myCourses.map((course) => (
-                            <Card key={course.id} className="flex flex-col md:flex-row overflow-hidden group hover:shadow-md transition-all">
+                        {enrollments.map((enr) => (
+                            <Card key={enr.id} className="flex flex-col md:flex-row overflow-hidden group hover:shadow-md transition-all">
                                 <div className="relative w-full md:w-1/3 aspect-video md:aspect-auto">
                                     <Image
-                                        src={course.thumbnail}
-                                        alt={course.title}
+                                        src={enr.courseThumbnail}
+                                        alt={enr.courseTitle}
                                         fill
                                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                                     />
@@ -59,30 +116,30 @@ export default function ELearningPage() {
                                 <div className="flex-1 p-4 flex flex-col justify-between">
                                     <div>
                                         <div className="flex justify-between items-start mb-2">
-                                            <Badge variant="secondary" className="text-xs">{course.category}</Badge>
-                                            <span className="text-xs text-muted-foreground">{course.duration}</span>
+                                            <Badge variant="secondary" className="text-xs">{enr.courseCategory}</Badge>
+                                            <span className="text-xs text-muted-foreground">{enr.courseDuration}</span>
                                         </div>
                                         <h3 className="font-semibold text-lg line-clamp-1 mb-1 group-hover:text-primary transition-colors">
-                                            <Link href={`/admin/learn/${course.id}`}>{course.title}</Link>
+                                            <Link href={`/admin/learn/${enr.courseId}`}>{enr.courseTitle}</Link>
                                         </h3>
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                                             <BookOpen className="h-4 w-4" />
-                                            <span>{course.totalLessons - 2}/{course.totalLessons} bài học</span>
+                                            <span>{Math.round(enr.courseTotalLessons * enr.progress / 100)}/{enr.courseTotalLessons} bài học</span>
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-xs font-medium">
-                                            <span>Hoàn thành {course.progress}%</span>
-                                            {course.progress === 100 ? (
+                                            <span>Hoàn thành {Math.round(enr.progress)}%</span>
+                                            {enr.progress >= 100 ? (
                                                 <span className="text-green-600 flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Đã xong</span>
                                             ) : (
                                                 <span className="text-blue-600">Đang học</span>
                                             )}
                                         </div>
-                                        <Progress value={course.progress} className="h-2" />
+                                        <Progress value={enr.progress} className="h-2" />
                                         <Button asChild className="w-full mt-2" size="sm">
-                                            <Link href={`/admin/learn/${course.id}`}>
-                                                {course.progress > 0 ? 'Tiếp tục học' : 'Bắt đầu ngay'}
+                                            <Link href={`/admin/learn/${enr.courseId}`}>
+                                                {enr.progress > 0 ? 'Tiếp tục học' : 'Bắt đầu ngay'}
                                             </Link>
                                         </Button>
                                     </div>
@@ -101,8 +158,7 @@ export default function ELearningPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {/* Display other courses + duplicates for UI fullness if needed */}
-                    {[...otherCourses, ...mockCourses].slice(0, 4).map((course, idx) => (
+                    {(otherCourses.length > 0 ? otherCourses : allCourses).slice(0, 4).map((course, idx) => (
                         <Link href={`/admin/learn/${course.id}`} key={`${course.id}-${idx}`} className="group block h-full">
                             <Card className="h-full overflow-hidden hover:shadow-lg transition-all duration-300 border-none shadow-sm ring-1 ring-slate-200">
                                 <div className="relative aspect-video overflow-hidden">
@@ -122,7 +178,7 @@ export default function ELearningPage() {
                                     <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
                                         <Badge variant="outline" className="rounded-sm font-normal">{course.category}</Badge>
                                         <span>•</span>
-                                        <span>{course.duration}</span>
+                                        <span>{course.duration || '-'}</span>
                                     </div>
                                     <h4 className="font-semibold line-clamp-2 mb-2 group-hover:text-primary transition-colors text-base">
                                         {course.title}
@@ -144,6 +200,10 @@ export default function ELearningPage() {
                         </Link>
                     ))}
                 </div>
+
+                {allCourses.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">Chưa có khóa học nào</div>
+                )}
             </section>
         </div>
     );

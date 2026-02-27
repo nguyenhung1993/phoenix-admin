@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendEmail } from '@/lib/email';
+import { getRejectionEmailTemplate } from '@/lib/templates';
 
 // GET /api/candidates/[id] - Get single candidate with relations
 export async function GET(
@@ -38,7 +40,10 @@ export async function PATCH(
         const { id } = await params;
         const body = await request.json();
 
-        const existing = await prisma.candidate.findUnique({ where: { id } });
+        const existing = await prisma.candidate.findUnique({
+            where: { id },
+            include: { job: { select: { title: true } } },
+        });
         if (!existing) {
             return NextResponse.json({ error: 'Không tìm thấy ứng viên' }, { status: 404 });
         }
@@ -74,6 +79,17 @@ export async function PATCH(
                     createdBy: body.updatedBy || 'Admin',
                 },
             });
+
+            // Send rejection email when status changes to REJECTED
+            if (body.status === 'REJECTED' && existing.email) {
+                const jobTitle = existing.job?.title || 'N/A';
+                const emailHtml = getRejectionEmailTemplate(existing.name, jobTitle);
+                sendEmail(
+                    existing.email,
+                    `Kết quả ứng tuyển - ${jobTitle}`,
+                    emailHtml
+                ).catch(err => console.error('Failed to send rejection email:', err));
+            }
         }
 
         return NextResponse.json(updated);

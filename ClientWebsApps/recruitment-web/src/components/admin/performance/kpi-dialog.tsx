@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,8 +32,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { KPI, kpiCategoryLabels } from '@/lib/mocks/performance';
-import { mockDepartments } from '@/lib/mocks/hrm';
+
+interface KPI { id: string; code: string; name: string; description?: string; unit: 'PERCENTAGE' | 'NUMBER' | 'CURRENCY' | 'RATING'; target: number; weight: number; category: 'FINANCIAL' | 'CUSTOMER' | 'INTERNAL' | 'LEARNING'; departmentId?: string;[key: string]: unknown; }
+const kpiCategoryLabels: Record<string, string> = { FINANCIAL: 'Tài chính', CUSTOMER: 'Khách hàng', INTERNAL: 'Nội bộ', LEARNING: 'Học hỏi & Phát triển' };
 
 const kpiSchema = z.object({
     code: z.string().min(1, 'Vui lòng nhập mã KPI'),
@@ -56,6 +57,11 @@ interface KPIDialogProps {
 
 export function KPIDialog({ open, onOpenChange, kpiToEdit }: KPIDialogProps) {
     const [isLoading, setIsLoading] = useState(false);
+    const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+
+    useEffect(() => {
+        fetch('/api/departments').then(r => r.json()).then(setDepartments).catch(console.error);
+    }, []);
 
     const form = useForm<KPIFormValues>({
         resolver: zodResolver(kpiSchema) as any,
@@ -233,7 +239,7 @@ export function KPIDialog({ open, onOpenChange, kpiToEdit }: KPIDialogProps) {
                                         </FormControl>
                                         <SelectContent>
                                             <SelectItem value="ALL">Tất cả phòng ban</SelectItem>
-                                            {mockDepartments.map(dept => (
+                                            {departments.map((dept: { id: string; name: string }) => (
                                                 <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                                             ))}
                                         </SelectContent>

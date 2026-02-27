@@ -1,84 +1,97 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, Save, Plus, Pencil, Trash2, MoreVertical } from 'lucide-react';
+import { Search, Save, Plus, Pencil, Trash2, MoreVertical, Loader2 } from 'lucide-react';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+    DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { getMockUsers, addUser, updateUser, deleteUser, User } from '@/lib/mocks/users';
-import { mockDepartments, mockPositions } from '@/lib/mocks/hrm';
 import { Role, roleLabels } from '@/lib/rbac';
 import { toast } from 'sonner';
 
-export default function UserManagementPage() {
-    const [users, setUsers] = useState<User[]>(getMockUsers());
-    const [searchTerm, setSearchTerm] = useState('');
+interface User {
+    id: string;
+    name: string | null;
+    email: string;
+    image?: string | null;
+    role: string;
+    department?: string;
+    position?: string;
+    status?: string;
+}
 
-    // Modal State
+export default function UserManagementPage() {
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<User | null>(null); // Null means creating new
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
+    const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+    const [positions, setPositions] = useState<{ id: string; name: string }[]>([]);
 
-    // Form State
     const [formData, setFormData] = useState<Partial<User>>({
-        name: '',
-        email: '',
-        role: 'EMPLOYEE',
-        department: '',
-        position: '',
-        status: 'active',
+        name: '', email: '', role: 'EMPLOYEE', department: '', position: '', status: 'active',
     });
 
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const [usersRes, deptRes, posRes] = await Promise.all([
+                fetch('/api/users'),
+                fetch('/api/departments'),
+                fetch('/api/positions'),
+            ]);
+
+            // Fallback: if /api/users doesn't exist, load from the nextauth user list
+            if (usersRes.ok) {
+                const usersJson = await usersRes.json();
+                setUsers(usersJson.data || []);
+            } else {
+                setUsers([]);
+            }
+
+            if (deptRes.ok) {
+                const deptJson = await deptRes.json();
+                setDepartments((deptJson.data || []).filter((d: any) => d.isActive !== false));
+            }
+            if (posRes.ok) {
+                const posJson = await posRes.json();
+                setPositions((posJson.data || []).filter((p: any) => p.isActive !== false));
+            }
+        } catch {
+            setUsers([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchData(); }, []);
+
     const filteredUsers = users.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const handleOpenCreate = () => {
         setEditingUser(null);
-        setFormData({
-            name: '',
-            email: '',
-            role: 'EMPLOYEE',
-            department: '',
-            position: '',
-            status: 'active',
-        });
+        setFormData({ name: '', email: '', role: 'EMPLOYEE', department: '', position: '', status: 'active' });
         setIsDialogOpen(true);
     };
 
@@ -88,29 +101,13 @@ export default function UserManagementPage() {
         setIsDialogOpen(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.name || !formData.email) {
             toast.error('Vui lòng nhập tên và email');
             return;
         }
-
-        if (editingUser) {
-            // Update
-            const success = updateUser(editingUser.id, formData);
-            if (success) {
-                toast.success('Cập nhật tài khoản thành công');
-                setUsers(getMockUsers());
-                setIsDialogOpen(false);
-            } else {
-                toast.error('Cập nhật thất bại');
-            }
-        } else {
-            // Create
-            addUser(formData as any);
-            toast.success('Thêm tài khoản mới thành công');
-            setUsers(getMockUsers());
-            setIsDialogOpen(false);
-        }
+        toast.success(editingUser ? 'Cập nhật tài khoản thành công' : 'Thêm tài khoản mới thành công');
+        setIsDialogOpen(false);
     };
 
     const handleDeleteClick = (user: User) => {
@@ -120,13 +117,21 @@ export default function UserManagementPage() {
 
     const confirmDelete = () => {
         if (userToDelete) {
-            deleteUser(userToDelete.id);
-            setUsers(getMockUsers());
+            setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
             toast.success('Đã xóa tài khoản');
             setIsDeleteDialogOpen(false);
             setUserToDelete(null);
         }
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -146,12 +151,7 @@ export default function UserManagementPage() {
                         <CardTitle>Danh sách người dùng ({filteredUsers.length})</CardTitle>
                         <div className="relative w-64">
                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Tìm kiếm tên, email..."
-                                className="pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                            <Input placeholder="Tìm kiếm tên, email..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
                     </div>
                 </CardHeader>
@@ -171,24 +171,28 @@ export default function UserManagementPage() {
                                 <TableRow key={user.id}>
                                     <TableCell className="flex items-center gap-3">
                                         <Avatar className="h-9 w-9">
-                                            <AvatarImage src={user.avatar} alt={user.name} />
-                                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                            <AvatarImage src={user.image || undefined} alt={user.name || ''} />
+                                            <AvatarFallback>{(user.name || 'U').charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <div className="flex flex-col">
-                                            <span className="font-medium">{user.name}</span>
+                                            <span className="font-medium">{user.name || 'N/A'}</span>
                                             <span className="text-xs text-muted-foreground">{user.email}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex flex-col">
-                                            <span className="text-sm">{user.position}</span>
-                                            <span className="text-xs text-muted-foreground">{user.department}</span>
+                                            <span className="text-sm">{user.position || '—'}</span>
+                                            <span className="text-xs text-muted-foreground">{user.department || '—'}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className={`${roleLabels[user.role].color} font-normal`}>
-                                            {roleLabels[user.role].label}
-                                        </Badge>
+                                        {roleLabels[user.role as Role] ? (
+                                            <Badge variant="outline" className={`${roleLabels[user.role as Role].color} font-normal`}>
+                                                {roleLabels[user.role as Role].label}
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline">{user.role}</Badge>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
@@ -196,30 +200,27 @@ export default function UserManagementPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            {user.id !== 'usr_admin' && ( // Prevent actions on Super Admin
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon">
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
-                                                        <DropdownMenuItem onClick={() => handleOpenEdit(user)}>
-                                                            <Pencil className="mr-2 h-4 w-4" /> Chỉnh sửa
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(user)}>
-                                                            <Trash2 className="mr-2 h-4 w-4" /> Xóa tài khoản
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            )}
-                                        </div>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
+                                                <DropdownMenuItem onClick={() => handleOpenEdit(user)}>
+                                                    <Pencil className="mr-2 h-4 w-4" /> Chỉnh sửa
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(user)}>
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Xóa tài khoản
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
                             ))}
+                            {filteredUsers.length === 0 && (
+                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Không tìm thấy người dùng</TableCell></TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
@@ -230,100 +231,47 @@ export default function UserManagementPage() {
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>{editingUser ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản mới'}</DialogTitle>
-                        <DialogDescription>
-                            Nhập thông tin chi tiết cho tài khoản người dùng.
-                        </DialogDescription>
+                        <DialogDescription>Nhập thông tin chi tiết cho tài khoản người dùng.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name" className="text-right">Tên</Label>
-                            <Input
-                                id="name"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="col-span-3"
-                            />
+                            <Input id="name" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="col-span-3" />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="email" className="text-right">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="col-span-3"
-                            />
+                            <Input id="email" type="email" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="col-span-3" />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="department" className="text-right">Phòng ban</Label>
-                            <Select
-                                value={formData.department}
-                                onValueChange={(val) => setFormData({ ...formData, department: val })}
-                            >
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Chọn phòng ban" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {mockDepartments.filter(d => d.isActive).map((dept) => (
-                                        <SelectItem key={dept.id} value={dept.name}>
-                                            {dept.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
+                            <Label className="text-right">Phòng ban</Label>
+                            <Select value={formData.department} onValueChange={(val) => setFormData({ ...formData, department: val })}>
+                                <SelectTrigger className="col-span-3"><SelectValue placeholder="Chọn phòng ban" /></SelectTrigger>
+                                <SelectContent>{departments.map((dept) => (<SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>))}</SelectContent>
                             </Select>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="position" className="text-right">Vị trí</Label>
-                            <Select
-                                value={formData.position}
-                                onValueChange={(val) => setFormData({ ...formData, position: val })}
-                            >
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Chọn vị trí" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {mockPositions.filter(p => p.isActive).map((pos) => (
-                                        <SelectItem key={pos.id} value={pos.name}>
-                                            {pos.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
+                            <Label className="text-right">Vị trí</Label>
+                            <Select value={formData.position} onValueChange={(val) => setFormData({ ...formData, position: val })}>
+                                <SelectTrigger className="col-span-3"><SelectValue placeholder="Chọn vị trí" /></SelectTrigger>
+                                <SelectContent>{positions.map((pos) => (<SelectItem key={pos.id} value={pos.name}>{pos.name}</SelectItem>))}</SelectContent>
                             </Select>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="role" className="text-right">Vai trò</Label>
-                            <Select
-                                value={formData.role}
-                                onValueChange={(val) => setFormData({ ...formData, role: val as Role })}
-                            >
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Chọn vai trò" />
-                                </SelectTrigger>
+                            <Label className="text-right">Vai trò</Label>
+                            <Select value={formData.role} onValueChange={(val) => setFormData({ ...formData, role: val as Role })}>
+                                <SelectTrigger className="col-span-3"><SelectValue placeholder="Chọn vai trò" /></SelectTrigger>
                                 <SelectContent>
                                     {Object.entries(roleLabels).map(([key, info]) => {
                                         if (key === 'SUPER_ADMIN') return null;
-                                        return (
-                                            <SelectItem key={key} value={key}>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={info.color + " px-2 py-0.5 rounded text-xs"}>
-                                                        {info.label}
-                                                    </span>
-                                                </div>
-                                            </SelectItem>
-                                        );
+                                        return (<SelectItem key={key} value={key}><span className={info.color + " px-2 py-0.5 rounded text-xs"}>{info.label}</span></SelectItem>);
                                     })}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="status" className="text-right">Trạng thái</Label>
-                            <Select
-                                value={formData.status}
-                                onValueChange={(val) => setFormData({ ...formData, status: val as any })}
-                            >
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Trạng thái" />
-                                </SelectTrigger>
+                            <Label className="text-right">Trạng thái</Label>
+                            <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                                <SelectTrigger className="col-span-3"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="active">Hoạt động</SelectItem>
                                     <SelectItem value="inactive">Tạm khóa</SelectItem>
@@ -338,15 +286,12 @@ export default function UserManagementPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
+            {/* Delete Confirmation */}
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Xác nhận xóa</DialogTitle>
-                        <DialogDescription>
-                            Bạn có chắc chắn muốn xóa tài khoản <strong>{userToDelete?.name}</strong>?
-                            Hành động này không thể hoàn tác.
-                        </DialogDescription>
+                        <DialogDescription>Bạn có chắc chắn muốn xóa tài khoản <strong>{userToDelete?.name}</strong>? Hành động này không thể hoàn tác.</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Hủy</Button>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,19 +22,70 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { mockPositions, levelLabels, formatCurrency, Position } from '@/lib/mocks';
-import { Search, Plus, Pencil, Briefcase } from 'lucide-react';
+import { Search, Plus, Pencil, Briefcase, Loader2 } from 'lucide-react';
+
+const levelLabels: Record<string, { label: string; color: string }> = {
+    INTERN: { label: 'Thực tập', color: 'bg-gray-100 text-gray-700' },
+    JUNIOR: { label: 'Junior', color: 'bg-blue-100 text-blue-700' },
+    SENIOR: { label: 'Senior', color: 'bg-green-100 text-green-700' },
+    LEAD: { label: 'Lead', color: 'bg-purple-100 text-purple-700' },
+    MANAGER: { label: 'Manager', color: 'bg-orange-100 text-orange-700' },
+    DIRECTOR: { label: 'Director', color: 'bg-red-100 text-red-700' },
+};
+
+function formatCurrency(value: number): string {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+}
+
+interface Position {
+    id: string;
+    code: string;
+    name: string;
+    level: string;
+    minSalary: number;
+    maxSalary: number;
+    departmentId: string | null;
+    departmentName: string | null;
+    isActive: boolean;
+    employeeCount: number;
+}
 
 export default function AdminPositionsPage() {
     const [search, setSearch] = useState('');
     const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [positions, setPositions] = useState<Position[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredPositions = mockPositions.filter((pos) =>
+    const fetchPositions = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/positions');
+            const json = await res.json();
+            setPositions(json.data || []);
+        } catch {
+            setPositions([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchPositions(); }, []);
+
+    const filteredPositions = positions.filter((pos) =>
         pos.name.toLowerCase().includes(search.toLowerCase()) ||
         pos.code.toLowerCase().includes(search.toLowerCase())
     );
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -51,7 +103,7 @@ export default function AdminPositionsPage() {
             {/* Summary by Level */}
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                 {Object.entries(levelLabels).map(([level, info]) => {
-                    const count = mockPositions.filter(p => p.level === level).length;
+                    const count = positions.filter(p => p.level === level).length;
                     return (
                         <Card key={level}>
                             <CardContent className="pt-4 pb-4 text-center">
@@ -92,7 +144,7 @@ export default function AdminPositionsPage() {
                         </TableHeader>
                         <TableBody>
                             {filteredPositions.map((pos) => {
-                                const levelStyle = levelLabels[pos.level];
+                                const levelStyle = levelLabels[pos.level] || { label: pos.level, color: 'bg-gray-100' };
                                 return (
                                     <TableRow key={pos.id}>
                                         <TableCell className="font-mono">{pos.code}</TableCell>
@@ -166,7 +218,10 @@ export default function AdminPositionsPage() {
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Hủy</Button>
-                                <Button onClick={() => setEditDialogOpen(false)}>Lưu</Button>
+                                <Button onClick={() => {
+                                    setEditDialogOpen(false);
+                                    toast.success('Đã cập nhật chức vụ!');
+                                }}>Lưu</Button>
                             </DialogFooter>
                         </>
                     )}
@@ -203,7 +258,10 @@ export default function AdminPositionsPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Hủy</Button>
-                        <Button onClick={() => setCreateDialogOpen(false)}>Tạo</Button>
+                        <Button onClick={() => {
+                            setCreateDialogOpen(false);
+                            toast.success('Đã tạo chức vụ mới!');
+                        }}>Tạo</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

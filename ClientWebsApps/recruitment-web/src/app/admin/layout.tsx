@@ -258,7 +258,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </nav>
 
             {/* Toggle Button - aligned left */}
-            <div className="border-t p-2 flex items-center justify-end">
+            <div className={`border-t p-2 flex items-center ${collapsed ? 'justify-center' : 'justify-end'}`}>
                 <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>
                         <Button
@@ -333,7 +333,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </aside>
 
                     {/* Mobile Header & Content */}
-                    <div className="flex flex-1 flex-col">
+                    <div className="flex flex-1 flex-col min-w-0 overflow-x-hidden">
                         {/* Mobile Header */}
                         <header className="flex h-14 items-center justify-between border-b px-4 md:hidden sticky top-0 bg-background z-50">
                             <div className="flex items-center gap-2">
@@ -377,7 +377,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </header>
 
                         {/* Main Content */}
-                        <main className="flex-1 p-6 min-w-0">
+                        <main className="flex-1 p-6 min-w-0 overflow-x-hidden">
                             {children}
                         </main>
                     </div>

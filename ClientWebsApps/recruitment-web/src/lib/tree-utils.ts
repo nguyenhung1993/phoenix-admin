@@ -1,5 +1,5 @@
 
-import { Department } from './mocks';
+import { Department } from './types/hrm';
 
 export interface DepartmentNode extends Department {
     children?: DepartmentNode[];

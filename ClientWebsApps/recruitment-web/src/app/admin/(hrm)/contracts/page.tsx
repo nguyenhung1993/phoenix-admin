@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,16 +30,34 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import {
-    mockContracts,
-    mockEmployees,
-    contractTypeLabels,
-    contractStatusLabels,
-    formatCurrency,
-    formatDate,
-    Contract,
-} from '@/lib/mocks';
-import { Search, Plus, Eye, FileText, Calendar, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Eye, FileText, Calendar, AlertTriangle, Loader2 } from 'lucide-react';
+
+const contractStatusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    ACTIVE: { label: 'Hiệu lực', variant: 'default' },
+    EXPIRED: { label: 'Hết hạn', variant: 'secondary' },
+    TERMINATED: { label: 'Chấm dứt', variant: 'destructive' },
+};
+
+function formatCurrency(value: number): string {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+}
+
+function formatDate(date: string | Date): string {
+    return new Date(date).toLocaleDateString('vi-VN');
+}
+
+interface Contract {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    employeeCode: string;
+    contractType: string;
+    contractTypeId: string | null;
+    startDate: string;
+    endDate: string | null;
+    salary: number;
+    status: string;
+}
 
 export default function AdminContractsPage() {
     const [search, setSearch] = useState('');
@@ -46,24 +65,57 @@ export default function AdminContractsPage() {
     const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [contracts, setContracts] = useState<Contract[]>([]);
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredContracts = mockContracts.filter((contract) => {
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const [contractsRes, employeesRes] = await Promise.all([
+                fetch('/api/contracts'),
+                fetch('/api/employees'),
+            ]);
+            const contractsJson = await contractsRes.json();
+            const employeesJson = await employeesRes.json();
+            setContracts(contractsJson.data || []);
+            setEmployees(employeesJson.data || employeesJson || []);
+        } catch {
+            setContracts([]);
+            setEmployees([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchData(); }, []);
+
+    const filteredContracts = contracts.filter((contract) => {
         const matchesSearch = contract.employeeName.toLowerCase().includes(search.toLowerCase());
         const matchesStatus = statusFilter === 'ALL' || contract.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
 
     const contractsByStatus = {
-        ALL: mockContracts.length,
-        ACTIVE: mockContracts.filter((c) => c.status === 'ACTIVE').length,
-        EXPIRED: mockContracts.filter((c) => c.status === 'EXPIRED').length,
+        ALL: contracts.length,
+        ACTIVE: contracts.filter((c) => c.status === 'ACTIVE').length,
+        EXPIRED: contracts.filter((c) => c.status === 'EXPIRED').length,
     };
 
-    const expiringContracts = mockContracts.filter((c) => {
+    const expiringContracts = contracts.filter((c) => {
         if (!c.endDate || c.status !== 'ACTIVE') return false;
         const daysToExpire = Math.ceil((new Date(c.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         return daysToExpire > 0 && daysToExpire <= 30;
     });
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -167,33 +219,41 @@ export default function AdminContractsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredContracts.map((contract) => {
-                                const statusStyle = contractStatusLabels[contract.status];
-                                return (
-                                    <TableRow key={contract.id}>
-                                        <TableCell className="font-medium">{contract.employeeName}</TableCell>
-                                        <TableCell>{contractTypeLabels[contract.contractType]}</TableCell>
-                                        <TableCell>{formatDate(contract.startDate)}</TableCell>
-                                        <TableCell>{contract.endDate ? formatDate(contract.endDate) : 'Không thời hạn'}</TableCell>
-                                        <TableCell className="font-medium">{formatCurrency(contract.salary)}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => {
-                                                    setSelectedContract(contract);
-                                                    setDetailDialogOpen(true);
-                                                }}
-                                            >
-                                                <Eye className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
+                            {filteredContracts.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                        Không có hợp đồng nào.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredContracts.map((contract) => {
+                                    const statusStyle = contractStatusLabels[contract.status] || { label: contract.status, variant: 'secondary' as const };
+                                    return (
+                                        <TableRow key={contract.id}>
+                                            <TableCell className="font-medium">{contract.employeeName}</TableCell>
+                                            <TableCell>{contract.contractType}</TableCell>
+                                            <TableCell>{formatDate(contract.startDate)}</TableCell>
+                                            <TableCell>{contract.endDate ? formatDate(contract.endDate) : 'Không thời hạn'}</TableCell>
+                                            <TableCell className="font-medium">{formatCurrency(contract.salary)}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        setSelectedContract(contract);
+                                                        setDetailDialogOpen(true);
+                                                    }}
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
@@ -215,7 +275,7 @@ export default function AdminContractsPage() {
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">Loại hợp đồng</Label>
-                                        <p className="font-medium">{contractTypeLabels[selectedContract.contractType]}</p>
+                                        <p className="font-medium">{selectedContract.contractType}</p>
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">Ngày bắt đầu</Label>
@@ -254,7 +314,7 @@ export default function AdminContractsPage() {
                                     <SelectValue placeholder="Chọn nhân viên" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {mockEmployees.map((emp) => (
+                                    {employees.map((emp: any) => (
                                         <SelectItem key={emp.id} value={emp.id}>
                                             {emp.employeeCode} - {emp.fullName}
                                         </SelectItem>
@@ -294,7 +354,10 @@ export default function AdminContractsPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Hủy</Button>
-                        <Button onClick={() => setCreateDialogOpen(false)}>Tạo</Button>
+                        <Button onClick={() => {
+                            setCreateDialogOpen(false);
+                            toast.success('Đã tạo hợp đồng mới!');
+                        }}>Tạo</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

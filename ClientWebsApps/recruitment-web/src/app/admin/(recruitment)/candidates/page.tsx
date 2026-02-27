@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -27,13 +28,14 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, LayoutGrid, List, Loader2, Mail, Calendar, ExternalLink } from 'lucide-react';
+import { Search, LayoutGrid, List, Loader2, Mail, Calendar, ExternalLink, Filter, X, Star, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { KanbanBoard } from './kanban-board';
 import {
     CandidateItem,
     CandidateStatus,
     CandidateStatusValues,
+    CandidateSourceValues,
     candidateStatusLabels,
     candidateSourceLabels,
     type CandidateActivity,
@@ -47,11 +49,29 @@ export default function AdminCandidatesPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
+    const [sourceFilter, setSourceFilter] = useState<string>('ALL');
+    const [ratingFilter, setRatingFilter] = useState<string>('ALL');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [sortBy, setSortBy] = useState('appliedDate');
+    const [sortOrder, setSortOrder] = useState('desc');
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [viewMode, setViewMode] = useState<'LIST' | 'KANBAN'>('KANBAN');
     const [selectedCandidate, setSelectedCandidate] = useState<CandidateItem | null>(null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [candidateDetail, setCandidateDetail] = useState<CandidateItem | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
+
+    const hasAdvancedFilters = sourceFilter !== 'ALL' || ratingFilter !== 'ALL' || dateFrom || dateTo || sortBy !== 'appliedDate' || sortOrder !== 'desc';
+
+    const clearAdvancedFilters = () => {
+        setSourceFilter('ALL');
+        setRatingFilter('ALL');
+        setDateFrom('');
+        setDateTo('');
+        setSortBy('appliedDate');
+        setSortOrder('desc');
+    };
 
     const fetchCandidates = useCallback(async () => {
         try {
@@ -59,6 +79,12 @@ export default function AdminCandidatesPage() {
             const params = new URLSearchParams();
             if (search) params.set('search', search);
             if (statusFilter !== 'ALL') params.set('status', statusFilter);
+            if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
+            if (ratingFilter !== 'ALL') params.set('rating', ratingFilter);
+            if (dateFrom) params.set('dateFrom', dateFrom);
+            if (dateTo) params.set('dateTo', dateTo);
+            if (sortBy !== 'appliedDate') params.set('sortBy', sortBy);
+            if (sortOrder !== 'desc') params.set('sortOrder', sortOrder);
             params.set('limit', '200');
 
             const res = await fetch(`/api/candidates?${params.toString()}`);
@@ -71,7 +97,7 @@ export default function AdminCandidatesPage() {
         } finally {
             setLoading(false);
         }
-    }, [search, statusFilter]);
+    }, [search, statusFilter, sourceFilter, ratingFilter, dateFrom, dateTo, sortBy, sortOrder]);
 
     useEffect(() => {
         const debounce = setTimeout(fetchCandidates, 300);
@@ -148,7 +174,7 @@ export default function AdminCandidatesPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -171,18 +197,139 @@ export default function AdminCandidatesPage() {
                         ))}
                     </SelectContent>
                 </Select>
+                <Button
+                    variant={showAdvancedFilters ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    className="gap-2"
+                >
+                    <Filter className="h-4 w-4" />
+                    Lọc nâng cao
+                    {hasAdvancedFilters && (
+                        <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                            !
+                        </Badge>
+                    )}
+                </Button>
             </div>
+
+            {/* Advanced Filters Panel */}
+            {showAdvancedFilters && (
+                <Card>
+                    <CardContent className="pt-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Source Filter */}
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Nguồn ứng tuyển</Label>
+                                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Tất cả nguồn" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">Tất cả</SelectItem>
+                                        {CandidateSourceValues.map(source => (
+                                            <SelectItem key={source} value={source}>
+                                                {candidateSourceLabels[source]}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Rating Filter */}
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Rating tối thiểu</Label>
+                                <div className="flex gap-1">
+                                    {['ALL', '1', '2', '3', '4', '5'].map(r => (
+                                        <Button
+                                            key={r}
+                                            variant={ratingFilter === r ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setRatingFilter(r)}
+                                            className="gap-1"
+                                        >
+                                            {r === 'ALL' ? 'Tất cả' : (
+                                                <>
+                                                    {r} <Star className="h-3 w-3 fill-current" />
+                                                </>
+                                            )}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Date Range */}
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Ngày ứng tuyển</Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        type="date"
+                                        value={dateFrom}
+                                        onChange={e => setDateFrom(e.target.value)}
+                                        className="text-sm"
+                                    />
+                                    <span className="self-center text-muted-foreground">→</span>
+                                    <Input
+                                        type="date"
+                                        value={dateTo}
+                                        onChange={e => setDateTo(e.target.value)}
+                                        className="text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Sort */}
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Sắp xếp theo</Label>
+                                <div className="flex gap-2">
+                                    <Select value={sortBy} onValueChange={setSortBy}>
+                                        <SelectTrigger className="flex-1">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="appliedDate">Ngày ứng tuyển</SelectItem>
+                                            <SelectItem value="name">Tên A-Z</SelectItem>
+                                            <SelectItem value="rating">Rating</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                                        title={sortOrder === 'desc' ? 'Giảm dần' : 'Tăng dần'}
+                                    >
+                                        <ArrowUpDown className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {hasAdvancedFilters && (
+                            <div className="mt-4 pt-4 border-t flex justify-end">
+                                <Button variant="ghost" size="sm" onClick={clearAdvancedFilters} className="gap-2">
+                                    <X className="h-4 w-4" />
+                                    Xóa bộ lọc nâng cao
+                                </Button>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             {loading ? (
                 <div className="flex justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
             ) : viewMode === 'KANBAN' ? (
-                <KanbanBoard
-                    candidates={filteredCandidates}
-                    onStatusChange={handleStatusChange}
-                    onCandidateClick={handleCandidateClick}
-                />
+                <div className="w-full overflow-x-auto rounded-lg border bg-muted/20 p-4 scrollbar-kanban" style={{ height: 'calc(100vh - 220px)' }}>
+                    <div className="min-w-[1780px] h-full">
+                        <KanbanBoard
+                            candidates={filteredCandidates}
+                            onStatusChange={handleStatusChange}
+                            onCandidateClick={handleCandidateClick}
+                        />
+                    </div>
+                </div>
             ) : (
                 <Card>
                     <CardContent className="p-0">

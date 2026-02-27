@@ -1,12 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Briefcase, Users, UserCheck, Clock } from 'lucide-react';
+import { Briefcase, Users, UserCheck, Clock, Timer, TrendingUp } from 'lucide-react';
 import prisma from '@/lib/prisma';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { getRecruitmentFunnelStats, getRecruitmentSourceStats, getHeadcountStats } from '@/lib/reports';
+import { getRecruitmentFunnelStats, getRecruitmentSourceStats, getHeadcountStats, getTimeToHireStats, getOfferConversionStats, getMonthlyRecruitmentTrend } from '@/lib/reports';
 import { RecruitmentFunnelChart } from '@/components/charts/funnel-chart';
 import { SimplePieChart } from '@/components/charts/pie-chart';
 import { SimpleBarChart } from '@/components/charts/bar-chart';
+import { TrendChart } from '@/components/charts/trend-chart';
 
 export const dynamic = 'force-dynamic'; // Ensure real-time data
 
@@ -20,6 +21,9 @@ async function getDashboardStats() {
         funnelStats,
         sourceStats,
         headcountStats,
+        timeToHireStats,
+        offerConversionStats,
+        monthlyTrend,
     ] = await Promise.all([
         prisma.job.count({ where: { status: 'PUBLISHED' } }),
         prisma.candidate.count(),
@@ -33,6 +37,9 @@ async function getDashboardStats() {
         getRecruitmentFunnelStats(),
         getRecruitmentSourceStats(),
         getHeadcountStats(),
+        getTimeToHireStats(),
+        getOfferConversionStats(),
+        getMonthlyRecruitmentTrend(),
     ]);
 
     return {
@@ -44,6 +51,9 @@ async function getDashboardStats() {
         funnelStats,
         sourceStats,
         headcountStats,
+        timeToHireStats,
+        offerConversionStats,
+        monthlyTrend,
     };
 }
 
@@ -57,6 +67,9 @@ export default async function AdminDashboard() {
         funnelStats,
         sourceStats,
         headcountStats,
+        timeToHireStats,
+        offerConversionStats,
+        monthlyTrend,
     } = await getDashboardStats();
 
     const stats = [
@@ -84,6 +97,20 @@ export default async function AdminDashboard() {
             icon: UserCheck,
             color: 'text-green-600 bg-green-100',
         },
+        {
+            title: 'TG tuyển TB',
+            value: `${timeToHireStats.averageDays} ngày`,
+            icon: Timer,
+            color: 'text-orange-600 bg-orange-100',
+            description: `${timeToHireStats.totalHired} người đã tuyển`,
+        },
+        {
+            title: 'Tỷ lệ offer thành công',
+            value: `${offerConversionStats.acceptanceRate}%`,
+            icon: TrendingUp,
+            color: 'text-emerald-600 bg-emerald-100',
+            description: `${offerConversionStats.accepted}/${offerConversionStats.total} offers`,
+        },
     ];
 
     // Transform source stats for Pie Chart
@@ -107,7 +134,7 @@ export default async function AdminDashboard() {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {stats.map((stat, index) => (
                     <Card key={index}>
                         <CardContent className="pt-6">
@@ -118,6 +145,9 @@ export default async function AdminDashboard() {
                                 <div>
                                     <p className="text-3xl font-bold">{stat.value}</p>
                                     <p className="text-sm text-muted-foreground">{stat.title}</p>
+                                    {'description' in stat && stat.description && (
+                                        <p className="text-xs text-muted-foreground mt-0.5">{stat.description}</p>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
@@ -149,6 +179,17 @@ export default async function AdminDashboard() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Monthly Recruitment Trend */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Xu hướng Tuyển dụng theo tháng</CardTitle>
+                    <CardDescription>Số lượng ứng viên, phỏng vấn và tuyển dụng trong 6 tháng gần nhất</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <TrendChart data={monthlyTrend} />
+                </CardContent>
+            </Card>
 
             {/* HRM Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

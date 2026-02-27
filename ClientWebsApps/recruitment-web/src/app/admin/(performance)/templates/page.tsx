@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,12 +13,6 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import {
-    mockEvaluationTemplates,
-    templateTypeLabels,
-    templateStatusLabels,
-    EvaluationTemplate,
-} from '@/lib/mocks';
-import {
     ClipboardList,
     Plus,
     Eye,
@@ -30,6 +23,7 @@ import {
     Hash,
     ListChecks,
     Layers,
+    Loader2,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -44,10 +38,71 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import Link from 'next/link';
+
+const templateTypeLabels: Record<string, { label: string; color: string }> = {
+    KPI: { label: 'KPI', color: 'blue' },
+    COMPETENCY: { label: 'Năng lực', color: 'green' },
+    MIXED: { label: 'Tổng hợp', color: 'purple' },
+};
+
+const templateStatusLabels: Record<string, { label: string; color: string }> = {
+    ACTIVE: { label: 'Đang dùng', color: 'green' },
+    DRAFT_TPL: { label: 'Nháp', color: 'gray' },
+    ARCHIVED: { label: 'Lưu trữ', color: 'orange' },
+};
+
+interface EvaluationSection {
+    id: string;
+    name: string;
+    weight: number;
+    criteria: EvaluationCriteria[];
+}
+
+interface EvaluationCriteria {
+    id: string;
+    name: string;
+    description?: string;
+    weight: number;
+    maxScore?: number;
+    ratingScale: {
+        type: string;
+        min?: number;
+        max?: number;
+        options?: { value: number; label: string }[];
+    };
+}
+
+interface EvaluationTemplate {
+    id: string;
+    name: string;
+    description: string | null;
+    type: string;
+    status: string;
+    sections: EvaluationSection[];
+}
 
 export default function TemplatesPage() {
     const [selectedTemplate, setSelectedTemplate] = useState<EvaluationTemplate | null>(null);
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [templates, setTemplates] = useState<EvaluationTemplate[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchTemplates = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/evaluation-templates');
+                const json = await res.json();
+                setTemplates(json.data || []);
+            } catch {
+                setTemplates([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchTemplates();
+    }, []);
 
     const getRatingScaleIcon = (type: string) => {
         switch (type) {
@@ -62,6 +117,15 @@ export default function TemplatesPage() {
         setSelectedTemplate(template);
         setPreviewOpen(true);
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -83,11 +147,12 @@ export default function TemplatesPage() {
 
             {/* Template Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mockEvaluationTemplates.map((template) => {
-                    const typeInfo = templateTypeLabels[template.type];
-                    const statusInfo = templateStatusLabels[template.status];
-                    const totalCriteria = template.sections.reduce(
-                        (sum, section) => sum + section.criteria.length,
+                {templates.map((template) => {
+                    const typeInfo = templateTypeLabels[template.type] || { label: template.type, color: 'gray' };
+                    const statusInfo = templateStatusLabels[template.status] || { label: template.status, color: 'gray' };
+                    const sections = template.sections || [];
+                    const totalCriteria = sections.reduce(
+                        (sum: number, section: EvaluationSection) => sum + (section.criteria?.length || 0),
                         0
                     );
 
@@ -133,7 +198,7 @@ export default function TemplatesPage() {
                                     </Badge>
                                     <span className="flex items-center gap-1">
                                         <Layers className="h-3 w-3" />
-                                        {template.sections.length} phần
+                                        {sections.length} phần
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <ClipboardList className="h-3 w-3" />
@@ -154,6 +219,10 @@ export default function TemplatesPage() {
                 })}
             </div>
 
+            {templates.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">Không có mẫu đánh giá nào</div>
+            )}
+
             {/* Template Preview Dialog */}
             <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
                 <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
@@ -164,7 +233,7 @@ export default function TemplatesPage() {
                                 <DialogDescription>{selectedTemplate.description}</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-6 py-4">
-                                {selectedTemplate.sections.map((section, sIndex) => (
+                                {(selectedTemplate.sections || []).map((section: EvaluationSection, sIndex: number) => (
                                     <div key={section.id} className="border rounded-lg p-4">
                                         <div className="flex items-center justify-between mb-4">
                                             <h3 className="font-semibold text-lg">
@@ -181,7 +250,7 @@ export default function TemplatesPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {section.criteria.map((criteria) => (
+                                                {(section.criteria || []).map((criteria: EvaluationCriteria) => (
                                                     <TableRow key={criteria.id}>
                                                         <TableCell>
                                                             <div>
@@ -196,11 +265,11 @@ export default function TemplatesPage() {
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="flex items-center gap-2">
-                                                                {getRatingScaleIcon(criteria.ratingScale.type)}
+                                                                {getRatingScaleIcon(criteria.ratingScale?.type)}
                                                                 <span className="text-sm">
-                                                                    {criteria.ratingScale.type === 'STARS' && `${criteria.ratingScale.max} sao`}
-                                                                    {criteria.ratingScale.type === 'NUMERIC' && `${criteria.ratingScale.min}-${criteria.ratingScale.max}`}
-                                                                    {criteria.ratingScale.type === 'OPTIONS' && `${criteria.ratingScale.options?.length} lựa chọn`}
+                                                                    {criteria.ratingScale?.type === 'STARS' && `${criteria.ratingScale.max} sao`}
+                                                                    {criteria.ratingScale?.type === 'NUMERIC' && `${criteria.ratingScale.min}-${criteria.ratingScale.max}`}
+                                                                    {criteria.ratingScale?.type === 'OPTIONS' && `${criteria.ratingScale.options?.length} lựa chọn`}
                                                                 </span>
                                                             </div>
                                                         </TableCell>

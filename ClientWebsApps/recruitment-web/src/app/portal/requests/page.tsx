@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +31,6 @@ import {
 } from '@/components/ui/select';
 import { Plus, Filter } from 'lucide-react';
 import { toast } from 'sonner';
-import { mockApprovalRequests } from '@/lib/mocks/approvals';
 import { useNotifications } from '@/lib/contexts/notification-context';
 import { ApprovalWorkflow, ApprovalStatus } from '@/lib/types/approval';
 
@@ -52,11 +51,13 @@ const requestStatusLabels: Record<ApprovalStatus, { label: string; variant: "def
 
 export default function MyRequestsPage() {
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
-    const [newRequestType, setNewRequestType] = useState<ApprovalWorkflow['type']>('LEAVE');
+    const [newRequestType, setNewRequestType] = useState<string>('LEAVE');
+    const [myRequests, setMyRequests] = useState<any[]>([]);
     const { addNotification } = useNotifications();
 
-    // Mock filtering - assume all mock requests belong to the logged-in user for this demo
-    const myRequests = mockApprovalRequests;
+    useEffect(() => {
+        fetch('/api/approval-workflows').then(r => r.json()).then(setMyRequests).catch(console.error);
+    }, []);
 
     const handleCreate = () => {
         setCreateDialogOpen(false);
@@ -120,13 +121,13 @@ export default function MyRequestsPage() {
                                     <TableCell>{new Date(req.createdAt).toLocaleDateString('vi-VN')}</TableCell>
                                     <TableCell>
                                         <div className="text-xs space-y-1">
-                                            <div>{req.steps.find(s => s.status === 'APPROVED' || s.status === 'REJECTED')?.comment ? 'Có phản hồi' : 'Chưa có phản hồi'}</div>
+                                            <div>{req.steps.find((s: any) => s.status === 'APPROVED' || s.status === 'REJECTED')?.comment ? 'Có phản hồi' : 'Chưa có phản hồi'}</div>
                                             <div className="text-muted-foreground">Bước hiện tại: {req.currentStepOrder}</div>
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant={requestStatusLabels[req.status]?.variant || 'outline'}>
-                                            {requestStatusLabels[req.status]?.label || req.status}
+                                        <Badge variant={requestStatusLabels[req.status as ApprovalStatus]?.variant || 'outline'}>
+                                            {requestStatusLabels[req.status as ApprovalStatus]?.label || req.status}
                                         </Badge>
                                     </TableCell>
                                 </TableRow>

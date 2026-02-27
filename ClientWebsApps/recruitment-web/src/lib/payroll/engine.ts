@@ -1,6 +1,4 @@
 import { SalaryComponent, TaxBracket, InsuranceRate } from '@/lib/types/payroll';
-import { mockSalaryComponents, mockTaxBrackets, mockInsuranceRates } from '@/lib/mocks/payroll';
-import { Employee } from '@/lib/mocks/hrm';
 
 export interface PayrollInput {
     [key: string]: number; // e.g., { BASE_SALARY: 10000000, OT_HOURS: 20 }
@@ -25,9 +23,9 @@ export class PayrollEngine {
     private insuranceRates: InsuranceRate[];
 
     constructor(
-        components: SalaryComponent[] = mockSalaryComponents,
-        taxBrackets: TaxBracket[] = mockTaxBrackets,
-        insuranceRates: InsuranceRate[] = mockInsuranceRates
+        components: SalaryComponent[] = [],
+        taxBrackets: TaxBracket[] = [],
+        insuranceRates: InsuranceRate[] = []
     ) {
         this.components = components;
         this.taxBrackets = taxBrackets;

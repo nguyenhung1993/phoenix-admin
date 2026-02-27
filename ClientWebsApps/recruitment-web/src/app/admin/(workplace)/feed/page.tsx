@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { mockPosts, mockEvents, Post } from '@/lib/mocks';
+
+interface Post { id: string; authorId: string; authorName: string; authorRole?: string; content: string; type: string; likes: number; comments: number; createdAt: string; images?: string[]; }
+interface WorkplaceEvent { id: string; title: string; type: string; date: string; description?: string; }
 import {
     Heart,
     MessageCircle,
@@ -24,8 +26,14 @@ import {
 import { toast } from 'sonner';
 
 export default function WorkplaceFeedPage() {
-    const [posts, setPosts] = useState<Post[]>(mockPosts);
+    const [posts, setPosts] = useState<Post[]>([]);
+    const [events, setEvents] = useState<WorkplaceEvent[]>([]);
     const [newPostContent, setNewPostContent] = useState('');
+
+    useEffect(() => {
+        fetch('/api/posts').then(r => r.json()).then(setPosts).catch(console.error);
+        fetch('/api/workplace-events').then(r => r.json()).then(setEvents).catch(console.error);
+    }, []);
 
     const handlePost = () => {
         if (!newPostContent.trim()) return;
@@ -157,7 +165,7 @@ export default function WorkplaceFeedPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {mockEvents.filter(e => e.type === 'BIRTHDAY').map(evt => (
+                        {events.filter(e => e.type === 'BIRTHDAY').map(evt => (
                             <div key={evt.id} className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8">
                                     <AvatarFallback className="bg-pink-100 text-pink-600">🎂</AvatarFallback>
@@ -171,7 +179,7 @@ export default function WorkplaceFeedPage() {
                                 </Button>
                             </div>
                         ))}
-                        {mockEvents.filter(e => e.type === 'BIRTHDAY').length === 0 && (
+                        {events.filter(e => e.type === 'BIRTHDAY').length === 0 && (
                             <div className="text-sm text-muted-foreground text-center">Không có sinh nhật nào sắp tới.</div>
                         )}
                     </CardContent>
@@ -186,7 +194,7 @@ export default function WorkplaceFeedPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {mockEvents.filter(e => e.type === 'NEW_HIRE').map(evt => (
+                        {events.filter(e => e.type === 'NEW_HIRE').map(evt => (
                             <div key={evt.id} className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8">
                                     <AvatarFallback className="bg-blue-100 text-blue-600">👋</AvatarFallback>
@@ -209,7 +217,7 @@ export default function WorkplaceFeedPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {mockEvents.filter(e => e.type === 'COMPANY_EVENT').map(evt => (
+                        {events.filter(e => e.type === 'COMPANY_EVENT').map(evt => (
                             <div key={evt.id} className="text-sm border-l-2 border-orange-500 pl-3 py-1">
                                 <div className="font-medium">{evt.title}</div>
                                 <div className="text-muted-foreground text-xs mb-1">{new Date(evt.date).toLocaleDateString('vi-VN')}</div>

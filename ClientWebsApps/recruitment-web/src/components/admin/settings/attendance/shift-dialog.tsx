@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ShiftType } from "@/lib/mocks/settings-hr"
+import { ShiftType } from "@/lib/types/hrm"
 
 const shiftSchema = z.object({
     code: z.string().min(2, "Mã ca phải có ít nhất 2 ký tự"),

@@ -173,7 +173,7 @@ function LoginContent() {
                         Google
                     </Button>
                 </CardContent>
-                <CardFooter className="flex flex-col space-y-4 bg-slate-50/50 border-t p-6">
+                {/* <CardFooter className="flex flex-col space-y-4 bg-slate-50/50 border-t p-6">
                     <div className="text-xs text-muted-foreground text-center">
                         <p className="font-semibold mb-2">Tài khoản dùng thử (Mock):</p>
                         <div className="flex flex-wrap justify-center gap-2">
@@ -201,7 +201,7 @@ function LoginContent() {
                         </div>
                         <p className="mt-2 text-[10px]">(Mật khẩu mặc định: 123)</p>
                     </div>
-                </CardFooter>
+                </CardFooter> */}
             </Card>
         </div>
     );

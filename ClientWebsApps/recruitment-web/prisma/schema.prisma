@@ -514,12 +514,18 @@ model Job {
   type            JobType   @default(FULL_TIME)
   workMode        WorkMode  @default(ONSITE)
   experienceLevel String?
+  educationLevel  String?
+  specialization  String[]
+  deadline        DateTime?
   salaryMin       Float?
   salaryMax       Float?
   status          JobStatus @default(DRAFT)
   description     String?   @db.Text
   requirements    String[]
   benefits        String[]
+  workAddress     String?   @db.Text
+  workSchedule    String?   @db.Text
+  applicationMethod String? @db.Text
   applicants      Int       @default(0)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

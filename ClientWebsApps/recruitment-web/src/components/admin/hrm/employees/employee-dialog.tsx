@@ -32,7 +32,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { Employee, mockDepartments, mockPositions, mockContractTypes, mockShiftTypes } from "@/lib/mocks"
+import { Employee, Department, Position, ContractType, ShiftType } from "@/lib/types/hrm"
 import { CalendarIcon, Upload } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -81,6 +81,19 @@ export function EmployeeDialog({
     initialData,
     onSubmit,
 }: EmployeeDialogProps) {
+    const [departments, setDepartments] = useState<Department[]>([])
+    const [positions, setPositions] = useState<Position[]>([])
+    const [contractTypes, setContractTypes] = useState<ContractType[]>([])
+    const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([])
+
+    useEffect(() => {
+        if (open) {
+            fetch('/api/departments').then(r => r.json()).then(setDepartments).catch(console.error)
+            fetch('/api/positions').then(r => r.json()).then(setPositions).catch(console.error)
+            fetch('/api/contract-types').then(r => r.json()).then(setContractTypes).catch(console.error)
+            fetch('/api/shift-types').then(r => r.json()).then(setShiftTypes).catch(console.error)
+        }
+    }, [open])
     const form = useForm<EmployeeFormValues>({
         resolver: zodResolver(employeeSchema) as any,
         defaultValues: {
@@ -103,7 +116,7 @@ export function EmployeeDialog({
                 email: initialData.email,
                 phone: initialData.phone,
                 dob: initialData.dob,
-                gender: initialData.gender,
+                gender: initialData.gender as "MALE" | "FEMALE",
                 address: initialData.address || "",
                 identityCard: initialData.identityCard || "",
                 employeeCode: initialData.employeeCode,
@@ -111,7 +124,7 @@ export function EmployeeDialog({
                 positionId: initialData.positionId,
                 contractTypeId: initialData.contractTypeId || "",
                 shiftTypeId: initialData.shiftTypeId || "",
-                status: initialData.status,
+                status: initialData.status as "ACTIVE" | "PROBATION" | "RESIGNED" | "ON_LEAVE",
                 hireDate: initialData.hireDate,
                 managerId: initialData.managerId || "none", // Handle undefined
                 bankAccount: initialData.bankAccount || "",
@@ -350,7 +363,7 @@ export function EmployeeDialog({
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        {mockDepartments.map(dept => (
+                                                        {departments.map(dept => (
                                                             <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -372,7 +385,7 @@ export function EmployeeDialog({
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        {mockPositions.filter(p => !form.getValues('departmentId') || p.departmentId === form.getValues('departmentId') || !p.departmentId).map(pos => (
+                                                        {positions.filter(p => !form.getValues('departmentId') || p.departmentId === form.getValues('departmentId') || !p.departmentId).map(pos => (
                                                             <SelectItem key={pos.id} value={pos.id}>{pos.name}</SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -441,7 +454,7 @@ export function EmployeeDialog({
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        {mockContractTypes.map(type => (
+                                                        {contractTypes.map(type => (
                                                             <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -463,7 +476,7 @@ export function EmployeeDialog({
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        {mockShiftTypes.map(shift => (
+                                                        {shiftTypes.map(shift => (
                                                             <SelectItem key={shift.id} value={shift.id}>{shift.name} ({shift.startTime}-{shift.endTime})</SelectItem>
                                                         ))}
                                                     </SelectContent>

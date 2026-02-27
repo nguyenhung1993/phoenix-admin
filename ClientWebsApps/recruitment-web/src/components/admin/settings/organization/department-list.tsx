@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,15 +8,19 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Plus, Users, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Department, mockDepartments } from '@/lib/mocks/hrm';
+interface Department { id: string; code: string; name: string; parentId?: string; managerId?: string; managerName?: string; employeeCount?: number; isActive: boolean; createdAt?: string;[key: string]: unknown; }
 import { DepartmentDialog } from './department-dialog';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export function DepartmentList() {
-    const [departments, setDepartments] = useState<Department[]>(mockDepartments);
+    const [departments, setDepartments] = useState<Department[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+
+    useEffect(() => {
+        fetch('/api/departments').then(r => r.json()).then(setDepartments).catch(console.error);
+    }, []);
 
     const handleCreate = () => {
         setSelectedDepartment(null);
@@ -28,26 +32,23 @@ export function DepartmentList() {
         setIsDialogOpen(true);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm("Bạn có chắc chắn muốn xóa phòng ban này? Hành động này không thể hoàn tác.")) {
+            await fetch(`/api/departments?id=${id}`, { method: 'DELETE' });
             setDepartments(prev => prev.filter(d => d.id !== id));
             toast.success("Đã xóa phòng ban thành công");
         }
     };
 
-    const handleSubmit = (values: any, id?: string) => {
+    const handleSubmit = async (values: any, id?: string) => {
         if (id) {
-            // Update
-            setDepartments(prev => prev.map(d => d.id === id ? { ...d, ...values } : d));
+            const res = await fetch('/api/departments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...values }) });
+            const updated = await res.json();
+            setDepartments(prev => prev.map(d => d.id === id ? updated : d));
             toast.success("Cập nhật phòng ban thành công");
         } else {
-            // Create
-            const newDept: Department = {
-                id: Math.random().toString(36).substr(2, 9),
-                createdAt: new Date().toISOString(),
-                employeeCount: 0,
-                ...values
-            };
+            const res = await fetch('/api/departments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+            const newDept = await res.json();
             setDepartments(prev => [...prev, newDept]);
             toast.success("Tạo phòng ban thành công");
         }

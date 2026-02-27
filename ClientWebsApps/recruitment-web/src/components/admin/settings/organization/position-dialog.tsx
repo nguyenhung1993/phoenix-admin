@@ -32,7 +32,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Position, levelLabels } from "@/lib/mocks/hrm"
+import { Position, levelLabels } from "@/lib/types/hrm"
 
 const positionSchema = z.object({
     code: z.string().min(2, "Mã chức danh phải có ít nhất 2 ký tự"),

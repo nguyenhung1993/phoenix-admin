@@ -146,14 +146,14 @@ function KanbanColumn({ id, status, candidates, onCandidateClick }: { id: string
     const statusInfo = candidateStatusLabels[status];
 
     return (
-        <div ref={setNodeRef} className="flex min-w-[280px] w-[280px] flex-col rounded-lg bg-muted/50 border">
+        <div ref={setNodeRef} className="flex min-w-[280px] w-[280px] max-h-full flex-col rounded-lg bg-muted/50 border">
             <div className="p-3 font-semibold flex items-center justify-between border-b bg-muted/30">
                 <div className="flex items-center gap-2">
                     <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                     <span className="text-muted-foreground text-sm">{candidates.length}</span>
                 </div>
             </div>
-            <div className="flex-1 p-2 overflow-y-auto min-h-[100px]">
+            <div className="flex-1 p-2 overflow-y-auto min-h-[100px] scrollbar-kanban">
                 <SortableContext items={candidates.map((c) => c.id)} strategy={verticalListSortingStrategy}>
                     <div className="flex flex-col gap-2">
                         {candidates.map((candidate) => (

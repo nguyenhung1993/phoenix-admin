@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,27 +31,15 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import {
-    mockKPIPeriods,
-    mockKPIObjectives,
-    kpiPeriodTypeLabels,
-    kpiPeriodStatusLabels,
-    objectiveStatusLabels,
-    KPIPeriod,
-    KPIObjective,
-} from '@/lib/mocks';
-import {
     Target,
     Plus,
     Calendar,
     Users,
-    TrendingUp,
     Eye,
     Edit,
     Copy,
     MoreHorizontal,
-    CheckCircle,
-    Clock,
-    AlertCircle,
+    Loader2,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -60,45 +48,106 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export default function GoalsPage() {
-    const [selectedPeriod, setSelectedPeriod] = useState<KPIPeriod | null>(null);
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
+const reviewCycleStatusLabels: Record<string, { label: string; color: string }> = {
+    PLANNING: { label: 'Lên kế hoạch', color: 'gray' },
+    IN_PROGRESS: { label: 'Đang diễn ra', color: 'blue' },
+    COMPLETED: { label: 'Hoàn thành', color: 'green' },
+    LOCKED: { label: 'Đã khóa', color: 'red' },
+};
 
-    // Get objectives for selected period
-    const periodObjectives = selectedPeriod
-        ? mockKPIObjectives.filter(obj => obj.periodId === selectedPeriod.id)
+const reviewCycleTypeLabels: Record<string, string> = {
+    ANNUAL: 'Hàng năm',
+    BI_ANNUAL: 'Nửa năm',
+    QUARTERLY: 'Hàng quý',
+    PROBATION: 'Thử việc',
+};
+
+interface ReviewCycleSummary {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+    type: string;
+    participants: number;
+}
+
+interface EvaluationItem {
+    id: string;
+    reviewCycleId: string;
+    employeeId: string;
+    employeeName: string;
+    departmentName: string;
+    finalScore: number | null;
+    status: string;
+    kpiResults: any[];
+}
+
+export default function GoalsPage() {
+    const [selectedPeriod, setSelectedPeriod] = useState<ReviewCycleSummary | null>(null);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [cycles, setCycles] = useState<ReviewCycleSummary[]>([]);
+    const [evaluations, setEvaluations] = useState<EvaluationItem[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [cycleRes, evalRes] = await Promise.all([
+                    fetch('/api/reviews'),
+                    fetch('/api/evaluations'),
+                ]);
+                const cycleJson = await cycleRes.json();
+                const evalJson = await evalRes.json();
+                setCycles(cycleJson.data || []);
+                setEvaluations(evalJson.data || []);
+            } catch {
+                setCycles([]);
+                setEvaluations([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    // Evaluations for selected period
+    const periodEvaluations = selectedPeriod
+        ? evaluations.filter(e => e.reviewCycleId === selectedPeriod.id)
         : [];
 
-    // Group objectives by employee
-    const objectivesByEmployee = periodObjectives.reduce((acc, obj) => {
-        if (!acc[obj.employeeId]) {
-            acc[obj.employeeId] = {
-                employeeName: obj.employeeName,
-                departmentName: obj.departmentName,
-                objectives: [],
+    // Group evaluations by employee
+    const evalByEmployee = periodEvaluations.reduce((acc, ev) => {
+        if (!acc[ev.employeeId]) {
+            acc[ev.employeeId] = {
+                employeeName: ev.employeeName,
+                departmentName: ev.departmentName,
+                evaluations: [],
             };
         }
-        acc[obj.employeeId].objectives.push(obj);
+        acc[ev.employeeId].evaluations.push(ev);
         return acc;
-    }, {} as Record<string, { employeeName: string; departmentName: string; objectives: KPIObjective[] }>);
+    }, {} as Record<string, { employeeName: string; departmentName: string; evaluations: EvaluationItem[] }>);
 
-    // Calculate stats for a period
+    // Period stats
     const getPeriodStats = (periodId: string) => {
-        const objectives = mockKPIObjectives.filter(obj => obj.periodId === periodId);
-        const employees = new Set(objectives.map(obj => obj.employeeId)).size;
-        const avgScore = objectives.length > 0
-            ? Math.round(objectives.reduce((sum, obj) => sum + obj.score, 0) / objectives.length)
-            : 0;
-        const completedCount = objectives.filter(obj => obj.status === 'COMPLETED').length;
-        return { totalObjectives: objectives.length, employees, avgScore, completedCount };
+        const evals = evaluations.filter(e => e.reviewCycleId === periodId);
+        const employees = new Set(evals.map(e => e.employeeId)).size;
+        const scores = evals.filter(e => e.finalScore !== null).map(e => e.finalScore as number);
+        const avgScore = scores.length > 0 ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0;
+        const completedCount = evals.filter(e => e.status === 'APPROVED').length;
+        return { totalEvals: evals.length, employees, avgScore, completedCount };
     };
 
-    // Calculate employee average score
-    const getEmployeeAvgScore = (objectives: KPIObjective[]) => {
-        if (objectives.length === 0) return 0;
-        const weightedSum = objectives.reduce((sum, obj) => sum + (obj.score * obj.weight / 100), 0);
-        return Math.round(weightedSum);
-    };
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -137,7 +186,7 @@ export default function GoalsPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="QUARTERLY">Quý</SelectItem>
-                                        <SelectItem value="SEMI_ANNUAL">Nửa năm</SelectItem>
+                                        <SelectItem value="BI_ANNUAL">Nửa năm</SelectItem>
                                         <SelectItem value="ANNUAL">Năm</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -162,46 +211,35 @@ export default function GoalsPage() {
 
             {/* Period Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {mockKPIPeriods.map((period) => {
+                {cycles.map((period) => {
                     const stats = getPeriodStats(period.id);
-                    const statusInfo = kpiPeriodStatusLabels[period.status];
-                    const typeInfo = kpiPeriodTypeLabels[period.type];
+                    const statusInfo = reviewCycleStatusLabels[period.status] || { label: period.status, color: 'gray' };
                     const isSelected = selectedPeriod?.id === period.id;
 
                     return (
                         <Card
                             key={period.id}
-                            className={`cursor-pointer transition-all hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''
-                                }`}
+                            className={`cursor-pointer transition-all hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''}`}
                             onClick={() => setSelectedPeriod(isSelected ? null : period)}
                         >
                             <CardHeader className="pb-2">
                                 <div className="flex items-center justify-between">
                                     <Badge
                                         variant="outline"
-                                        className={`bg-${statusInfo.color}-100 text-${statusInfo.color}-700 border-${statusInfo.color}-200`}
+                                        className={`bg-${statusInfo.color}-100 text-${statusInfo.color}-700`}
                                     >
                                         {statusInfo.label}
                                     </Badge>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem>
-                                                <Eye className="h-4 w-4 mr-2" />
-                                                Xem chi tiết
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem>
-                                                <Edit className="h-4 w-4 mr-2" />
-                                                Chỉnh sửa
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem>
-                                                <Copy className="h-4 w-4 mr-2" />
-                                                Nhân bản
-                                            </DropdownMenuItem>
+                                            <DropdownMenuItem><Eye className="h-4 w-4 mr-2" />Xem chi tiết</DropdownMenuItem>
+                                            <DropdownMenuItem><Edit className="h-4 w-4 mr-2" />Chỉnh sửa</DropdownMenuItem>
+                                            <DropdownMenuItem><Copy className="h-4 w-4 mr-2" />Nhân bản</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
@@ -219,10 +257,10 @@ export default function GoalsPage() {
                                     </div>
                                     <div className="flex items-center gap-1 text-muted-foreground">
                                         <Target className="h-3 w-3" />
-                                        {stats.totalObjectives} mục tiêu
+                                        {stats.totalEvals} đánh giá
                                     </div>
                                 </div>
-                                {stats.totalObjectives > 0 && (
+                                {stats.totalEvals > 0 && (
                                     <div className="mt-3">
                                         <div className="flex justify-between text-xs mb-1">
                                             <span>Điểm TB</span>
@@ -244,115 +282,66 @@ export default function GoalsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <CardTitle>Chi tiết: {selectedPeriod.name}</CardTitle>
-                                <CardDescription>
-                                    Danh sách mục tiêu KPI theo nhân viên
-                                </CardDescription>
+                                <CardDescription>Danh sách đánh giá theo nhân viên</CardDescription>
                             </div>
-                            <Button>
-                                <Plus className="h-4 w-4 mr-2" />
-                                Thêm mục tiêu
-                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {Object.keys(objectivesByEmployee).length === 0 ? (
+                        {Object.keys(evalByEmployee).length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                <p>Chưa có mục tiêu nào trong kỳ này</p>
-                                <Button variant="outline" className="mt-4">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Thêm mục tiêu đầu tiên
-                                </Button>
+                                <p>Chưa có đánh giá nào trong kỳ này</p>
                             </div>
                         ) : (
                             <div className="space-y-6">
-                                {Object.entries(objectivesByEmployee).map(([employeeId, data]) => {
-                                    const avgScore = getEmployeeAvgScore(data.objectives);
-                                    return (
-                                        <div key={employeeId} className="border rounded-lg p-4">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <div>
-                                                    <h3 className="font-semibold">{data.employeeName}</h3>
-                                                    <p className="text-sm text-muted-foreground">{data.departmentName}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-2xl font-bold">{avgScore}%</div>
-                                                    <div className="text-xs text-muted-foreground">Điểm tổng hợp</div>
-                                                </div>
+                                {Object.entries(evalByEmployee).map(([employeeId, data]) => (
+                                    <div key={employeeId} className="border rounded-lg p-4">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <h3 className="font-semibold">{data.employeeName}</h3>
+                                                <p className="text-sm text-muted-foreground">{data.departmentName}</p>
                                             </div>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Mục tiêu</TableHead>
-                                                        <TableHead className="w-[100px]">Trọng số</TableHead>
-                                                        <TableHead className="w-[150px]">Tiến độ</TableHead>
-                                                        <TableHead className="w-[100px]">Trạng thái</TableHead>
-                                                        <TableHead className="w-[80px]">Điểm</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {data.objectives.map((obj) => {
-                                                        const statusInfo = objectiveStatusLabels[obj.status];
-                                                        const progress = Math.round((obj.actualValue / obj.targetValue) * 100);
-                                                        return (
-                                                            <TableRow key={obj.id}>
-                                                                <TableCell>
-                                                                    <div>
-                                                                        <div className="font-medium">{obj.title}</div>
-                                                                        <div className="text-xs text-muted-foreground">
-                                                                            {obj.actualValue.toLocaleString()} / {obj.targetValue.toLocaleString()} {obj.unit}
-                                                                        </div>
-                                                                    </div>
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <Badge variant="outline">{obj.weight}%</Badge>
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <div className="space-y-1">
-                                                                        <Progress value={progress} className="h-2" />
-                                                                        <span className="text-xs text-muted-foreground">{progress}%</span>
-                                                                    </div>
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <Badge
-                                                                        variant="secondary"
-                                                                        className={`bg-${statusInfo.color}-100 text-${statusInfo.color}-700`}
-                                                                    >
-                                                                        {obj.status === 'COMPLETED' && <CheckCircle className="h-3 w-3 mr-1" />}
-                                                                        {obj.status === 'IN_PROGRESS' && <Clock className="h-3 w-3 mr-1" />}
-                                                                        {obj.status === 'NOT_STARTED' && <AlertCircle className="h-3 w-3 mr-1" />}
-                                                                        {statusInfo.label}
-                                                                    </Badge>
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <span className={`font-bold ${obj.score >= 80 ? 'text-green-600' :
-                                                                            obj.score >= 60 ? 'text-yellow-600' : 'text-red-600'
-                                                                        }`}>
-                                                                        {obj.score}
-                                                                    </span>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        );
-                                                    })}
-                                                </TableBody>
-                                            </Table>
+                                            <div className="text-right">
+                                                <div className="text-2xl font-bold">
+                                                    {data.evaluations[0]?.finalScore || '-'}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">Điểm tổng hợp</div>
+                                            </div>
                                         </div>
-                                    );
-                                })}
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Trạng thái</TableHead>
+                                                    <TableHead>Người đánh giá</TableHead>
+                                                    <TableHead>Điểm</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {data.evaluations.map(ev => (
+                                                    <TableRow key={ev.id}>
+                                                        <TableCell><Badge variant="outline">{ev.status}</Badge></TableCell>
+                                                        <TableCell className="text-sm">{(ev as any).reviewerName || '-'}</TableCell>
+                                                        <TableCell className="font-bold">{ev.finalScore || '-'}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </CardContent>
                 </Card>
             )}
 
-            {/* Empty state when no period selected */}
+            {/* Empty state */}
             {!selectedPeriod && (
                 <Card>
                     <CardContent className="py-16 text-center">
                         <Target className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
                         <h3 className="text-lg font-semibold mb-2">Chọn một kỳ đánh giá</h3>
                         <p className="text-muted-foreground">
-                            Click vào một kỳ đánh giá ở trên để xem chi tiết các mục tiêu KPI
+                            Click vào một kỳ đánh giá ở trên để xem chi tiết
                         </p>
                     </CardContent>
                 </Card>

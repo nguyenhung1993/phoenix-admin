@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,14 +21,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    mockLeaveRequests,
-    mockLeaveBalances,
-    leaveTypeLabels,
-    leaveStatusLabels,
-    LeaveRequest,
-    LeaveStatus,
-} from '@/lib/mocks';
 import { LeaveDialog } from '@/components/admin/cb/leave/leave-dialog';
 import {
     Calendar,
@@ -39,39 +31,137 @@ import {
     X,
     CalendarDays,
     Users,
+    Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const leaveTypeLabels: Record<string, { label: string; color: string }> = {
+    ANNUAL: { label: 'Phép năm', color: 'bg-blue-100 text-blue-700' },
+    SICK: { label: 'Nghỉ ốm', color: 'bg-red-100 text-red-700' },
+    MATERNITY: { label: 'Thai sản', color: 'bg-pink-100 text-pink-700' },
+    UNPAID: { label: 'Không lương', color: 'bg-gray-100 text-gray-700' },
+    WEDDING: { label: 'Kết hôn', color: 'bg-yellow-100 text-yellow-700' },
+    BEREAVEMENT: { label: 'Tang sự', color: 'bg-purple-100 text-purple-700' },
+    OTHER: { label: 'Khác', color: 'bg-slate-100 text-slate-700' },
+};
+
+const leaveStatusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    PENDING: { label: 'Chờ duyệt', variant: 'secondary' },
+    APPROVED: { label: 'Đã duyệt', variant: 'default' },
+    REJECTED: { label: 'Từ chối', variant: 'destructive' },
+};
+
+type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+interface LeaveRequest {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+    totalDays: number;
+    reason: string;
+    status: LeaveStatus;
+    approverName: string | null;
+    rejectionReason: string | null;
+}
+
+interface LeaveBalance {
+    employeeId: string;
+    employeeName: string;
+    annualTotal: number;
+    annualUsed: number;
+    annualRemaining: number;
+    sickTotal: number;
+    sickUsed: number;
+}
 
 export default function LeavePage() {
     const [statusFilter, setStatusFilter] = useState<LeaveStatus | 'ALL'>('ALL');
     const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [requests, setRequests] = useState<LeaveRequest[]>([]);
+    const [balances, setBalances] = useState<LeaveBalance[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredRequests = mockLeaveRequests.filter((req) => {
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/leave-requests?balances=true');
+            const json = await res.json();
+            setRequests(json.data || []);
+            setBalances(json.balances || []);
+        } catch {
+            setRequests([]);
+            setBalances([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchData(); }, []);
+
+    const filteredRequests = requests.filter((req) => {
         return statusFilter === 'ALL' || req.status === statusFilter;
     });
 
     const requestsByStatus = {
-        ALL: mockLeaveRequests.length,
-        PENDING: mockLeaveRequests.filter((r) => r.status === 'PENDING').length,
-        APPROVED: mockLeaveRequests.filter((r) => r.status === 'APPROVED').length,
-        REJECTED: mockLeaveRequests.filter((r) => r.status === 'REJECTED').length,
+        ALL: requests.length,
+        PENDING: requests.filter((r) => r.status === 'PENDING').length,
+        APPROVED: requests.filter((r) => r.status === 'APPROVED').length,
+        REJECTED: requests.filter((r) => r.status === 'REJECTED').length,
     };
 
-    const handleApprove = () => {
-        toast.success('Đã phê duyệt đơn nghỉ phép', {
-            description: `Nhân viên: ${selectedRequest?.employeeName}`
-        });
-        setDetailDialogOpen(false);
+    const handleApprove = async () => {
+        if (!selectedRequest) return;
+        try {
+            const res = await fetch('/api/leave-requests', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: selectedRequest.id, status: 'APPROVED' }),
+            });
+            if (res.ok) {
+                toast.success('Đã phê duyệt đơn nghỉ phép', {
+                    description: `Nhân viên: ${selectedRequest.employeeName}`
+                });
+                setDetailDialogOpen(false);
+                fetchData();
+            }
+        } catch {
+            toast.error('Lỗi kết nối server');
+        }
     };
 
-    const handleReject = () => {
-        toast.error('Đã từ chối đơn nghỉ phép', {
-            description: `Nhân viên: ${selectedRequest?.employeeName}`
-        });
-        setDetailDialogOpen(false);
+    const handleReject = async () => {
+        if (!selectedRequest) return;
+        try {
+            const res = await fetch('/api/leave-requests', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: selectedRequest.id, status: 'REJECTED' }),
+            });
+            if (res.ok) {
+                toast.error('Đã từ chối đơn nghỉ phép', {
+                    description: `Nhân viên: ${selectedRequest.employeeName}`
+                });
+                setDetailDialogOpen(false);
+                fetchData();
+            }
+        } catch {
+            toast.error('Lỗi kết nối server');
+        }
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -172,8 +262,8 @@ export default function LeavePage() {
                         </TableHeader>
                         <TableBody>
                             {filteredRequests.map((request) => {
-                                const typeStyle = leaveTypeLabels[request.leaveType];
-                                const statusStyle = leaveStatusLabels[request.status];
+                                const typeStyle = leaveTypeLabels[request.leaveType] || { label: request.leaveType, color: 'bg-gray-100' };
+                                const statusStyle = leaveStatusLabels[request.status] || { label: request.status, variant: 'secondary' as const };
 
                                 return (
                                     <TableRow key={request.id}>
@@ -234,42 +324,44 @@ export default function LeavePage() {
             </Card>
 
             {/* Leave Balance Table */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        Số ngày phép còn lại - Năm 2026
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nhân viên</TableHead>
-                                <TableHead className="text-center">Phép năm (Tổng)</TableHead>
-                                <TableHead className="text-center">Đã dùng</TableHead>
-                                <TableHead className="text-center">Còn lại</TableHead>
-                                <TableHead className="text-center">Nghỉ ốm (Đã dùng)</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {mockLeaveBalances.map((balance) => (
-                                <TableRow key={balance.employeeId}>
-                                    <TableCell className="font-medium">{balance.employeeName}</TableCell>
-                                    <TableCell className="text-center">{balance.annualTotal}</TableCell>
-                                    <TableCell className="text-center">{balance.annualUsed}</TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge variant={balance.annualRemaining > 5 ? 'default' : 'secondary'}>
-                                            {balance.annualRemaining}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-center">{balance.sickUsed}/{balance.sickTotal}</TableCell>
+            {balances.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            Số ngày phép còn lại - Năm {new Date().getFullYear()}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nhân viên</TableHead>
+                                    <TableHead className="text-center">Phép năm (Tổng)</TableHead>
+                                    <TableHead className="text-center">Đã dùng</TableHead>
+                                    <TableHead className="text-center">Còn lại</TableHead>
+                                    <TableHead className="text-center">Nghỉ ốm (Đã dùng)</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                            </TableHeader>
+                            <TableBody>
+                                {balances.map((balance) => (
+                                    <TableRow key={balance.employeeId}>
+                                        <TableCell className="font-medium">{balance.employeeName}</TableCell>
+                                        <TableCell className="text-center">{balance.annualTotal}</TableCell>
+                                        <TableCell className="text-center">{balance.annualUsed}</TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant={balance.annualRemaining > 5 ? 'default' : 'secondary'}>
+                                                {balance.annualRemaining}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-center">{balance.sickUsed}/{balance.sickTotal}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Detail Dialog */}
             <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
@@ -279,7 +371,7 @@ export default function LeavePage() {
                             <DialogHeader>
                                 <DialogTitle>Chi tiết đơn nghỉ phép</DialogTitle>
                                 <DialogDescription>
-                                    {selectedRequest.employeeName} - {leaveTypeLabels[selectedRequest.leaveType].label}
+                                    {selectedRequest.employeeName} - {leaveTypeLabels[selectedRequest.leaveType]?.label || selectedRequest.leaveType}
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -299,8 +391,8 @@ export default function LeavePage() {
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Trạng thái</p>
-                                        <Badge variant={leaveStatusLabels[selectedRequest.status].variant}>
-                                            {leaveStatusLabels[selectedRequest.status].label}
+                                        <Badge variant={leaveStatusLabels[selectedRequest.status]?.variant as any}>
+                                            {leaveStatusLabels[selectedRequest.status]?.label}
                                         </Badge>
                                     </div>
                                 </div>

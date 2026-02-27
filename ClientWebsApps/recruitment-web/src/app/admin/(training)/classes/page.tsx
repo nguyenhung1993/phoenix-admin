@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Table,
@@ -30,47 +30,77 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { Search, Plus, Eye, Calendar, MapPin, User, Clock } from 'lucide-react';
-import {
-    getAllClasses,
-    getCourses,
-    Class,
-    ClassStatus,
-    mockClasses as initialClasses
-} from '@/lib/mocks/training';
+import { Search, Plus, Eye, Calendar, MapPin, User, Clock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+type ClassStatus = 'UPCOMING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+interface ClassItem {
+    id: string;
+    courseId: string;
+    courseName: string;
+    code: string;
+    startDate: string;
+    endDate: string;
+    instructor: string | null;
+    capacity: number;
+    enrolled: number;
+    status: ClassStatus;
+    location: string | null;
+}
+
+interface CourseOption {
+    id: string;
+    title: string;
+}
+
 export default function ClassesPage() {
-    const [classes, setClasses] = useState<Class[]>(initialClasses);
+    const [classes, setClasses] = useState<ClassItem[]>([]);
+    const [courses, setCourses] = useState<CourseOption[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<ClassStatus | 'ALL'>('ALL');
+    const [loading, setLoading] = useState(true);
 
     // Dialog State
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [formData, setFormData] = useState<Partial<Class>>({
+    const [formData, setFormData] = useState({
         courseId: '',
         code: '',
         startDate: '',
         endDate: '',
         instructor: '',
         capacity: 20,
-        enrolled: 0,
-        status: 'scheduled',
         location: '',
     });
 
-    const courses = getCourses();
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [classRes, courseRes] = await Promise.all([
+                    fetch('/api/classes'),
+                    fetch('/api/courses'),
+                ]);
+                const classJson = await classRes.json();
+                const courseJson = await courseRes.json();
+                setClasses(classJson.data || []);
+                setCourses((courseJson.data || []).map((c: any) => ({ id: c.id, title: c.title })));
+            } catch {
+                setClasses([]);
+                setCourses([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const filteredClasses = classes.filter(cls => {
         const matchesSearch = cls.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            cls.instructor.toLowerCase().includes(searchTerm.toLowerCase());
+            (cls.instructor || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'ALL' || cls.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
-
-    const getCourseName = (courseId: string) => {
-        return courses.find(c => c.id === courseId)?.title || 'Unknown Course';
-    };
 
     const handleOpenCreate = () => {
         setFormData({
@@ -80,48 +110,62 @@ export default function ClassesPage() {
             endDate: '',
             instructor: '',
             capacity: 20,
-            enrolled: 0,
-            status: 'scheduled',
             location: '',
         });
         setIsDialogOpen(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.courseId || !formData.startDate || !formData.instructor) {
             toast.error('Vui lòng nhập đầy đủ thông tin');
             return;
         }
 
-        const newClass: Class = {
-            ...formData as Class,
-            id: `cls_${Math.random().toString(36).substr(2, 9)}`,
-        };
-
-        setClasses([newClass, ...classes]);
-        toast.success('Lên lịch lớp học thành công');
-        setIsDialogOpen(false);
+        try {
+            await fetch('/api/classes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            toast.success('Lên lịch lớp học thành công');
+            setIsDialogOpen(false);
+            // Refresh
+            const res = await fetch('/api/classes');
+            const json = await res.json();
+            setClasses(json.data || []);
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        }
     };
 
-    const getStatusColor = (status: ClassStatus) => {
+    const getStatusColor = (status: ClassStatus): 'default' | 'secondary' | 'outline' | 'destructive' => {
         switch (status) {
-            case 'scheduled': return 'secondary';
-            case 'ongoing': return 'default'; // primary/green often
-            case 'completed': return 'outline';
-            case 'cancelled': return 'destructive';
+            case 'UPCOMING': return 'secondary';
+            case 'IN_PROGRESS': return 'default';
+            case 'COMPLETED': return 'outline';
+            case 'CANCELLED': return 'destructive';
             default: return 'outline';
         }
     };
 
     const getStatusLabel = (status: ClassStatus) => {
         switch (status) {
-            case 'scheduled': return 'Đã lên lịch';
-            case 'ongoing': return 'Đang diễn ra';
-            case 'completed': return 'Hoàn thành';
-            case 'cancelled': return 'Đã hủy';
+            case 'UPCOMING': return 'Đã lên lịch';
+            case 'IN_PROGRESS': return 'Đang diễn ra';
+            case 'COMPLETED': return 'Hoàn thành';
+            case 'CANCELLED': return 'Đã hủy';
             default: return status;
         }
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -153,10 +197,10 @@ export default function ClassesPage() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                        <SelectItem value="scheduled">Đã lên lịch</SelectItem>
-                        <SelectItem value="ongoing">Đang diễn ra</SelectItem>
-                        <SelectItem value="completed">Hoàn thành</SelectItem>
-                        <SelectItem value="cancelled">Đã hủy</SelectItem>
+                        <SelectItem value="UPCOMING">Đã lên lịch</SelectItem>
+                        <SelectItem value="IN_PROGRESS">Đang diễn ra</SelectItem>
+                        <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                        <SelectItem value="CANCELLED">Đã hủy</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -179,24 +223,24 @@ export default function ClassesPage() {
                         </TableHeader>
                         <TableBody>
                             {filteredClasses.map((cls) => {
-                                const fillRate = (cls.enrolled / cls.capacity) * 100;
+                                const fillRate = cls.capacity > 0 ? (cls.enrolled / cls.capacity) * 100 : 0;
                                 return (
                                     <TableRow key={cls.id}>
                                         <TableCell>
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-sm">{cls.code}</span>
-                                                <span className="text-sm text-muted-foreground">{getCourseName(cls.courseId)}</span>
+                                                <span className="text-sm text-muted-foreground">{cls.courseName}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col text-sm">
                                                 <div className="flex items-center gap-1">
                                                     <Calendar className="h-3 w-3 text-muted-foreground" />
-                                                    <span>{cls.startDate}</span>
+                                                    <span>{new Date(cls.startDate).toLocaleDateString('vi-VN')}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 text-muted-foreground">
                                                     <Clock className="h-3 w-3" />
-                                                    <span>Đến {cls.endDate}</span>
+                                                    <span>Đến {new Date(cls.endDate).toLocaleDateString('vi-VN')}</span>
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -208,7 +252,7 @@ export default function ClassesPage() {
                                                 </div>
                                                 <div className="flex items-center gap-1 text-muted-foreground">
                                                     <User className="h-3 w-3" />
-                                                    <span>{cls.instructor}</span>
+                                                    <span>{cls.instructor || '-'}</span>
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -236,6 +280,9 @@ export default function ClassesPage() {
                             })}
                         </TableBody>
                     </Table>
+                    {filteredClasses.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">Không có lớp học nào</div>
+                    )}
                 </CardContent>
             </Card>
 

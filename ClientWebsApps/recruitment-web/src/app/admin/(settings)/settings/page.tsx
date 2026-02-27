@@ -38,9 +38,15 @@ import {
     LayoutGrid
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAuditLogs, getSecurityConfig, getEmailTemplates } from '@/lib/mocks/settings';
 import { roleLabels } from '@/lib/rbac';
 import { cn } from '@/lib/utils';
+
+const emailTemplatesData = [
+    { id: '1', name: 'Xác nhận tuyển dụng', description: 'Gửi khi ứng viên được chấp nhận' },
+    { id: '2', name: 'Thông báo phỏng vấn', description: 'Lịch phỏng vấn với ứng viên' },
+    { id: '3', name: 'Chào mừng nhân viên mới', description: 'Email onboarding' },
+    { id: '4', name: 'Thông báo nghỉ phép', description: 'Xác nhận yêu cầu nghỉ phép' },
+];
 import { CompanyProfile } from '@/components/admin/settings/general/company-profile';
 import { SystemSecurity } from '@/components/admin/settings/general/system-security';
 import { DepartmentList } from '@/components/admin/settings/organization/department-list';
@@ -54,7 +60,7 @@ import { ApprovalWorkflowSettings } from '@/components/admin/settings/workflow/a
 
 export default function AdminSettingsPage() {
     const [activeTab, setActiveTab] = useState("company");
-    const [emailTemplates] = useState(getEmailTemplates());
+    const [emailTemplates] = useState(emailTemplatesData);
 
     const sidebarItems = [
         {

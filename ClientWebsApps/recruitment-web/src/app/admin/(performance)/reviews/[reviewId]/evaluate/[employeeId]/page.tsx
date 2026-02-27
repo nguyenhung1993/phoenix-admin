@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
     Table,
     TableBody,
@@ -22,10 +22,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { mockEmployees } from '@/lib/mocks/hrm';
-import { mockReviewCycles, mockEvaluations, mockKPIs, KPIResult } from '@/lib/mocks/performance';
 
-// Schema for validation
 const evaluationSchema = z.object({
     kpiResults: z.array(z.object({
         kpiId: z.string(),
@@ -43,6 +40,28 @@ const evaluationSchema = z.object({
 
 type EvaluationFormValues = z.infer<typeof evaluationSchema>;
 
+interface EmployeeInfo {
+    id: string;
+    employeeCode: string;
+    fullName: string;
+    departmentName: string;
+    positionName: string;
+    hireDate: string;
+}
+
+interface ReviewCycleInfo {
+    id: string;
+    name: string;
+}
+
+interface KPIItem {
+    id: string;
+    name: string;
+    target: number;
+    weight: number;
+    departmentId: string | null;
+}
+
 export default function EvaluationFormPage() {
     const params = useParams();
     const router = useRouter();
@@ -50,33 +69,18 @@ export default function EvaluationFormPage() {
     const employeeId = params.employeeId as string;
     const [isLoading, setIsLoading] = useState(false);
     const [totalScore, setTotalScore] = useState(0);
-
-    const cycle = mockReviewCycles.find(c => c.id === reviewId);
-    const employee = mockEmployees.find(e => e.id === employeeId);
-    const existingEvaluation = mockEvaluations.find(e => e.reviewCycleId === reviewId && e.employeeId === employeeId);
-
-    // Initial KPI setup: either from existing evaluation or default from library based on department
-    const defaultKpis: KPIResult[] = existingEvaluation
-        ? existingEvaluation.kpiResults
-        : mockKPIs
-            .filter(k => !k.departmentId || k.departmentId === employee?.departmentId) // Filter relevant KPIs
-            .map(k => ({
-                kpiId: k.id,
-                kpiName: k.name,
-                target: k.target,
-                weight: k.weight,
-                actual: 0,
-                score: 0,
-                comment: ''
-            }));
+    const [pageLoading, setPageLoading] = useState(true);
+    const [cycle, setCycle] = useState<ReviewCycleInfo | null>(null);
+    const [employee, setEmployee] = useState<EmployeeInfo | null>(null);
+    const [existingEval, setExistingEval] = useState<any>(null);
 
     const form = useForm<EvaluationFormValues>({
         resolver: zodResolver(evaluationSchema) as any,
         defaultValues: {
-            kpiResults: defaultKpis,
-            strengths: existingEvaluation?.strengths || '',
-            weaknesses: existingEvaluation?.weaknesses || '',
-            developmentPlan: existingEvaluation?.developmentPlan || '',
+            kpiResults: [],
+            strengths: '',
+            weaknesses: '',
+            developmentPlan: '',
         },
     });
 
@@ -85,46 +89,118 @@ export default function EvaluationFormPage() {
         name: 'kpiResults',
     });
 
-    // Calculate score whenever form values change
-    const kpiResults = form.watch('kpiResults');
+    useEffect(() => {
+        const fetchData = async () => {
+            setPageLoading(true);
+            try {
+                const [cycleRes, evalRes, kpiRes, empRes] = await Promise.all([
+                    fetch('/api/reviews'),
+                    fetch(`/api/evaluations?reviewCycleId=${reviewId}`),
+                    fetch('/api/kpis'),
+                    fetch('/api/employees'),
+                ]);
+                const cycleJson = await cycleRes.json();
+                const evalJson = await evalRes.json();
+                const kpiJson = await kpiRes.json();
+                const empJson = await empRes.json();
 
+                const foundCycle = (cycleJson.data || []).find((c: any) => c.id === reviewId);
+                setCycle(foundCycle || null);
+
+                const foundEmp = (empJson.data || []).find((e: any) => e.id === employeeId);
+                setEmployee(foundEmp || null);
+
+                const foundEval = (evalJson.data || []).find((e: any) => e.employeeId === employeeId);
+                setExistingEval(foundEval || null);
+
+                // Build kpiResults
+                const kpis: KPIItem[] = kpiJson.data || [];
+                const relevantKpis = kpis.filter(k => !k.departmentId || k.departmentId === foundEmp?.departmentId);
+
+                let defaultKpis;
+                if (foundEval?.kpiResults && Array.isArray(foundEval.kpiResults)) {
+                    defaultKpis = foundEval.kpiResults;
+                } else {
+                    defaultKpis = relevantKpis.map(k => ({
+                        kpiId: k.id,
+                        kpiName: k.name,
+                        target: k.target,
+                        weight: k.weight,
+                        actual: 0,
+                        score: 0,
+                        comment: '',
+                    }));
+                }
+
+                form.reset({
+                    kpiResults: defaultKpis,
+                    strengths: foundEval?.strengths || '',
+                    weaknesses: foundEval?.weaknesses || '',
+                    developmentPlan: foundEval?.developmentPlan || '',
+                });
+            } catch {
+                setCycle(null);
+                setEmployee(null);
+            } finally {
+                setPageLoading(false);
+            }
+        };
+        fetchData();
+    }, [reviewId, employeeId]);
+
+    // Calculate score
+    const kpiResults = form.watch('kpiResults');
     useEffect(() => {
         let score = 0;
-        kpiResults.forEach(item => {
-            // Simple calculation logic: (Actual / Target) * Weight
-            // Cap at 120% achievement per KPI? Or simple proportional? 
-            // Let's assume standard logic: Achievement % * Weight. 
-            // Max score contribution = Weight (if capped at 100%) or Score (if uncapped).
-            // Let's cap achievement at 150% to prevent skewing.
-
+        (kpiResults || []).forEach(item => {
             if (item.target > 0) {
-                const achievementRate = Math.min(item.actual / item.target, 1.2); // Cap 120%
+                const achievementRate = Math.min(item.actual / item.target, 1.2);
                 score += achievementRate * item.weight;
-            } else {
-                // For KPIs where target is 0 (?) usually target is > 0. 
-                // If numeric target is 0 (e.g. errors), lower is better? 
-                // Simplified for now: Target > 0, Higher Actual is better.
             }
         });
         setTotalScore(Math.round(score));
     }, [kpiResults]);
 
-    if (!cycle || !employee) return <div>Data not found</div>;
+    if (pageLoading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
+
+    if (!cycle || !employee) return <div className="p-8 text-center text-muted-foreground">Không tìm thấy dữ liệu</div>;
 
     const handleSubmit = async (values: EvaluationFormValues, isDraft: boolean) => {
         setIsLoading(true);
-        // Simulate API
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            const body = {
+                ...(existingEval ? { id: existingEval.id } : {}),
+                reviewCycleId: reviewId,
+                employeeId,
+                kpiResults: values.kpiResults,
+                strengths: values.strengths,
+                weaknesses: values.weaknesses,
+                developmentPlan: values.developmentPlan,
+                finalScore: totalScore,
+                status: isDraft ? 'DRAFT' : 'SUBMITTED',
+            };
 
-        console.log('Submission:', { ...values, totalScore, isDraft });
+            const method = existingEval ? 'PATCH' : 'POST';
+            await fetch('/api/evaluations', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
-        toast.success(isDraft ? 'Đã lưu bản nháp' : 'Đã gửi đánh giá', {
-            description: `Tổng điểm: ${totalScore}/100`
-        });
+            toast.success(isDraft ? 'Đã lưu bản nháp' : 'Đã gửi đánh giá', {
+                description: `Tổng điểm: ${totalScore}/100`
+            });
 
-        setIsLoading(false);
-        if (!isDraft) {
-            router.push(`/admin/reviews/${reviewId}`);
+            if (!isDraft) {
+                router.push(`/admin/reviews/${reviewId}`);
+            }
+        } catch {
+            toast.error('Có lỗi xảy ra');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -145,7 +221,6 @@ export default function EvaluationFormPage() {
                 <CardContent className="pt-6">
                     <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
                         <Avatar className="h-20 w-20">
-                            <AvatarImage src={employee.avatar} alt={employee.fullName} />
                             <AvatarFallback className="text-xl">{employee.fullName.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="space-y-1 flex-1">
@@ -154,7 +229,6 @@ export default function EvaluationFormPage() {
                                 <p>Mã NV: <span className="text-foreground">{employee.employeeCode}</span></p>
                                 <p>Phòng ban: <span className="text-foreground">{employee.departmentName}</span></p>
                                 <p>Vị trí: <span className="text-foreground">{employee.positionName}</span></p>
-                                <p>Ngày vào làm: <span className="text-foreground">{employee.hireDate}</span></p>
                             </div>
                         </div>
                         <div className="text-right">
@@ -238,7 +312,7 @@ export default function EvaluationFormPage() {
                 </Card>
 
                 {/* Qualitative Section */}
-                <Card>
+                <Card className="mt-6">
                     <CardHeader>
                         <CardTitle>Đánh giá năng lực & Phẩm chất</CardTitle>
                     </CardHeader>

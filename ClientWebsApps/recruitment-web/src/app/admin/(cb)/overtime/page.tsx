@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,39 +22,119 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    mockOvertimeRequests,
-    overtimeStatusLabels,
-    OvertimeRequest,
-    OvertimeStatus,
-} from '@/lib/mocks';
-import {
     Clock,
     Plus,
     Eye,
     Check,
     X,
     Timer,
+    Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
+
+type OvertimeStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+const overtimeStatusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    PENDING: { label: 'Chờ duyệt', variant: 'secondary' },
+    APPROVED: { label: 'Đã duyệt', variant: 'default' },
+    REJECTED: { label: 'Từ chối', variant: 'destructive' },
+};
+
+interface OvertimeRequest {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    hours: number;
+    reason: string;
+    status: OvertimeStatus;
+    approverName: string | null;
+    createdAt: string;
+}
 
 export default function OvertimePage() {
     const [statusFilter, setStatusFilter] = useState<OvertimeStatus | 'ALL'>('ALL');
     const [selectedRequest, setSelectedRequest] = useState<OvertimeRequest | null>(null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+    const [requests, setRequests] = useState<OvertimeRequest[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredRequests = mockOvertimeRequests.filter((req) => {
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/overtime-requests');
+            const json = await res.json();
+            setRequests(json.data || []);
+        } catch {
+            setRequests([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchData(); }, []);
+
+    const filteredRequests = requests.filter((req) => {
         return statusFilter === 'ALL' || req.status === statusFilter;
     });
 
     const requestsByStatus = {
-        ALL: mockOvertimeRequests.length,
-        PENDING: mockOvertimeRequests.filter((r) => r.status === 'PENDING').length,
-        APPROVED: mockOvertimeRequests.filter((r) => r.status === 'APPROVED').length,
-        REJECTED: mockOvertimeRequests.filter((r) => r.status === 'REJECTED').length,
+        ALL: requests.length,
+        PENDING: requests.filter((r) => r.status === 'PENDING').length,
+        APPROVED: requests.filter((r) => r.status === 'APPROVED').length,
+        REJECTED: requests.filter((r) => r.status === 'REJECTED').length,
     };
 
-    const totalApprovedHours = mockOvertimeRequests
+    const totalApprovedHours = requests
         .filter((r) => r.status === 'APPROVED')
         .reduce((sum, r) => sum + r.hours, 0);
+
+    const handleApprove = async () => {
+        if (!selectedRequest) return;
+        try {
+            const res = await fetch('/api/overtime-requests', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: selectedRequest.id, status: 'APPROVED' }),
+            });
+            if (res.ok) {
+                toast.success('Đã phê duyệt đơn tăng ca');
+                setDetailDialogOpen(false);
+                fetchData();
+            }
+        } catch {
+            toast.error('Lỗi kết nối server');
+        }
+    };
+
+    const handleReject = async () => {
+        if (!selectedRequest) return;
+        try {
+            const res = await fetch('/api/overtime-requests', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: selectedRequest.id, status: 'REJECTED' }),
+            });
+            if (res.ok) {
+                toast.error('Đã từ chối đơn tăng ca');
+                setDetailDialogOpen(false);
+                fetchData();
+            }
+        } catch {
+            toast.error('Lỗi kết nối server');
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -155,7 +235,7 @@ export default function OvertimePage() {
                         </TableHeader>
                         <TableBody>
                             {filteredRequests.map((request) => {
-                                const statusStyle = overtimeStatusLabels[request.status];
+                                const statusStyle = overtimeStatusLabels[request.status] || { label: request.status, variant: 'secondary' as const };
 
                                 return (
                                     <TableRow key={request.id}>
@@ -183,10 +263,16 @@ export default function OvertimePage() {
                                                 </Button>
                                                 {request.status === 'PENDING' && (
                                                     <>
-                                                        <Button variant="ghost" size="icon" className="text-green-600">
+                                                        <Button variant="ghost" size="icon" className="text-green-600" onClick={() => {
+                                                            setSelectedRequest(request);
+                                                            handleApprove();
+                                                        }}>
                                                             <Check className="h-4 w-4" />
                                                         </Button>
-                                                        <Button variant="ghost" size="icon" className="text-red-600">
+                                                        <Button variant="ghost" size="icon" className="text-red-600" onClick={() => {
+                                                            setSelectedRequest(request);
+                                                            handleReject();
+                                                        }}>
                                                             <X className="h-4 w-4" />
                                                         </Button>
                                                     </>
@@ -233,8 +319,8 @@ export default function OvertimePage() {
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Trạng thái</p>
-                                        <Badge variant={overtimeStatusLabels[selectedRequest.status].variant}>
-                                            {overtimeStatusLabels[selectedRequest.status].label}
+                                        <Badge variant={overtimeStatusLabels[selectedRequest.status]?.variant as any}>
+                                            {overtimeStatusLabels[selectedRequest.status]?.label}
                                         </Badge>
                                     </div>
                                     <div>
@@ -262,8 +348,8 @@ export default function OvertimePage() {
                                 </Button>
                                 {selectedRequest.status === 'PENDING' && (
                                     <>
-                                        <Button variant="destructive">Từ chối</Button>
-                                        <Button>Phê duyệt</Button>
+                                        <Button variant="destructive" onClick={handleReject}>Từ chối</Button>
+                                        <Button onClick={handleApprove}>Phê duyệt</Button>
                                     </>
                                 )}
                             </DialogFooter>

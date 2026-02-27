@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Table,
@@ -12,11 +12,45 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileQuestion, Clock, CheckCircle, Plus, Eye } from 'lucide-react';
-import { getExams, Exam } from '@/lib/mocks/training';
+import { FileQuestion, Clock, Plus, Eye, Loader2 } from 'lucide-react';
+
+interface ExamItem {
+    id: string;
+    title: string;
+    durationMinutes: number;
+    totalQuestions: number;
+    passScore: number;
+    status: string;
+}
 
 export default function ExamsPage() {
-    const [exams] = useState<Exam[]>(getExams());
+    const [exams, setExams] = useState<ExamItem[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchExams = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/exams');
+                const json = await res.json();
+                setExams(json.data || []);
+            } catch {
+                setExams([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchExams();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -65,8 +99,8 @@ export default function ExamsPage() {
                                     <TableCell>{exam.totalQuestions} câu</TableCell>
                                     <TableCell>{exam.passScore}/100</TableCell>
                                     <TableCell>
-                                        <Badge variant={exam.status === 'active' ? 'default' : 'secondary'}>
-                                            {exam.status === 'active' ? 'Đang dùng' : 'Nháp'}
+                                        <Badge variant={exam.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                                            {exam.status === 'ACTIVE' ? 'Đang dùng' : 'Nháp'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -78,6 +112,9 @@ export default function ExamsPage() {
                             ))}
                         </TableBody>
                     </Table>
+                    {exams.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">Không có bài kiểm tra nào</div>
+                    )}
                 </CardContent>
             </Card>
         </div>

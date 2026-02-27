@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,46 +31,126 @@ import {
     TabsContent
 } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { mockResignations, ResignationRequest, resignationStatusLabels } from '@/lib/mocks';
-import { mockEmployees } from '@/lib/mocks';
 import {
     Plus,
     Calendar,
     CheckCircle2,
     XCircle,
     User,
-    FileText,
+    Loader2,
 } from 'lucide-react';
 
-export default function ResignationPage() {
-    // Mock current user (In real app, get from session)
-    const currentUser = mockEmployees[0]; // Nguyen Van Minh (Director) - can see approves
-    // const currentUser = mockEmployees[5]; // Vo Thi Lan (Staff) - can see My Requests
+const resignationStatusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    PENDING: { label: 'Chờ duyệt', variant: 'secondary' },
+    APPROVED: { label: 'Đã duyệt', variant: 'default' },
+    REJECTED: { label: 'Từ chối', variant: 'destructive' },
+    COMPLETED: { label: 'Hoàn thành', variant: 'outline' },
+};
 
-    const [activeTab, setActiveTab] = useState('my-requests');
+interface ResignationRequest {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    employeeCode: string;
+    managerId: string;
+    managerName: string;
+    reason: string;
+    lastWorkingDate: string;
+    status: string;
+    handoverStatus: string;
+    feedback: string | null;
+    createdAt: string;
+}
+
+function formatDate(date: string | Date): string {
+    return new Date(date).toLocaleDateString('vi-VN');
+}
+
+export default function ResignationPage() {
+    const [activeTab, setActiveTab] = useState('all');
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState<ResignationRequest | null>(null);
+    const [resignations, setResignations] = useState<ResignationRequest[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [feedback, setFeedback] = useState('');
 
-    // Filter Logic
-    const myRequests = mockResignations.filter(r => r.employeeId === currentUser.id);
-    const pendingApprovals = mockResignations.filter(r => r.managerId === currentUser.id && r.status === 'PENDING');
-    const allRequests = mockResignations; // For HR View
+    // Create form
+    const [newReason, setNewReason] = useState('');
+    const [newLastDate, setNewLastDate] = useState('');
 
-    const handleCreate = () => {
-        setCreateDialogOpen(false);
-        toast.success('Đã gửi đơn xin nghỉ việc. Chờ quản lý duyệt.');
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/resignations');
+            const json = await res.json();
+            setResignations(json.data || []);
+        } catch {
+            setResignations([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleApprove = () => {
-        setApproveDialogOpen(false);
-        toast.success('Đã duyệt đơn xin nghỉ việc.');
+    useEffect(() => { fetchData(); }, []);
+
+    const pendingApprovals = resignations.filter(r => r.status === 'PENDING');
+    const allRequests = resignations;
+
+    const handleApprove = async () => {
+        if (!selectedRequest) return;
+        try {
+            const res = await fetch('/api/resignations', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: selectedRequest.id,
+                    status: 'APPROVED',
+                    feedback: feedback || null,
+                }),
+            });
+            if (res.ok) {
+                setApproveDialogOpen(false);
+                setFeedback('');
+                toast.success('Đã duyệt đơn xin nghỉ việc.');
+                fetchData();
+            }
+        } catch {
+            toast.error('Lỗi kết nối server');
+        }
     };
 
-    const handleReject = () => {
-        setApproveDialogOpen(false);
-        toast.error('Đã từ chối đơn xin nghỉ việc.');
+    const handleReject = async () => {
+        if (!selectedRequest) return;
+        try {
+            const res = await fetch('/api/resignations', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: selectedRequest.id,
+                    status: 'REJECTED',
+                    feedback: feedback || null,
+                }),
+            });
+            if (res.ok) {
+                setApproveDialogOpen(false);
+                setFeedback('');
+                toast.error('Đã từ chối đơn xin nghỉ việc.');
+                fetchData();
+            }
+        } catch {
+            toast.error('Lỗi kết nối server');
+        }
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -79,7 +159,6 @@ export default function ResignationPage() {
                     <h1 className="text-2xl font-bold">Quyết định nghỉ việc</h1>
                     <p className="text-muted-foreground">Quản lý quy trình Offboarding</p>
                 </div>
-                {/* Only Employee show Create Button */}
                 <Button onClick={() => setCreateDialogOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Tạo đơn nghỉ việc
@@ -88,7 +167,7 @@ export default function ResignationPage() {
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList>
-                    <TabsTrigger value="my-requests">Đơn của tôi</TabsTrigger>
+                    <TabsTrigger value="all">Tất cả (HR)</TabsTrigger>
                     <TabsTrigger value="approvals" className="relative">
                         Cần duyệt
                         {pendingApprovals.length > 0 && (
@@ -97,20 +176,19 @@ export default function ResignationPage() {
                             </span>
                         )}
                     </TabsTrigger>
-                    <TabsTrigger value="all">Tất cả (HR)</TabsTrigger>
                 </TabsList>
 
-                {/* MY REQUESTS */}
-                <TabsContent value="my-requests" className="mt-4">
+                {/* ALL - HR VIEW */}
+                <TabsContent value="all" className="mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Lịch sử gửi đơn</CardTitle>
+                            <CardTitle>Toàn bộ đơn nghỉ việc</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Ngày tạo</TableHead>
+                                        <TableHead>Nhân viên</TableHead>
                                         <TableHead>Lý do</TableHead>
                                         <TableHead>Ngày nghỉ dự kiến</TableHead>
                                         <TableHead>Người duyệt</TableHead>
@@ -118,18 +196,18 @@ export default function ResignationPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {myRequests.length === 0 ? (
+                                    {allRequests.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                Bạn chưa có đơn xin nghỉ việc nào.
+                                                Chưa có đơn xin nghỉ việc nào.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        myRequests.map((req) => (
+                                        allRequests.map((req) => (
                                             <TableRow key={req.id}>
-                                                <TableCell>{req.createdAt}</TableCell>
+                                                <TableCell className="font-medium">{req.employeeName}</TableCell>
                                                 <TableCell className="max-w-xs truncate">{req.reason}</TableCell>
-                                                <TableCell>{req.lastWorkingDate}</TableCell>
+                                                <TableCell>{formatDate(req.lastWorkingDate)}</TableCell>
                                                 <TableCell>{req.managerName}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={resignationStatusLabels[req.status]?.variant as any}>
@@ -179,7 +257,7 @@ export default function ResignationPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="max-w-xs truncate">{req.reason}</TableCell>
-                                                <TableCell>{req.lastWorkingDate}</TableCell>
+                                                <TableCell>{formatDate(req.lastWorkingDate)}</TableCell>
                                                 <TableCell>
                                                     <Badge variant="secondary">Chờ duyệt</Badge>
                                                 </TableCell>
@@ -199,43 +277,6 @@ export default function ResignationPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-
-                {/* ALL - HR VIEW */}
-                <TabsContent value="all" className="mt-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Toàn bộ đơn nghỉ việc</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nhân viên</TableHead>
-                                        <TableHead>Lý do</TableHead>
-                                        <TableHead>Ngày nghỉ dự kiến</TableHead>
-                                        <TableHead>Người duyệt</TableHead>
-                                        <TableHead>Trạng thái</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {allRequests.map((req) => (
-                                        <TableRow key={req.id}>
-                                            <TableCell className="font-medium">{req.employeeName}</TableCell>
-                                            <TableCell className="max-w-xs truncate">{req.reason}</TableCell>
-                                            <TableCell>{req.lastWorkingDate}</TableCell>
-                                            <TableCell>{req.managerName}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={resignationStatusLabels[req.status]?.variant as any}>
-                                                    {resignationStatusLabels[req.status]?.label}
-                                                </Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
             </Tabs>
 
             {/* CREATE DIALOG */}
@@ -244,7 +285,7 @@ export default function ResignationPage() {
                     <DialogHeader>
                         <DialogTitle>Tạo đơn xin nghỉ việc</DialogTitle>
                         <DialogDescription>
-                            Đơn sẽ được gửi đến quản lý trực tiếp của bạn để phê duyệt.
+                            Đơn sẽ được gửi đến quản lý trực tiếp để phê duyệt.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -252,17 +293,32 @@ export default function ResignationPage() {
                             <Label>Ngày làm việc cuối cùng (Dự kiến)</Label>
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input type="date" className="pl-9" />
+                                <Input
+                                    type="date"
+                                    className="pl-9"
+                                    value={newLastDate}
+                                    onChange={(e) => setNewLastDate(e.target.value)}
+                                />
                             </div>
                         </div>
                         <div className="grid gap-2">
                             <Label>Lý do nghỉ việc</Label>
-                            <Textarea placeholder="Vui lòng chia sẻ lý do..." rows={4} />
+                            <Textarea
+                                placeholder="Vui lòng chia sẻ lý do..."
+                                rows={4}
+                                value={newReason}
+                                onChange={(e) => setNewReason(e.target.value)}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Hủy</Button>
-                        <Button onClick={handleCreate}>Gửi đơn</Button>
+                        <Button onClick={() => {
+                            setCreateDialogOpen(false);
+                            setNewReason('');
+                            setNewLastDate('');
+                            toast.success('Đã gửi đơn xin nghỉ việc. Chờ quản lý duyệt.');
+                        }}>Gửi đơn</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -282,11 +338,11 @@ export default function ResignationPage() {
                                 <div className="p-4 bg-muted/30 rounded-lg space-y-2 text-sm border">
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Ngày gửi:</span>
-                                        <span>{selectedRequest.createdAt}</span>
+                                        <span>{formatDate(selectedRequest.createdAt)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Ngày cuối dự kiến:</span>
-                                        <span className="font-medium">{selectedRequest.lastWorkingDate}</span>
+                                        <span className="font-medium">{formatDate(selectedRequest.lastWorkingDate)}</span>
                                     </div>
                                     <div className="pt-2 border-t mt-2">
                                         <span className="text-muted-foreground block mb-1">Lý do:</span>
@@ -295,7 +351,11 @@ export default function ResignationPage() {
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Phản hồi từ quản lý (Optional)</Label>
-                                    <Textarea placeholder="Nhập ghi chú hoặc dặn dò..." />
+                                    <Textarea
+                                        placeholder="Nhập ghi chú hoặc dặn dò..."
+                                        value={feedback}
+                                        onChange={(e) => setFeedback(e.target.value)}
+                                    />
                                 </div>
                             </div>
                             <DialogFooter className="gap-2 sm:gap-0">

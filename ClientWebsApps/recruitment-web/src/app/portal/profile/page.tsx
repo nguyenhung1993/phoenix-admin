@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,26 +10,46 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { mockEmployees, mockDepartments, mockPositions, mockContracts } from '@/lib/mocks/hrm';
 
 export default function ProfilePage() {
     const { data: session } = useSession();
+    const [employee, setEmployee] = useState<any>(null);
+    const [department, setDepartment] = useState<any>(null);
+    const [position, setPosition] = useState<any>(null);
+    const [contract, setContract] = useState<any>(null);
 
-    // In real app, fetch employee data based on session user ID
-    // For mock, we'll try to find a matching employee or default to the first one
-    const employee = mockEmployees.find(e => e.email === session?.user?.email) || mockEmployees[0];
-
-    // Find related data
-    const department = mockDepartments.find(d => d.id === employee.departmentId);
-    const position = mockPositions.find(p => p.id === employee.positionId);
-    const contract = mockContracts.find(c => c.employeeId === employee.id);
+    useEffect(() => {
+        // Fetch employee profile from API
+        fetch('/api/employees?limit=1').then(r => r.json()).then((employees: any[]) => {
+            const emp = employees.find((e: any) => e.email === session?.user?.email) || employees[0];
+            if (emp) {
+                setEmployee(emp);
+                // Fetch related data
+                if (emp.departmentId) fetch(`/api/departments`).then(r => r.json()).then((depts: any[]) => setDepartment(depts.find((d: any) => d.id === emp.departmentId)));
+                if (emp.positionId) fetch(`/api/positions`).then(r => r.json()).then((positions: any[]) => setPosition(positions.find((p: any) => p.id === emp.positionId)));
+                fetch(`/api/contracts`).then(r => r.json()).then((contracts: any[]) => setContract(contracts.find((c: any) => c.employeeId === emp.id)));
+            }
+        }).catch(console.error);
+    }, [session]);
 
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
-        phone: employee.phone,
-        address: employee.address || '',
+        phone: '',
+        address: '',
         emergencyContact: 'Người thân (0987...)',
     });
+
+    useEffect(() => {
+        if (employee) {
+            setFormData({
+                phone: employee.phone || '',
+                address: employee.address || '',
+                emergencyContact: 'Người thân (0987...)',
+            });
+        }
+    }, [employee]);
+
+    if (!employee) return <div className="p-6 text-center text-muted-foreground">Đang tải hồ sơ...</div>;
 
     const handleSave = () => {
         // Here you would call API to update profile

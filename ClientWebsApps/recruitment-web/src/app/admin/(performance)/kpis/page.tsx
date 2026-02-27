@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -19,18 +19,53 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Edit, Trash2, Filter } from 'lucide-react';
-import { mockKPIs, KPI, kpiCategoryLabels } from '@/lib/mocks/performance';
+import { Plus, Search, Edit, Trash2, Filter, Loader2 } from 'lucide-react';
 import { KPIDialog } from '@/components/admin/performance/kpi-dialog';
-import { mockDepartments } from '@/lib/mocks/hrm';
+
+const kpiCategoryLabels: Record<string, string> = {
+    FINANCIAL: 'Tài chính',
+    CUSTOMER: 'Khách hàng',
+    INTERNAL: 'Quy trình nội bộ',
+    LEARNING: 'Đào tạo & Phát triển',
+};
+
+interface KPI {
+    id: string;
+    code: string;
+    name: string;
+    description: string | null;
+    unit: string;
+    target: number;
+    weight: number;
+    category: string;
+    departmentId: string | null;
+    departmentName: string;
+}
 
 export default function KPIsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('ALL');
     const [dialogOpen, setDialogOpen] = useState(false);
     const [kpiToEdit, setKpiToEdit] = useState<KPI | null>(null);
+    const [kpis, setKpis] = useState<KPI[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredKPIs = mockKPIs.filter(kpi => {
+    const fetchKpis = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/kpis');
+            const json = await res.json();
+            setKpis(json.data || []);
+        } catch {
+            setKpis([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchKpis(); }, []);
+
+    const filteredKPIs = kpis.filter(kpi => {
         const matchesSearch = kpi.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             kpi.code.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesCategory = categoryFilter === 'ALL' || kpi.category === categoryFilter;
@@ -47,10 +82,14 @@ export default function KPIsPage() {
         setDialogOpen(true);
     };
 
-    const getDepartmentName = (id?: string) => {
-        if (!id || id === 'ALL') return 'Chung';
-        return mockDepartments.find(d => d.id === id)?.name || id;
-    };
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -113,13 +152,13 @@ export default function KPIsPage() {
                                 <TableCell>
                                     <div>
                                         <div className="font-medium">{kpi.name}</div>
-                                        <div className="text-xs text-muted-foreground line-clamp-1" title={kpi.description}>
+                                        <div className="text-xs text-muted-foreground line-clamp-1" title={kpi.description || ''}>
                                             {kpi.description}
                                         </div>
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="outline">{kpiCategoryLabels[kpi.category]}</Badge>
+                                    <Badge variant="outline">{kpiCategoryLabels[kpi.category] || kpi.category}</Badge>
                                 </TableCell>
                                 <TableCell className="text-muted-foreground text-sm">{kpi.unit}</TableCell>
                                 <TableCell>
@@ -130,7 +169,7 @@ export default function KPIsPage() {
                                 </TableCell>
                                 <TableCell>{kpi.weight}%</TableCell>
                                 <TableCell className="text-muted-foreground text-sm">
-                                    {getDepartmentName(kpi.departmentId)}
+                                    {kpi.departmentName}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={() => handleEdit(kpi)}>
@@ -144,12 +183,15 @@ export default function KPIsPage() {
                         ))}
                     </TableBody>
                 </Table>
+                {filteredKPIs.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">Không có KPI nào</div>
+                )}
             </div>
 
             <KPIDialog
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
-                kpiToEdit={kpiToEdit}
+                kpiToEdit={kpiToEdit as any}
             />
         </div>
     );
