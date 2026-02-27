@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Light Blue Chevron -->
+  <path d="M 61 106 L 211 256 L 61 406 L 121 406 L 271 256 L 121 106 Z" fill="#7ba5d6" />
+  <!-- Red Chevron -->
+  <path d="M 151 106 L 301 256 L 151 406 L 211 406 L 361 256 L 211 106 Z" fill="#ce181e" />
+  <!-- Dark Blue Chevron -->
+  <path d="M 241 106 L 391 256 L 241 406 L 301 406 L 451 256 L 301 106 Z" fill="#002b5e" />
+</svg>
