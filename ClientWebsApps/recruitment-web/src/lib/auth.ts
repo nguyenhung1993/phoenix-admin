@@ -119,28 +119,41 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
             if (token.role) {
                 session.user.role = token.role as Role;
-            } else if (session.user.email) {
-                // Determine role if not in token (e.g. OAuth first login)
-                const role = await getUserRole(session.user.email);
-                session.user.role = role;
-                // We should also update the token with the role so subsequent requests have it? 
-                // Creating a session doesn't update the token. 
-                // The jwt callback runs before session.
             }
             return session;
         },
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger }) {
+            // "user" is only passed on the initial sign-in
             if (user) {
                 token.id = user.id;
-                if ('role' in user) {
-                    token.role = user.role as Role;
+
+                // Recalculate true role instead of trusting the DB default "EMPLOYEE" 
+                // when user is first created by OAuth
+                if (user.email) {
+                    const realRole = await getUserRole(user.email);
+                    token.role = realRole;
+
+                    const userRole = 'role' in user ? user.role : undefined;
+
+                    // Sync the real role back to the DB to override the default "EMPLOYEE"
+                    if (user.id && userRole !== realRole) {
+                        try {
+                            await prisma.user.update({
+                                where: { id: user.id },
+                                data: { role: realRole }
+                            });
+                        } catch (error) {
+                            console.error("Failed to sync role to db:", error);
+                        }
+                    }
                 }
             }
-            // If role is missing (e.g. OAuth login), try to fetch it
+
+            // Fallback if role is somewhy missing
             if (!token.role && token.email) {
-                const role = await getUserRole(token.email);
-                token.role = role;
+                token.role = await getUserRole(token.email);
             }
+
             return token;
         },
     }
