@@ -40,7 +40,7 @@ export function Footer() {
                     <div className="space-y-4">
                         <h4 className="font-semibold">Công ty</h4>
                         <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li><Link href="#" target="_blank" className="hover:text-primary">Phoenix Vietnam</Link></li>
+                            <li><Link href="#" className="hover:text-primary">Phoenix Vietnam</Link></li>
                             <li><Link href="#" className="hover:text-primary">Chính sách bảo mật</Link></li>
                             <li><Link href="#" className="hover:text-primary">Điều khoản sử dụng</Link></li>
                         </ul>

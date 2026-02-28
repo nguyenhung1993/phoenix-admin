@@ -11,7 +11,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Settings, LogOut, LayoutDashboard } from 'lucide-react';
+import { Settings, LogOut, LayoutDashboard, User } from 'lucide-react';
 
 export function UserNav() {
     const { data: session, status } = useSession();
@@ -66,15 +66,21 @@ export function UserNav() {
                     <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
-                            <Link href="/admin" className="cursor-pointer">
+                            <Link href="/" className="cursor-pointer">
                                 <LayoutDashboard className="mr-2 h-4 w-4" />
-                                Admin Panel
+                                Trang chủ
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                            <Link href="/admin/settings" className="cursor-pointer">
+                            <Link href="/portal" className="cursor-pointer">
+                                <User className="mr-2 h-4 w-4" />
+                                Nhân viên
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href="/admin" className="cursor-pointer">
                                 <Settings className="mr-2 h-4 w-4" />
-                                Cài đặt
+                                Quản trị
                             </Link>
                         </DropdownMenuItem>
                     </>

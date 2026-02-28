@@ -20,14 +20,15 @@ export default function ProfilePage() {
 
     useEffect(() => {
         // Fetch employee profile from API
-        fetch('/api/employees?limit=1').then(r => r.json()).then((employees: any[]) => {
+        fetch('/api/employees?limit=50').then(r => r.json()).then((res: any) => {
+            const employees = res.data || [];
             const emp = employees.find((e: any) => e.email === session?.user?.email) || employees[0];
             if (emp) {
                 setEmployee(emp);
                 // Fetch related data
-                if (emp.departmentId) fetch(`/api/departments`).then(r => r.json()).then((depts: any[]) => setDepartment(depts.find((d: any) => d.id === emp.departmentId)));
-                if (emp.positionId) fetch(`/api/positions`).then(r => r.json()).then((positions: any[]) => setPosition(positions.find((p: any) => p.id === emp.positionId)));
-                fetch(`/api/contracts`).then(r => r.json()).then((contracts: any[]) => setContract(contracts.find((c: any) => c.employeeId === emp.id)));
+                if (emp.departmentId) fetch(`/api/departments`).then(r => r.json()).then((res: any) => setDepartment((res.data || res || []).find((d: any) => d.id === emp.departmentId)));
+                if (emp.positionId) fetch(`/api/positions`).then(r => r.json()).then((res: any) => setPosition((res.data || res || []).find((p: any) => p.id === emp.positionId)));
+                fetch(`/api/contracts`).then(r => r.json()).then((res: any) => setContract((res.data || res || []).find((c: any) => c.employeeId === emp.id)));
             }
         }).catch(console.error);
     }, [session]);

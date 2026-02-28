@@ -68,6 +68,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
+                    <Link href="/">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Trang chủ
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                     <Link href="/portal/profile">
                         <User className="mr-2 h-4 w-4" />
                         Hồ sơ cá nhân
