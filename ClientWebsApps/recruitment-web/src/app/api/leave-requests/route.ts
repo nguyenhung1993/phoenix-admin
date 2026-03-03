@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { notificationService } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,7 +91,26 @@ export async function PATCH(request: NextRequest) {
                 approverName: approverName || null,
                 approvedAt: ['APPROVED', 'REJECTED'].includes(status) ? new Date() : undefined,
             },
+            include: {
+                employee: {
+                    select: { fullName: true, user: { select: { id: true } } },
+                },
+            },
         });
+
+        // Send notification to employee about their leave request result
+        if (updated.employee?.user?.id && ['APPROVED', 'REJECTED'].includes(status)) {
+            const statusText = status === 'APPROVED' ? 'được duyệt ✅' : 'bị từ chối ❌';
+            await notificationService.notify({
+                userId: updated.employee.user.id,
+                title: `Đơn nghỉ phép ${statusText}`,
+                message: `Đơn nghỉ phép ${updated.leaveType} của bạn đã ${statusText}${approverName ? ` bởi ${approverName}` : ''}.${rejectionReason ? ` Lý do: ${rejectionReason}` : ''}`,
+                type: 'LEAVE_REQUEST',
+                priority: 'HIGH',
+                actionUrl: '/portal/requests',
+                senderName: approverName || 'Hệ thống',
+            });
+        }
 
         return NextResponse.json(updated);
     } catch (error) {

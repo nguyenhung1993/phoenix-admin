@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNotifications } from '@/lib/contexts/notification-context';
 import {
     DropdownMenu,
@@ -11,15 +11,31 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Bell, Check, Clock, Calendar, AlertTriangle, Info, Mail } from 'lucide-react';
+import { Bell, Clock, Calendar, AlertTriangle, Info, UserPlus, Briefcase } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 export function NotificationDropdown() {
     const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
     const [open, setOpen] = useState(false);
+    const [hasNewNotification, setHasNewNotification] = useState(false);
+    const [prevUnreadCount, setPrevUnreadCount] = useState(0);
+
+    // Detect new notifications and trigger animation
+    useEffect(() => {
+        if (unreadCount > prevUnreadCount && prevUnreadCount !== 0) {
+            setHasNewNotification(true);
+            const timer = setTimeout(() => setHasNewNotification(false), 3000);
+            return () => clearTimeout(timer);
+        }
+        setPrevUnreadCount(unreadCount);
+    }, [unreadCount, prevUnreadCount]);
+
+    // Clear animation when dropdown opens
+    useEffect(() => {
+        if (open) setHasNewNotification(false);
+    }, [open]);
 
     const getIcon = (type: string) => {
         switch (type) {
@@ -28,6 +44,8 @@ export function NotificationDropdown() {
             case 'CONTRACT_EXPIRY': return <AlertTriangle className="h-4 w-4 text-red-500" />;
             case 'SYSTEM_ALERT': return <AlertTriangle className="h-4 w-4 text-red-500" />;
             case 'BIRTHDAY': return <span className="text-lg">🎂</span>;
+            case 'TASK_ASSIGNMENT': return <Briefcase className="h-4 w-4 text-blue-500" />;
+            case 'RECRUITMENT': return <UserPlus className="h-4 w-4 text-green-500" />;
             default: return <Info className="h-4 w-4 text-blue-500" />;
         }
     };
@@ -47,9 +65,17 @@ export function NotificationDropdown() {
         <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
+                    <Bell className={cn(
+                        "h-5 w-5 transition-transform",
+                        hasNewNotification && "animate-[bell-ring_0.5s_ease-in-out_2]"
+                    )} />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-600 border-2 border-background ring-0" />
+                        <span className={cn(
+                            "absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 border-2 border-background transition-transform",
+                            hasNewNotification && "animate-bounce"
+                        )}>
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
                     )}
                 </Button>
             </DropdownMenuTrigger>
@@ -85,9 +111,6 @@ export function NotificationDropdown() {
                                     )}
                                     onClick={() => {
                                         markAsRead(notification.id);
-                                        // If there is an action URL, we could navigate differently, 
-                                        // but Link component inside isn't ideal for DropdownMenuItem interaction.
-                                        // For now, onClick just marks as read.
                                     }}
                                 >
                                     <div className="flex items-start gap-3 w-full">
@@ -114,7 +137,7 @@ export function NotificationDropdown() {
                                                     href={notification.actionUrl}
                                                     className="inline-flex items-center text-xs font-medium text-primary hover:underline mt-1"
                                                     onClick={(e) => {
-                                                        e.stopPropagation(); // Prevent Dropdown close immediately if needed, or let it close
+                                                        e.stopPropagation();
                                                         markAsRead(notification.id);
                                                         setOpen(false);
                                                     }}

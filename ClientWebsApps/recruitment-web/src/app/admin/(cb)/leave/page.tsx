@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,7 @@ import {
     Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PageHeaderSkeleton, CardGridSkeleton, TableSkeleton } from '@/components/ui/skeletons';
 
 const leaveTypeLabels: Record<string, { label: string; color: string }> = {
     ANNUAL: { label: 'Phép năm', color: 'bg-blue-100 text-blue-700' },
@@ -114,51 +115,71 @@ export default function LeavePage() {
         REJECTED: requests.filter((r) => r.status === 'REJECTED').length,
     };
 
+    // Optimistic update helper
+    const updateRequestStatus = useCallback((id: string, status: LeaveStatus) => {
+        setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    }, []);
+
     const handleApprove = async () => {
         if (!selectedRequest) return;
+        const prevRequests = [...requests];
+
+        // Optimistic update
+        updateRequestStatus(selectedRequest.id, 'APPROVED');
+        setDetailDialogOpen(false);
+        toast.success('Đã phê duyệt đơn nghỉ phép', {
+            description: `Nhân viên: ${selectedRequest.employeeName}`
+        });
+
         try {
             const res = await fetch('/api/leave-requests', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: selectedRequest.id, status: 'APPROVED' }),
             });
-            if (res.ok) {
-                toast.success('Đã phê duyệt đơn nghỉ phép', {
-                    description: `Nhân viên: ${selectedRequest.employeeName}`
-                });
-                setDetailDialogOpen(false);
-                fetchData();
+            if (!res.ok) {
+                setRequests(prevRequests);
+                toast.error('Lỗi khi duyệt đơn');
             }
         } catch {
+            setRequests(prevRequests);
             toast.error('Lỗi kết nối server');
         }
     };
 
     const handleReject = async () => {
         if (!selectedRequest) return;
+        const prevRequests = [...requests];
+
+        // Optimistic update
+        updateRequestStatus(selectedRequest.id, 'REJECTED');
+        setDetailDialogOpen(false);
+        toast.error('Đã từ chối đơn nghỉ phép', {
+            description: `Nhân viên: ${selectedRequest.employeeName}`
+        });
+
         try {
             const res = await fetch('/api/leave-requests', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: selectedRequest.id, status: 'REJECTED' }),
             });
-            if (res.ok) {
-                toast.error('Đã từ chối đơn nghỉ phép', {
-                    description: `Nhân viên: ${selectedRequest.employeeName}`
-                });
-                setDetailDialogOpen(false);
-                fetchData();
+            if (!res.ok) {
+                setRequests(prevRequests);
+                toast.error('Lỗi khi từ chối đơn');
             }
         } catch {
+            setRequests(prevRequests);
             toast.error('Lỗi kết nối server');
         }
     };
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-muted-foreground">Đang tải dữ liệu...</span>
+            <div className="space-y-6">
+                <PageHeaderSkeleton actionCount={1} />
+                <CardGridSkeleton count={4} />
+                <TableSkeleton rows={6} columns={7} />
             </div>
         );
     }

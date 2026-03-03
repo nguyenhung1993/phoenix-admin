@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { notificationService } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,7 +68,26 @@ export async function PATCH(request: NextRequest) {
                 approverName: approverName || null,
                 approvedAt: ['APPROVED', 'REJECTED'].includes(status) ? new Date() : undefined,
             },
+            include: {
+                employee: {
+                    select: { fullName: true, user: { select: { id: true } } },
+                },
+            },
         });
+
+        // Send notification to employee about their overtime request result
+        if (updated.employee?.user?.id && ['APPROVED', 'REJECTED'].includes(status)) {
+            const statusText = status === 'APPROVED' ? 'được duyệt ✅' : 'bị từ chối ❌';
+            await notificationService.notify({
+                userId: updated.employee.user.id,
+                title: `Đơn tăng ca ${statusText}`,
+                message: `Đơn tăng ca ngày ${new Date(updated.date).toLocaleDateString('vi-VN')} (${updated.hours}h) của bạn đã ${statusText}${approverName ? ` bởi ${approverName}` : ''}.`,
+                type: 'OVERTIME_REQUEST',
+                priority: 'HIGH',
+                actionUrl: '/portal/requests',
+                senderName: approverName || 'Hệ thống',
+            });
+        }
 
         return NextResponse.json(updated);
     } catch (error) {
