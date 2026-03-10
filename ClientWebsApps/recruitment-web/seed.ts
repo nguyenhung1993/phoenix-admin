@@ -44,7 +44,7 @@ async function main() {
                             companyId: createdComp.id
                         }
                     });
-                } catch (err) {
+                } catch (err: any) {
                     console.log(`Lỗi khi tạo phòng ban ${name}:`, err.message);
                 }
             }
