@@ -78,6 +78,7 @@ enum Role {
   DEPARTMENT_HEAD
   EMPLOYEE
   VIEWER
+  ASSET_MANAGER
 }
 
 enum UserStatus {
@@ -329,6 +330,18 @@ enum AssetStatus {
   LIQUIDATED
 }
 
+enum AllocationStatus {
+  ALLOCATED
+  RETURNED
+}
+
+enum MaintenanceType {
+  REPAIR
+  UPGRADE
+  INSPECTION
+  OTHER
+}
+
 enum PostType {
   ANNOUNCEMENT
   SOCIAL
@@ -404,23 +417,39 @@ enum InsuranceRateType {
 
 // ==================== HRM CORE ====================
 
+model Company {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  departments   Department[]
+  assets        Asset[]
+}
+
 model Department {
   id            String   @id @default(cuid())
   code          String   @unique
   name          String
   parentId      String?
   managerId     String?
+  companyId     String?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   // Relations
+  company       Company?     @relation(fields: [companyId], references: [id])
   parent        Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
   children      Department[] @relation("DepartmentHierarchy")
   employees     Employee[]
   positions     Position[]
   jobs          Job[]
   kpis          KPI[]
+  assets        Asset[]
 }
 
 model Position {
@@ -481,6 +510,7 @@ model Employee {
   insuranceRecords InsuranceRecord[]
   payrollSlips    PayrollSlip[]
   assets          Asset[]             @relation("AssetHolder")
+  assetAllocations AssetAllocation[]
   evaluations     Evaluation[]        @relation("EvalEmployee")
   reviews         Evaluation[]        @relation("EvalReviewer")
   resignations    ResignationRequest[] @relation("ResEmployee")
@@ -964,11 +994,14 @@ model Asset {
   id              String      @id @default(cuid())
   code            String      @unique
   name            String
-  type            AssetType
+  type            AssetType   @default(OTHER)
+  category        String?     // For custom string asset types
   status          AssetStatus @default(AVAILABLE)
   purchaseDate    DateTime
   price           Float
   description     String?     @db.Text
+  companyId       String?
+  departmentId    String?
   holderId        String?
   holderName      String?
   assignedDate    DateTime?
@@ -976,7 +1009,41 @@ model Asset {
   updatedAt       DateTime    @updatedAt
 
   // Relations
+  company         Company?    @relation(fields: [companyId], references: [id])
+  department      Department? @relation(fields: [departmentId], references: [id])
   holder          Employee?   @relation("AssetHolder", fields: [holderId], references: [id])
+  allocations     AssetAllocation[]
+  maintenances    AssetMaintenance[]
+}
+
+model AssetAllocation {
+  id            String           @id @default(cuid())
+  assetId       String
+  employeeId    String
+  allocatedDate DateTime         @default(now())
+  returnedDate  DateTime?
+  status        AllocationStatus @default(ALLOCATED)
+  notes         String?          @db.Text
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  // Relations
+  asset         Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  employee      Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model AssetMaintenance {
+  id              String          @id @default(cuid())
+  assetId         String
+  maintenanceType MaintenanceType
+  date            DateTime        @default(now())
+  cost            Float           @default(0)
+  note            String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  asset           Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
 }
 
 model Post {

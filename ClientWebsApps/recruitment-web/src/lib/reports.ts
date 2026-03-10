@@ -320,3 +320,134 @@ export async function getUpcomingEvents() {
 
     return events.slice(0, 5);
 }
+
+// ==================== ADVANCED ANALYTICS ====================
+
+export async function getRecruitmentOverview() {
+    const [totalJobs, openJobs, totalCandidates, pendingInterviews] = await Promise.all([
+        prisma.job.count(),
+        prisma.job.count({ where: { status: 'PUBLISHED' } }),
+        prisma.candidate.count(),
+        prisma.interview.count({ where: { status: 'SCHEDULED' } }),
+    ]);
+
+    return { totalJobs, openJobs, totalCandidates, pendingInterviews };
+}
+
+export async function getLeaveStats() {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [pendingLeaves, approvedThisMonth, totalSickThisMonth] = await Promise.all([
+        prisma.leaveRequest.count({ where: { status: 'PENDING' } }),
+        prisma.leaveRequest.count({
+            where: { status: 'APPROVED', createdAt: { gte: startOfMonth } },
+        }),
+        prisma.leaveRequest.count({
+            where: {
+                status: 'APPROVED',
+                leaveType: 'SICK',
+                createdAt: { gte: startOfMonth },
+            },
+        }),
+    ]);
+
+    return { pendingLeaves, approvedThisMonth, totalSickThisMonth };
+}
+
+export async function getAIInsights() {
+    const insights: { type: 'info' | 'warning' | 'success'; title: string; description: string }[] = [];
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    // 1. Turnover spike detection
+    const [resignationsThisMonth, resignationsLastMonth] = await Promise.all([
+        prisma.resignationRequest.count({
+            where: { createdAt: { gte: startOfMonth }, status: { in: ['APPROVED', 'COMPLETED'] } },
+        }),
+        prisma.resignationRequest.count({
+            where: { createdAt: { gte: lastMonth, lte: endOfLastMonth }, status: { in: ['APPROVED', 'COMPLETED'] } },
+        }),
+    ]);
+
+    if (resignationsThisMonth > resignationsLastMonth && resignationsThisMonth > 0) {
+        insights.push({
+            type: 'warning',
+            title: '⚠️ Tỷ lệ nghỉ việc tăng',
+            description: `Tháng này có ${resignationsThisMonth} đơn nghỉ việc (tháng trước: ${resignationsLastMonth}). Cần xem xét nguyên nhân.`,
+        });
+    }
+
+    // 2. Hiring bottleneck
+    const longPendingCandidates = await prisma.candidate.count({
+        where: {
+            status: { in: ['SCREENING', 'INTERVIEW'] },
+            appliedDate: { lte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        },
+    });
+
+    if (longPendingCandidates > 0) {
+        insights.push({
+            type: 'warning',
+            title: '🔄 Bottleneck tuyển dụng',
+            description: `${longPendingCandidates} ứng viên đang pending trên 30 ngày. Cân nhắc đẩy nhanh quy trình.`,
+        });
+    }
+
+    // 3. Leave pattern
+    const pendingLeaves = await prisma.leaveRequest.count({ where: { status: 'PENDING' } });
+    if (pendingLeaves >= 5) {
+        insights.push({
+            type: 'info',
+            title: '📋 Nhiều đơn nghỉ phép chờ duyệt',
+            description: `Có ${pendingLeaves} đơn nghỉ phép đang chờ duyệt. Nhắc người phụ trách xử lý.`,
+        });
+    }
+
+    // 4. Contracts expiring soon
+    const expiringContracts = await prisma.contract.count({
+        where: {
+            status: 'ACTIVE',
+            endDate: {
+                gte: now,
+                lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            },
+        },
+    });
+
+    if (expiringContracts > 0) {
+        insights.push({
+            type: 'warning',
+            title: '📄 Hợp đồng sắp hết hạn',
+            description: `${expiringContracts} hợp đồng sẽ hết hạn trong 30 ngày tới. Chuẩn bị gia hạn hoặc kết thúc.`,
+        });
+    }
+
+    // 5. Positive: new hires
+    const newHires = await prisma.employee.count({
+        where: { hireDate: { gte: startOfMonth }, status: { in: ['ACTIVE', 'PROBATION'] } },
+    });
+
+    if (newHires > 0) {
+        insights.push({
+            type: 'success',
+            title: '🎉 Tuyển dụng thành công',
+            description: `${newHires} nhân viên mới tháng này. Đảm bảo quy trình onboarding diễn ra tốt.`,
+        });
+    }
+
+    // Add a default if no insights
+    if (insights.length === 0) {
+        insights.push({
+            type: 'success',
+            title: '✅ Mọi thứ đang ổn',
+            description: 'Không phát hiện vấn đề nào cần lưu ý. Tiếp tục theo dõi.',
+        });
+    }
+
+    return insights;
+}
+

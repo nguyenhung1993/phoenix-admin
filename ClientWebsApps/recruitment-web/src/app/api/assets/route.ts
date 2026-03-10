@@ -6,13 +6,21 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const type = searchParams.get('type');
         const status = searchParams.get('status');
+        const companyId = searchParams.get('companyId');
+        const departmentId = searchParams.get('departmentId');
 
         const where: any = {};
         if (type && type !== 'ALL') where.type = type;
         if (status && status !== 'ALL') where.status = status;
+        if (companyId && companyId !== 'ALL') where.companyId = companyId;
+        if (departmentId && departmentId !== 'ALL') where.departmentId = departmentId;
 
         const assets = await prisma.asset.findMany({
             where,
+            include: {
+                company: { select: { name: true } },
+                department: { select: { name: true } }
+            },
             orderBy: { createdAt: 'desc' },
         });
 
@@ -26,6 +34,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
+        if (Array.isArray(body)) {
+            const assets = await prisma.asset.createMany({ data: body });
+            return NextResponse.json({ data: assets }, { status: 201 });
+        }
         const asset = await prisma.asset.create({ data: body });
         return NextResponse.json({ data: asset }, { status: 201 });
     } catch (error) {

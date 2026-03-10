@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense, useEffect, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,22 +19,19 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    Search, Plus, Eye, Pencil, Monitor, Laptop, Smartphone, Armchair, Car, Package, Trash2, Loader2,
+    Search, Plus, Eye, Pencil, Monitor, Laptop, Smartphone, Armchair, Car, Package, Trash2, Loader2, QrCode, Upload, ScanLine
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { QRScanner } from '@/components/QRScanner';
 
-const assetTypeLabels: Record<string, string> = {
-    LAPTOP: 'Laptop', MONITOR: 'Màn hình', PHONE: 'Điện thoại',
-    FURNITURE: 'Nội thất', VEHICLE: 'Xe cộ', OTHER: 'Khác',
-};
-
-const assetStatusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
-    AVAILABLE: { label: 'Sẵn sàng', variant: 'secondary' },
-    IN_USE: { label: 'Đang dùng', variant: 'default' },
+const assetStatusLabels: Record<string, { label: string, variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    AVAILABLE: { label: 'Sẵn sàng', variant: 'default' },
+    IN_USE: { label: 'Đang dùng', variant: 'destructive' },
+    BROKEN: { label: 'Hỏng', variant: 'secondary' },
     MAINTENANCE: { label: 'Bảo trì', variant: 'outline' },
-    BROKEN: { label: 'Hỏng', variant: 'destructive' },
-    DISPOSED: { label: 'Thanh lý', variant: 'outline' },
+    LIQUIDATED: { label: 'Thanh lý', variant: 'secondary' },
 };
 
 const formatCurrency = (value: number) =>
@@ -53,6 +52,8 @@ interface Asset {
     holderId?: string | null;
     holderName?: string | null;
     assignedDate?: string | null;
+    companyId?: string | null;
+    departmentId?: string | null;
 }
 
 export default function AssetsPage() {
@@ -87,27 +88,80 @@ function AssetsPageContent() {
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [qrDialogOpen, setQrDialogOpen] = useState(false);
+    const [scanDialogOpen, setScanDialogOpen] = useState(false);
+    const [qrAsset, setQrAsset] = useState<Asset | null>(null);
     const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
     const [employees, setEmployees] = useState<{ id: string; fullName: string }[]>([]);
+
+    // Legal Entity logic
+    const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+    const [departments, setDepartments] = useState<{ id: string; name: string; companyId: string }[]>([]);
+    const [activeCompanyId, setActiveCompanyId] = useState<string>('ALL');
+    const [departmentFilter, setDepartmentFilter] = useState<string>('ALL');
 
     const [formData, setFormData] = useState<Partial<Asset>>({
         code: '', name: '', type: 'LAPTOP', status: 'AVAILABLE',
         price: 0, purchaseDate: new Date().toISOString().split('T')[0],
-        holderId: 'none', description: '',
+        holderId: 'none', description: '', companyId: 'none', departmentId: 'none'
     });
     const [isEditing, setIsEditing] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows: any[] = XLSX.utils.sheet_to_json(firstSheet);
+
+                const assetsToImport = rows.map((row) => ({
+                    code: row['Mã TS'] || `AST${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+                    name: row['Tên tài sản'] || 'Tài sản mới',
+                    type: row['Loại'] || 'OTHER',
+                    status: 'AVAILABLE',
+                    price: Number(row['Giá trị'] || 0),
+                    purchaseDate: new Date().toISOString(),
+                    description: row['Ghi chú'] || null,
+                }));
+
+                await fetch('/api/assets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(assetsToImport),
+                });
+                toast.success(`Đã import ${assetsToImport.length} tài sản thành công`);
+                fetchAssets();
+            } catch (error) {
+                toast.error('Lỗi khi import file Excel');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
 
     const fetchAssets = async () => {
         setLoading(true);
         try {
-            const [assetRes, empRes] = await Promise.all([
+            const [assetRes, empRes, compRes, deptRes] = await Promise.all([
                 fetch('/api/assets'),
                 fetch('/api/employees'),
+                fetch('/api/companies'),
+                fetch('/api/departments')
             ]);
             const assetJson = await assetRes.json();
             const empJson = await empRes.json();
+            const compJson = await compRes.json();
+            const deptJson = await deptRes.json();
+
             setAssets(assetJson.data || []);
             setEmployees((empJson.data || []).map((e: any) => ({ id: e.id, fullName: e.fullName })));
+            setCompanies(compJson.data || []);
+            setDepartments(deptJson.data || []);
         } catch {
             setAssets([]);
         } finally {
@@ -117,13 +171,21 @@ function AssetsPageContent() {
 
     useEffect(() => { fetchAssets(); }, []);
 
+    // Support dynamic asset types extracted from the current assets list
+    const uniqueAssetTypes = Array.from(new Set(assets.map(a => a.type).filter(Boolean)));
+
     const filteredAssets = assets.filter((asset) => {
         const matchesSearch = asset.name.toLowerCase().includes(search.toLowerCase()) ||
             asset.code.toLowerCase().includes(search.toLowerCase()) ||
             (asset.holderName && asset.holderName.toLowerCase().includes(search.toLowerCase()));
         const matchesType = typeFilter === 'ALL' || asset.type === typeFilter;
         const matchesStatus = statusFilter === 'ALL' || asset.status === statusFilter;
-        return matchesSearch && matchesType && matchesStatus;
+        // @ts-ignore
+        const matchesCompany = activeCompanyId === 'ALL' || asset.companyId === activeCompanyId;
+        // @ts-ignore
+        const matchesDept = departmentFilter === 'ALL' || asset.departmentId === departmentFilter;
+
+        return matchesSearch && matchesType && matchesStatus && matchesCompany && matchesDept;
     });
 
     const stats = {
@@ -144,15 +206,35 @@ function AssetsPageContent() {
         }
     };
 
-    const handleOpenCreate = () => {
+    const handleOpenCreate = (prefillCode?: string) => {
         setIsEditing(false);
         setFormData({
-            code: `AST${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+            code: prefillCode || `AST${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
             name: '', type: 'LAPTOP', status: 'AVAILABLE', price: 0,
             purchaseDate: new Date().toISOString().split('T')[0],
-            holderId: 'none', description: '',
+            holderId: 'none', description: '', companyId: 'none', departmentId: 'none'
         });
         setCreateDialogOpen(true);
+    };
+
+    const handleScanSuccess = (decodedText: string) => {
+        setScanDialogOpen(false);
+
+        // Extract code if it's a URL
+        let scannedCode = decodedText;
+        if (decodedText.includes('search=')) {
+            scannedCode = decodedText.split('search=')[1].split('&')[0];
+        }
+
+        const foundAsset = assets.find(a => a.code.toLowerCase() === scannedCode.toLowerCase());
+
+        if (foundAsset) {
+            toast.success(`Đã tìm thấy tài sản: ${foundAsset.name}`);
+            handleOpenEdit(foundAsset);
+        } else {
+            toast.info(`Mã mới: ${scannedCode}. Vui lòng nhập thông tin.`);
+            handleOpenCreate(scannedCode);
+        }
     };
 
     const handleOpenEdit = (asset: Asset) => {
@@ -191,6 +273,10 @@ function AssetsPageContent() {
             status, price: Number(formData.price),
             purchaseDate: new Date(formData.purchaseDate!).toISOString(),
             description: formData.description || null,
+            // @ts-ignore
+            companyId: formData.companyId === 'none' ? null : formData.companyId,
+            // @ts-ignore
+            departmentId: formData.departmentId === 'none' ? null : formData.departmentId,
             holderId: formData.holderId === 'none' ? null : formData.holderId,
             holderName: holderName || null,
             assignedDate: assignedDate || null,
@@ -254,11 +340,23 @@ function AssetsPageContent() {
                     <h1 className="text-2xl font-bold">Quản lý Tài sản</h1>
                     <p className="text-muted-foreground">Theo dõi và quản lý thiết bị, tài sản công ty</p>
                 </div>
-                <Button onClick={handleOpenCreate}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Thêm tài sản
-                </Button>
+                <div className="flex items-center gap-2">
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={handleImportExcel} />
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Import Excel
+                    </Button>
+                    <Button variant="outline" onClick={() => setScanDialogOpen(true)}>
+                        <ScanLine className="mr-2 h-4 w-4" /> Quét mã QR
+                    </Button>
+                    <Button onClick={() => handleOpenCreate()}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Thêm tài sản
+                    </Button>
+                </div>
             </div>
+
+
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -277,7 +375,42 @@ function AssetsPageContent() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Tìm theo tên, mã hoặc người giữ..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
                         </div>
-                        <Select value={typeFilter} onValueChange={setTypeFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Loại tài sản" /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả loại</SelectItem>{Object.entries(assetTypeLabels).map(([key, label]) => (<SelectItem key={key} value={key}>{label}</SelectItem>))}</SelectContent></Select>
+                        <Select value={activeCompanyId} onValueChange={(val) => {
+                            setActiveCompanyId(val);
+                            setDepartmentFilter('ALL');
+                        }}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Pháp nhân" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tất cả pháp nhân</SelectItem>
+                                {companies.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {activeCompanyId !== 'ALL' && (
+                            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Bộ phận" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Tất cả bộ phận</SelectItem>
+                                    {departments.filter(d => d.companyId === activeCompanyId).map((dept) => (
+                                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                        <Select value={typeFilter} onValueChange={setTypeFilter}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Loại tài sản" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tất cả loại</SelectItem>
+                                {uniqueAssetTypes.map((type) => (<SelectItem key={type} value={type}>{type}</SelectItem>))}
+                            </SelectContent>
+                        </Select>
                         <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Trạng thái" /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả trạng thái</SelectItem>{Object.entries(assetStatusLabels).map(([key, value]) => (<SelectItem key={key} value={key}>{value.label}</SelectItem>))}</SelectContent></Select>
                     </div>
                 </CardContent>
@@ -311,7 +444,7 @@ function AssetsPageContent() {
                                                 <span className="font-medium">{asset.name}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{assetTypeLabels[asset.type] || asset.type}</TableCell>
+                                        <TableCell>{asset.type}</TableCell>
                                         <TableCell>
                                             {asset.holderName ? (
                                                 <div className="flex items-center gap-2">
@@ -326,6 +459,7 @@ function AssetsPageContent() {
                                         <TableCell><Badge variant={StatusBadge.variant}>{StatusBadge.label}</Badge></TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">
+                                                <Button variant="ghost" size="icon" onClick={() => { setQrAsset(asset); setQrDialogOpen(true); }}><QrCode className="h-4 w-4 text-blue-500" /></Button>
                                                 <Button variant="ghost" size="icon" onClick={() => { setSelectedAsset(asset); setDetailDialogOpen(true); }}><Eye className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(asset)}><Pencil className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDeleteClick(asset)}><Trash2 className="h-4 w-4" /></Button>
@@ -353,7 +487,7 @@ function AssetsPageContent() {
                             </DialogHeader>
                             <div className="space-y-4 py-2">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><Label className="text-muted-foreground text-xs">Loại tài sản</Label><p className="font-medium">{assetTypeLabels[selectedAsset.type]}</p></div>
+                                    <div><Label className="text-muted-foreground text-xs">Loại tài sản</Label><p className="font-medium">{selectedAsset.type}</p></div>
                                     <div><Label className="text-muted-foreground text-xs">Giá trị</Label><p className="font-medium">{formatCurrency(selectedAsset.price)}</p></div>
                                     <div><Label className="text-muted-foreground text-xs">Ngày mua</Label><p className="font-medium">{formatDate(selectedAsset.purchaseDate)}</p></div>
                                     <div><Label className="text-muted-foreground text-xs">Trạng thái</Label><div className="mt-1"><Badge variant={assetStatusLabels[selectedAsset.status]?.variant || 'outline'}>{assetStatusLabels[selectedAsset.status]?.label || selectedAsset.status}</Badge></div></div>
@@ -388,8 +522,25 @@ function AssetsPageContent() {
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2"><Label>Pháp nhân (Công ty)</Label><Select value={formData.companyId || 'none'} onValueChange={(val) => setFormData({ ...formData, companyId: val, departmentId: 'none' })}><SelectTrigger><SelectValue placeholder="Chọn Pháp nhân" /></SelectTrigger><SelectContent><SelectItem value="none">-- Không chọn --</SelectItem>{companies.map(c => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent></Select></div>
+                            <div className="space-y-2"><Label>Bộ phận</Label><Select value={formData.departmentId || 'none'} onValueChange={(val) => setFormData({ ...formData, departmentId: val })} disabled={!formData.companyId || formData.companyId === 'none'}><SelectTrigger><SelectValue placeholder="Chọn Bộ phận" /></SelectTrigger><SelectContent><SelectItem value="none">-- Không chọn --</SelectItem>{departments.filter(d => d.companyId === formData.companyId).map(d => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}</SelectContent></Select></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2"><Label>Mã tài sản</Label><Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} /></div>
-                            <div className="space-y-2"><Label>Loại</Label><Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}><SelectTrigger><SelectValue placeholder="Chọn loại" /></SelectTrigger><SelectContent>{Object.entries(assetTypeLabels).map(([key, label]) => (<SelectItem key={key} value={key}>{label}</SelectItem>))}</SelectContent></Select></div>
+                            <div className="space-y-2">
+                                <Label>Loại</Label>
+                                <Input
+                                    list="asset-types"
+                                    value={formData.type}
+                                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                    placeholder="Ví dụ: Laptop, Màn hình, Bàn ghế..."
+                                />
+                                <datalist id="asset-types">
+                                    {uniqueAssetTypes.map(type => (
+                                        <option key={type} value={type} />
+                                    ))}
+                                </datalist>
+                            </div>
                         </div>
                         <div className="space-y-2"><Label>Tên tài sản</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Ví dụ: MacBook Pro M3" /></div>
                         <div className="grid grid-cols-2 gap-4">
@@ -397,8 +548,25 @@ function AssetsPageContent() {
                             <div className="space-y-2"><Label>Ngày mua</Label><Input type="date" value={typeof formData.purchaseDate === 'string' ? formData.purchaseDate.split('T')[0] : ''} onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })} /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label>Trạng thái</Label><Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}><SelectTrigger><SelectValue placeholder="Chọn trạng thái" /></SelectTrigger><SelectContent>{Object.entries(assetStatusLabels).map(([key, value]) => (<SelectItem key={key} value={key}>{value.label}</SelectItem>))}</SelectContent></Select></div>
-                            <div className="space-y-2"><Label>Người sử dụng</Label><Select value={formData.holderId || 'none'} onValueChange={(val) => setFormData({ ...formData, holderId: val })}><SelectTrigger><SelectValue placeholder="Chọn nhân viên" /></SelectTrigger><SelectContent><SelectItem value="none">-- Không giao --</SelectItem>{employees.map(emp => (<SelectItem key={emp.id} value={emp.id}>{emp.fullName}</SelectItem>))}</SelectContent></Select></div>
+                            <div className="space-y-2">
+                                <Label>Trạng thái <span className="text-[10px] text-muted-foreground font-normal">(Tự động)</span></Label>
+                                <Select disabled value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                                    <SelectTrigger><SelectValue placeholder="Chọn trạng thái" /></SelectTrigger>
+                                    <SelectContent>
+                                        {Object.entries(assetStatusLabels).map(([key, value]) => (<SelectItem key={key} value={key}>{value.label}</SelectItem>))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Người sử dụng <span className="text-[10px] text-muted-foreground font-normal">(Đổi qua menu Cấp phát)</span></Label>
+                                <Select disabled value={formData.holderId || 'none'} onValueChange={(val) => setFormData({ ...formData, holderId: val })}>
+                                    <SelectTrigger><SelectValue placeholder="Chọn nhân viên" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">-- Không giao --</SelectItem>
+                                        {employees.map(emp => (<SelectItem key={emp.id} value={emp.id}>{emp.fullName}</SelectItem>))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="space-y-2"><Label>Ghi chú</Label><Input value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
                     </div>
@@ -420,6 +588,42 @@ function AssetsPageContent() {
                         <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Hủy</Button>
                         <Button variant="destructive" onClick={confirmDelete}>Xóa tài sản</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* QR Code Dialog */}
+            <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+                <DialogContent className="sm:max-w-sm flex flex-col items-center justify-center p-8">
+                    <DialogHeader className="text-center w-full">
+                        <DialogTitle className="text-center">{qrAsset?.name}</DialogTitle>
+                        <DialogDescription className="text-center">Mã: {qrAsset?.code}</DialogDescription>
+                    </DialogHeader>
+                    {qrAsset && (
+                        <div className="bg-white p-4 rounded-lg shadow-sm border mt-4">
+                            <QRCodeSVG value={`${window.location.origin}/admin/assets?search=${qrAsset.code}`} size={200} level="H" />
+                        </div>
+                    )}
+                    <Button variant="outline" className="mt-6 w-full" onClick={() => window.print()}>In mã QR</Button>
+                </DialogContent>
+            </Dialog>
+
+            {/* Scan QR Dialog */}
+            <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Quét mã QR</DialogTitle>
+                        <DialogDescription>
+                            Đưa mã QR của tài sản vào khung hình để tự động nhận dạng.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        {scanDialogOpen && (
+                            <QRScanner
+                                onScanSuccess={handleScanSuccess}
+                                onScanError={(err) => console.log('Scan error:', err)}
+                            />
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

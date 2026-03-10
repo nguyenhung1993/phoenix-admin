@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notificationService } from '@/lib/notification-service';
+import { auditService } from '@/lib/audit-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,6 +89,15 @@ export async function PATCH(request: NextRequest) {
                 senderName: approverName || 'Hệ thống',
             });
         }
+
+        // Audit log
+        const auditAction = status === 'APPROVED' ? 'APPROVE' : status === 'REJECTED' ? 'REJECT' : 'UPDATE';
+        await auditService.log({
+            userName: approverName || null,
+            action: auditAction as any,
+            target: `overtime-request/${id}`,
+            details: `${updated.employee?.fullName || ''} - ${updated.hours}h`,
+        });
 
         return NextResponse.json(updated);
     } catch (error) {

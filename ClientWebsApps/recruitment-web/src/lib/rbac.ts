@@ -8,7 +8,8 @@ export type Role =
     | 'RECRUITER'        // Tuyển dụng
     | 'DEPARTMENT_HEAD'  // Trưởng phòng ban
     | 'EMPLOYEE'         // Nhân viên thường
-    | 'VIEWER';          // Chỉ xem
+    | 'VIEWER'           // Chỉ xem
+    | 'ASSET_MANAGER';   // Quản lý tài sản
 
 // ========== PERMISSIONS ==========
 export type Permission =
@@ -161,6 +162,10 @@ export const rolePermissions: Record<Role, Permission[]> = {
         'employees:view',
         'departments:view',
     ],
+    ASSET_MANAGER: [
+        'dashboard:view',
+        'assets:view', 'assets:create', 'assets:edit', 'assets:delete', 'assets:assign',
+    ],
 };
 
 // ========== ROLE LABELS ==========
@@ -172,6 +177,7 @@ export const roleLabels: Record<Role, { label: string; description: string; colo
     DEPARTMENT_HEAD: { label: 'Trưởng phòng', description: 'Quản lý phòng ban', color: 'bg-orange-100 text-orange-800' },
     EMPLOYEE: { label: 'Nhân viên', description: 'Nhân viên bình thường', color: 'bg-gray-100 text-gray-800' },
     VIEWER: { label: 'Viewer', description: 'Chỉ có quyền xem', color: 'bg-slate-100 text-slate-800' },
+    ASSET_MANAGER: { label: 'Asset Manager', description: 'Quản lý tài sản', color: 'bg-cyan-100 text-cyan-800' },
 };
 
 // ========== HELPER FUNCTIONS ==========
@@ -275,7 +281,9 @@ export const navigationConfig: NavGroup[] = [
     {
         title: 'Tài sản',
         items: [
-            { href: '/admin/assets', label: 'Tài sản', icon: 'Monitor', permission: 'assets:view' },
+            { href: '/admin/assets', label: 'Tài sản', icon: 'Monitor', permission: 'assets:view', matchExact: true },
+            { href: '/admin/assets/allocations', label: 'Cấp phát', icon: 'UserPlus', permission: 'assets:assign' },
+            { href: '/admin/assets/maintenance', label: 'Bảo trì', icon: 'Settings', permission: 'assets:edit' },
         ],
     },
     {

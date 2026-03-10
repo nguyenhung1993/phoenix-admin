@@ -35,7 +35,14 @@ export async function GET(request: NextRequest) {
             prisma.employee.findMany({
                 where,
                 include: {
-                    department: { select: { id: true, name: true } },
+                    department: {
+                        select: {
+                            id: true,
+                            name: true,
+                            companyId: true,
+                            company: { select: { id: true, name: true } }
+                        }
+                    },
                     position: { select: { id: true, name: true, level: true } },
                 },
                 skip: (page - 1) * limit,

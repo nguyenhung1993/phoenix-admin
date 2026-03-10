@@ -5,6 +5,13 @@ import {
     UserPlus,
     UserMinus,
     Clock,
+    Briefcase,
+    CalendarOff,
+    Target,
+    Sparkles,
+    AlertTriangle,
+    CheckCircle2,
+    Info,
 } from 'lucide-react';
 import {
     getEmployeeStats,
@@ -12,20 +19,32 @@ import {
     getTurnoverTrend,
     getContractDistribution,
     getUpcomingEvents,
+    getRecruitmentOverview,
+    getLeaveStats,
+    getAIInsights,
 } from '@/lib/reports';
 import { DynamicBarChart, DynamicLineChart, DynamicPieChart } from '@/components/admin/reports/chart-wrappers';
 
 
 export default async function DashboardPage() {
-    const [stats, departmentData, turnoverData, contractData, upcomingEvents] = await Promise.all([
+    const [stats, departmentData, turnoverData, contractData, upcomingEvents, recruitment, leave, insights] = await Promise.all([
         getEmployeeStats(),
         getDepartmentDistribution(),
         getTurnoverTrend(),
         getContractDistribution(),
         getUpcomingEvents(),
+        getRecruitmentOverview(),
+        getLeaveStats(),
+        getAIInsights(),
     ]);
 
     const currentMonth = new Date().toLocaleString('vi-VN', { month: 'long' });
+
+    const insightIcons = {
+        warning: <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />,
+        success: <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />,
+        info: <Info className="h-4 w-4 text-blue-500 shrink-0" />,
+    };
 
     return (
         <div className="space-y-6">
@@ -34,8 +53,8 @@ export default async function DashboardPage() {
                 <p className="text-muted-foreground">Dashboard quản trị và báo cáo</p>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* Stats Cards — HR */}
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Tổng nhân viên</CardTitle>
@@ -80,9 +99,92 @@ export default async function DashboardPage() {
                 </Card>
             </div>
 
+            {/* Quick Stats — Recruitment & Leave */}
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                <Card className="border-blue-200 dark:border-blue-900/50">
+                    <CardContent className="pt-4 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                <Briefcase className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Việc đang tuyển</p>
+                                <p className="text-lg font-bold">{recruitment.openJobs}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-purple-200 dark:border-purple-900/50">
+                    <CardContent className="pt-4 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                <Target className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Ứng viên</p>
+                                <p className="text-lg font-bold">{recruitment.totalCandidates}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-amber-200 dark:border-amber-900/50">
+                    <CardContent className="pt-4 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                                <CalendarOff className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Nghỉ phép chờ duyệt</p>
+                                <p className="text-lg font-bold">{leave.pendingLeaves}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-green-200 dark:border-green-900/50">
+                    <CardContent className="pt-4 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Phỏng vấn upcoming</p>
+                                <p className="text-lg font-bold">{recruitment.pendingInterviews}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* AI Insights */}
+            <Card className="border-violet-200 dark:border-violet-900/50">
+                <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Sparkles className="h-5 w-5 text-violet-500" />
+                        AI Insights
+                    </CardTitle>
+                    <CardDescription>Phân tích tự động và đề xuất hành động</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-3">
+                        {insights.map((insight, i) => (
+                            <div key={i} className={`flex items-start gap-3 p-3 rounded-lg ${insight.type === 'warning' ? 'bg-amber-50 dark:bg-amber-950/20' :
+                                    insight.type === 'success' ? 'bg-green-50 dark:bg-green-950/20' :
+                                        'bg-blue-50 dark:bg-blue-950/20'
+                                }`}>
+                                {insightIcons[insight.type]}
+                                <div>
+                                    <p className="text-sm font-medium">{insight.title}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{insight.description}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* Main Charts */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
+                <Card className="col-span-full lg:col-span-4">
                     <CardHeader>
                         <CardTitle>Nhân sự theo phòng ban</CardTitle>
                     </CardHeader>
@@ -99,7 +201,7 @@ export default async function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="col-span-3">
+                <Card className="col-span-full lg:col-span-3">
                     <CardHeader>
                         <CardTitle>Biến động nhân sự (6 tháng)</CardTitle>
                         <CardDescription>Tuyển dụng vs Nghỉ việc</CardDescription>
@@ -114,7 +216,7 @@ export default async function DashboardPage() {
 
             {/* Secondary Metrics */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-3">
+                <Card className="col-span-full lg:col-span-3">
                     <CardHeader>
                         <CardTitle>Cơ cấu hợp đồng</CardTitle>
                     </CardHeader>
@@ -131,7 +233,7 @@ export default async function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="col-span-4">
+                <Card className="col-span-full lg:col-span-4">
                     <CardHeader>
                         <CardTitle>Sự kiện sắp tới</CardTitle>
                         <CardDescription>Hợp đồng hết hạn & Onboarding (30 ngày tới)</CardDescription>

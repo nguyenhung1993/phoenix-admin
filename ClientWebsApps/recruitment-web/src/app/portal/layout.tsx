@@ -20,6 +20,9 @@ import {
     Building,
     Settings,
     ChevronDown,
+    Wallet,
+    GraduationCap,
+    Target
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -30,11 +33,26 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const navigation = [
+const navGroups = [
     { name: 'Dashboard', href: '/portal', icon: LayoutDashboard },
-    { name: 'Hồ sơ cá nhân', href: '/portal/profile', icon: User },
-    { name: 'Bảng công & Lương', href: '/portal/timesheet', icon: Calendar },
-    { name: 'Yêu cầu của tôi', href: '/portal/requests', icon: FileCheck },
+    {
+        name: 'Hồ sơ & Yêu cầu', icon: User, items: [
+            { name: 'Hồ sơ cá nhân', href: '/portal/profile', icon: User },
+            { name: 'Yêu cầu của tôi', href: '/portal/requests', icon: FileCheck },
+        ]
+    },
+    {
+        name: 'Công & Lương', icon: Wallet, items: [
+            { name: 'Bảng công & Lương', href: '/portal/timesheet', icon: Calendar },
+            { name: 'Phiếu lương', href: '/portal/payslips', icon: Wallet },
+        ]
+    },
+    {
+        name: 'Đào tạo & KPI', icon: Target, items: [
+            { name: 'Đào tạo', href: '/portal/training', icon: GraduationCap },
+            { name: 'Đánh giá KPI', href: '/portal/performance', icon: Target },
+        ]
+    }
 ];
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -102,19 +120,40 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                                         <span className="sr-only">Toggle menu</span>
                                     </Button>
                                 </SheetTrigger>
-                                <SheetContent side="left" className="w-[240px] sm:w-[300px]">
-                                    <nav className="flex flex-col gap-4 mt-8">
-                                        {navigation.map((item) => (
-                                            <Link
-                                                key={item.href}
-                                                href={item.href}
-                                                onClick={() => setMobileMenuOpen(false)}
-                                                className={`flex items-center gap-2 text-lg font-medium ${pathname === item.href ? 'text-primary' : 'text-muted-foreground'
-                                                    }`}
-                                            >
-                                                <item.icon className="h-5 w-5" />
-                                                {item.name}
-                                            </Link>
+                                <SheetContent side="left" className="w-[240px] sm:w-[300px] overflow-y-auto">
+                                    <nav className="flex flex-col gap-5 mt-6 pb-6">
+                                        {navGroups.map((group) => (
+                                            group.items ? (
+                                                <div key={group.name} className="space-y-3">
+                                                    <div className="font-semibold text-sm text-foreground flex items-center gap-2 pb-1 border-b">
+                                                        <group.icon className="h-4 w-4" />
+                                                        {group.name}
+                                                    </div>
+                                                    <div className="pl-4 flex flex-col gap-3">
+                                                        {group.items.map(item => (
+                                                            <Link
+                                                                key={item.href}
+                                                                href={item.href}
+                                                                onClick={() => setMobileMenuOpen(false)}
+                                                                className={`flex items-center gap-2 text-sm font-medium ${pathname === item.href ? 'text-primary' : 'text-muted-foreground'}`}
+                                                            >
+                                                                <item.icon className="h-4 w-4" />
+                                                                {item.name}
+                                                            </Link>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <Link
+                                                    key={group.href}
+                                                    href={group.href!}
+                                                    onClick={() => setMobileMenuOpen(false)}
+                                                    className={`flex items-center gap-2 text-base font-semibold ${pathname === group.href ? 'text-primary' : 'text-foreground'}`}
+                                                >
+                                                    <group.icon className="h-5 w-5" />
+                                                    {group.name}
+                                                </Link>
+                                            )
                                         ))}
                                     </nav>
                                 </SheetContent>
@@ -125,17 +164,36 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                             </Link>
 
                             {/* Desktop Nav */}
-                            <nav className="hidden md:flex items-center gap-6 ml-6">
-                                {navigation.map((item) => (
-                                    <Link
-                                        key={item.href}
-                                        href={item.href}
-                                        className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary ${pathname === item.href ? 'text-primary' : 'text-muted-foreground'
-                                            }`}
-                                    >
-                                        <item.icon className="h-4 w-4" />
-                                        {item.name}
-                                    </Link>
+                            <nav className="hidden md:flex items-center gap-1.5 lg:gap-3 ml-4 lg:ml-6">
+                                {navGroups.map((group) => (
+                                    group.items ? (
+                                        <DropdownMenu key={group.name}>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="sm" className={`flex items-center gap-1.5 h-9 px-3 font-medium transition-colors ${group.items.some(i => i.href === pathname) ? 'text-primary bg-primary/10 hover:text-primary hover:bg-primary/15' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                    <group.icon className="h-4 w-4 shrink-0 hidden lg:inline-block" />
+                                                    <span className="whitespace-nowrap">{group.name}</span>
+                                                    <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start" className="w-52">
+                                                {group.items.map(item => (
+                                                    <DropdownMenuItem key={item.href} asChild>
+                                                        <Link href={item.href} className={`flex items-center gap-2 cursor-pointer w-full ${pathname === item.href ? 'text-primary font-medium bg-primary/5 focus:bg-primary/5 focus:text-primary' : 'text-foreground'}`}>
+                                                            <item.icon className="h-4 w-4 opacity-70" />
+                                                            {item.name}
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    ) : (
+                                        <Button key={group.href} asChild variant="ghost" size="sm" className={`flex items-center gap-1.5 h-9 px-3 ${pathname === group.href ? 'text-primary bg-primary/10 hover:text-primary hover:bg-primary/15' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            <Link href={group.href!}>
+                                                <group.icon className="h-4 w-4 shrink-0 hidden lg:inline-block" />
+                                                <span className="whitespace-nowrap">{group.name}</span>
+                                            </Link>
+                                        </Button>
+                                    )
                                 ))}
                             </nav>
                         </div>
