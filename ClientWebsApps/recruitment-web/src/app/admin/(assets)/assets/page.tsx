@@ -90,6 +90,7 @@ function AssetsPageContent() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [qrDialogOpen, setQrDialogOpen] = useState(false);
     const [scanDialogOpen, setScanDialogOpen] = useState(false);
+    const [importDialogOpen, setImportDialogOpen] = useState(false);
     const [qrAsset, setQrAsset] = useState<Asset | null>(null);
     const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
     const [employees, setEmployees] = useState<{ id: string; fullName: string }[]>([]);
@@ -136,12 +137,52 @@ function AssetsPageContent() {
                     body: JSON.stringify(assetsToImport),
                 });
                 toast.success(`Đã import ${assetsToImport.length} tài sản thành công`);
+                setImportDialogOpen(false);
                 fetchAssets();
             } catch (error) {
                 toast.error('Lỗi khi import file Excel');
             }
         };
         reader.readAsArrayBuffer(file);
+
+        // Reset file input after reading
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    const handleDownloadTemplate = () => {
+        const templateData = [
+            {
+                'Mã TS': 'AST001',
+                'Tên tài sản': 'MacBook Pro M3',
+                'Loại': 'LAPTOP',
+                'Giá trị': 45000000,
+                'Ghi chú': 'Máy mới 100%'
+            },
+            {
+                'Mã TS': 'AST002',
+                'Tên tài sản': 'Màn hình Dell Ultrasharp',
+                'Loại': 'MONITOR',
+                'Giá trị': 8500000,
+                'Ghi chú': ''
+            }
+        ];
+
+        const worksheet = XLSX.utils.json_to_sheet(templateData);
+
+        // Define column widths
+        worksheet['!cols'] = [
+            { wch: 15 }, // Mã TS
+            { wch: 30 }, // Tên
+            { wch: 15 }, // Loại
+            { wch: 15 }, // Giá
+            { wch: 40 }, // Ghi chú
+        ];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+        XLSX.writeFile(workbook, "Asset_Import_Template.xlsx");
     };
 
     const fetchAssets = async () => {
@@ -338,8 +379,7 @@ function AssetsPageContent() {
                     <p className="text-muted-foreground">Theo dõi và quản lý thiết bị, tài sản công ty</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={handleImportExcel} />
-                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                    <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
                         <Upload className="mr-2 h-4 w-4" />
                         Import Excel
                     </Button>
@@ -620,6 +660,44 @@ function AssetsPageContent() {
                                 onScanError={(err) => console.log('Scan error:', err)}
                             />
                         )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Import Excel Dialog */}
+            <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Nhập danh sách tài sản (Import Excel)</DialogTitle>
+                        <DialogDescription>
+                            Tải lên tệp Excel (.xlsx, .xls) chứa danh sách tài sản. Vui lòng đảm bảo các cột khớp với file mẫu.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        <div className="bg-slate-50 p-4 border rounded-md text-sm space-y-2">
+                            <h4 className="font-semibold text-slate-800">Quy tắc định dạng tự động:</h4>
+                            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                                <li><strong>Mã TS:</strong> (Ví dụ: AST101). Nếu để trống, hệ thống sẽ tự động tạo mã ngẫu nhiên.</li>
+                                <li><strong>Tên tài sản:</strong> Tên cấu hình thiết bị (Ví dụ: iPhone 15 Pro, Màn hình rời...).</li>
+                                <li><strong>Loại:</strong> Phân loại (Ví dụ: LAPTOP, MONITOR...). Nhập loại mới cũng được.</li>
+                                <li><strong>Giá trị:</strong> Nhập số tiền mua thiết bị (chỉ nhập số).</li>
+                                <li><strong>Ghi chú:</strong> Không bắt buộc (như cấu hình máy, tình trạng mua...).</li>
+                            </ul>
+                        </div>
+
+                        <div className="flex gap-4 w-full pt-4">
+                            <Button variant="outline" className="flex-1" onClick={handleDownloadTemplate}>
+                                Tải file mẫu .xlsx
+                            </Button>
+
+                            <div className="flex-1">
+                                <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={handleImportExcel} />
+                                <Button className="w-full" onClick={() => fileInputRef.current?.click()}>
+                                    <Upload className="mr-2 h-4 w-4" /> Tải lên và Import
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

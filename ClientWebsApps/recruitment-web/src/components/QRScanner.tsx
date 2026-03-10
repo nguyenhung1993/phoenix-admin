@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Loader2, Camera, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface QRScannerProps {
     onScanSuccess: (decodedText: string) => void;
@@ -10,46 +11,112 @@ interface QRScannerProps {
 }
 
 export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
-    const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+    const scannerRef = useRef<Html5Qrcode | null>(null);
+    const [isScanning, setIsScanning] = useState(false);
+    const [hasCameras, setHasCameras] = useState(true);
+    const [permissionError, setPermissionError] = useState(false);
 
-    useEffect(() => {
-        // Must wait for document to be ready
-        if (typeof document === 'undefined') return;
+    const startScanner = async () => {
+        try {
+            setPermissionError(false);
+            const devices = await Html5Qrcode.getCameras();
+            if (devices && devices.length) {
+                const html5QrCode = new Html5Qrcode("reader", {
+                    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+                    verbose: false
+                });
+                scannerRef.current = html5QrCode;
 
-        // Initialize scanner
-        scannerRef.current = new Html5QrcodeScanner(
-            "reader",
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            /* verbose= */ false
-        );
-
-        scannerRef.current.render(
-            (decodedText) => {
-                // To avoid multiple scans firing rapidly, we pause scanning briefly or let the parent handle it
-                scannerRef.current?.pause(true);
-                onScanSuccess(decodedText);
-                // Optionally resume after a delay if needed, 
-                // but usually the parent closes the dialog so cleanup runs.
-            },
-            (error) => {
-                if (onScanError) onScanError(error);
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                    },
+                    (decodedText) => {
+                        html5QrCode.pause();
+                        setIsScanning(false);
+                        onScanSuccess(decodedText);
+                    },
+                    (error) => {
+                        if (onScanError) onScanError(error);
+                    }
+                );
+                setIsScanning(true);
+            } else {
+                setHasCameras(false);
             }
-        );
+        } catch (err) {
+            console.error(err);
+            setPermissionError(true);
+            setHasCameras(false);
+        }
+    };
 
-        // Cleanup
+    const stopScanner = async () => {
+        if (scannerRef.current && isScanning) {
+            try {
+                await scannerRef.current.stop();
+                scannerRef.current.clear();
+                setIsScanning(false);
+            } catch (err) {
+                console.error("Failed to stop scanner", err);
+            }
+        }
+    };
+
+    // Cleanup on unmount
+    useEffect(() => {
         return () => {
-            if (scannerRef.current) {
-                scannerRef.current.clear().catch(console.error);
+            if (scannerRef.current && scannerRef.current.isScanning) {
+                scannerRef.current.stop().catch(console.error);
             }
         };
-    }, [onScanSuccess, onScanError]);
+    }, []);
 
     return (
-        <div className="flex flex-col items-center justify-center w-full min-h-[300px] relative rounded-md overflow-hidden bg-slate-50 border">
-            <div id="reader" className="w-full max-w-sm border-none shadow-none"></div>
-            <div className="absolute inset-0 flex items-center justify-center -z-10">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <div className="flex flex-col items-center w-full min-h-[350px] space-y-4">
+            <div className="relative w-full max-w-sm aspect-square bg-slate-100 border-2 border-dashed rounded-lg overflow-hidden flex flex-col items-center justify-center">
+                <div id="reader" className="w-full h-full absolute inset-0 z-10"></div>
+
+                {!isScanning && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-slate-100">
+                        {permissionError ? (
+                            <div className="text-center p-4">
+                                <XCircle className="w-12 h-12 text-red-500 mx-auto mb-2" />
+                                <p className="text-sm font-medium text-destructive">Không thể truy cập camera</p>
+                                <p className="text-xs text-muted-foreground mt-1">Vui lòng cấp quyền sử dụng camera trong cài đặt trình duyệt của bạn.</p>
+                            </div>
+                        ) : !hasCameras ? (
+                            <div className="text-center p-4">
+                                <XCircle className="w-12 h-12 text-amber-500 mx-auto mb-2" />
+                                <p className="text-sm font-medium">Không tìm thấy camera</p>
+                                <p className="text-xs text-muted-foreground mt-1">Thiết bị của bạn có vẻ không có camera hoặc đang bị ứng dụng khác sử dụng.</p>
+                            </div>
+                        ) : (
+                            <div className="text-center">
+                                <Camera className="w-12 h-12 text-slate-400 mx-auto mb-2" />
+                                <p className="text-sm text-slate-500">Nhấn nút bên dưới để bắt đầu quét</p>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
+
+            <div className="flex gap-2 w-full max-w-sm">
+                {!isScanning ? (
+                    <Button onClick={startScanner} className="w-full flex-1">
+                        <Camera className="mr-2 w-4 h-4" /> Bật Camera & Quét
+                    </Button>
+                ) : (
+                    <Button variant="destructive" onClick={stopScanner} className="w-full flex-1">
+                        <XCircle className="mr-2 w-4 h-4" /> Dừng quét
+                    </Button>
+                )}
+            </div>
+            <p className="text-xs text-center text-muted-foreground max-w-sm">
+                * Lưu ý: Hãy đảm bảo bạn đã cấp quyền sử dụng Camera cho trình duyệt (Đặc biệt trên iOS/Safari).
+            </p>
         </div>
     );
 }
