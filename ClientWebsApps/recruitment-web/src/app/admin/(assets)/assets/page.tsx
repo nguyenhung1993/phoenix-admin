@@ -378,15 +378,15 @@ function AssetsPageContent() {
                     <h1 className="text-2xl font-bold">Quản lý Tài sản</h1>
                     <p className="text-muted-foreground">Theo dõi và quản lý thiết bị, tài sản công ty</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 mt-4 sm:mt-0 w-full sm:w-auto">
+                    <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="w-full sm:w-auto">
                         <Upload className="mr-2 h-4 w-4" />
-                        Import Excel
+                        Nhập Excel
                     </Button>
-                    <Button variant="outline" onClick={() => setScanDialogOpen(true)}>
+                    <Button variant="outline" onClick={() => setScanDialogOpen(true)} className="w-full sm:w-auto">
                         <ScanLine className="mr-2 h-4 w-4" /> Quét mã QR
                     </Button>
-                    <Button onClick={() => handleOpenCreate()}>
+                    <Button onClick={() => handleOpenCreate()} className="col-span-2 sm:col-span-1 w-full sm:w-auto">
                         <Plus className="mr-2 h-4 w-4" />
                         Thêm tài sản
                     </Button>

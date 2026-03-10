@@ -22,7 +22,13 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
             const devices = await Html5Qrcode.getCameras();
             if (devices && devices.length) {
                 const html5QrCode = new Html5Qrcode("reader", {
-                    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.QR_CODE,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                    ],
                     verbose: false
                 });
                 scannerRef.current = html5QrCode;
@@ -32,6 +38,10 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
                     {
                         fps: 10,
                         qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0,
+                        videoConstraints: {
+                            facingMode: "environment",
+                        }
                     },
                     (decodedText) => {
                         html5QrCode.pause();
@@ -76,8 +86,15 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
 
     return (
         <div className="flex flex-col items-center w-full min-h-[350px] space-y-4">
+            <style jsx global>{`
+                #reader video {
+                    object-fit: cover !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                }
+            `}</style>
             <div className="relative w-full max-w-sm aspect-square bg-slate-100 border-2 border-dashed rounded-lg overflow-hidden flex flex-col items-center justify-center">
-                <div id="reader" className="w-full h-full absolute inset-0 z-10"></div>
+                <div id="reader" className="w-full h-full absolute inset-0 z-10 overscroll-none touch-none"></div>
 
                 {!isScanning && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-slate-100">
