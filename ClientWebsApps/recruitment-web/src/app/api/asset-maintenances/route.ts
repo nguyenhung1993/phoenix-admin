@@ -25,7 +25,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const maintenance = await prisma.assetMaintenance.create({ data: body });
+
+        // Use a transaction to ensure both operations succeed or fail together
+        const [maintenance, asset] = await prisma.$transaction([
+            prisma.assetMaintenance.create({ data: body }),
+            prisma.asset.update({
+                where: { id: body.assetId },
+                data: { status: 'MAINTENANCE' }
+            })
+        ]);
+
         return NextResponse.json({ data: maintenance }, { status: 201 });
     } catch (error) {
         console.error('POST /api/asset-maintenances error:', error);

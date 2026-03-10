@@ -38,7 +38,21 @@ export async function POST(req: NextRequest) {
             const assets = await prisma.asset.createMany({ data: body });
             return NextResponse.json({ data: assets }, { status: 201 });
         }
+
         const asset = await prisma.asset.create({ data: body });
+
+        // Auto create allocation record if a holder is assigned
+        if (body.holderId && body.holderId !== 'none') {
+            await prisma.assetAllocation.create({
+                data: {
+                    assetId: asset.id,
+                    employeeId: body.holderId,
+                    allocatedDate: body.assignedDate ? new Date(body.assignedDate) : new Date(),
+                    status: 'ALLOCATED'
+                }
+            });
+        }
+
         return NextResponse.json({ data: asset }, { status: 201 });
     } catch (error) {
         console.error('POST /api/assets error:', error);
@@ -52,7 +66,33 @@ export async function PATCH(req: NextRequest) {
         const { id, ...data } = body;
         if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
+        const currentAsset = await prisma.asset.findUnique({ where: { id } });
+
         const asset = await prisma.asset.update({ where: { id }, data });
+
+        // Tracker asset allocation when holderId changes
+        if (data.holderId !== undefined && currentAsset && currentAsset.holderId !== data.holderId) {
+            // Un-assign previous holder if it exists
+            if (currentAsset.holderId) {
+                await prisma.assetAllocation.updateMany({
+                    where: { assetId: id, employeeId: currentAsset.holderId, status: 'ALLOCATED' },
+                    data: { status: 'RETURNED', returnedDate: new Date() }
+                });
+            }
+
+            // Assign new holder if explicitly set
+            if (data.holderId && data.holderId !== 'none') {
+                await prisma.assetAllocation.create({
+                    data: {
+                        assetId: id,
+                        employeeId: data.holderId,
+                        allocatedDate: data.assignedDate ? new Date(data.assignedDate) : new Date(),
+                        status: 'ALLOCATED'
+                    }
+                });
+            }
+        }
+
         return NextResponse.json({ data: asset });
     } catch (error) {
         console.error('PATCH /api/assets error:', error);

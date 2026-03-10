@@ -259,13 +259,10 @@ function AssetsPageContent() {
             const employee = employees.find(e => e.id === formData.holderId);
             if (employee) {
                 holderName = employee.fullName;
-                status = 'IN_USE';
                 if (!isEditing || selectedAsset?.holderId !== formData.holderId) {
                     assignedDate = new Date().toISOString();
                 }
             }
-        } else {
-            if (status === 'IN_USE') status = 'AVAILABLE';
         }
 
         const assetData: any = {
@@ -549,8 +546,8 @@ function AssetsPageContent() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Trạng thái <span className="text-[10px] text-muted-foreground font-normal">(Tự động)</span></Label>
-                                <Select disabled value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                                <Label>Trạng thái</Label>
+                                <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
                                     <SelectTrigger><SelectValue placeholder="Chọn trạng thái" /></SelectTrigger>
                                     <SelectContent>
                                         {Object.entries(assetStatusLabels).map(([key, value]) => (<SelectItem key={key} value={key}>{value.label}</SelectItem>))}
@@ -558,8 +555,8 @@ function AssetsPageContent() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>Người sử dụng <span className="text-[10px] text-muted-foreground font-normal">(Đổi qua menu Cấp phát)</span></Label>
-                                <Select disabled value={formData.holderId || 'none'} onValueChange={(val) => setFormData({ ...formData, holderId: val })}>
+                                <Label>Người sử dụng</Label>
+                                <Select value={formData.holderId || 'none'} onValueChange={(val) => setFormData({ ...formData, holderId: val })}>
                                     <SelectTrigger><SelectValue placeholder="Chọn nhân viên" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="none">-- Không giao --</SelectItem>

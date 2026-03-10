@@ -42,7 +42,7 @@ function AssetAllocationsContent() {
         try {
             const [allocRes, assetRes, empRes, compRes, deptRes] = await Promise.all([
                 fetch('/api/asset-allocations'),
-                fetch('/api/assets?status=AVAILABLE'),
+                fetch('/api/assets'), // Fetch all assets instead of just AVAILABLE, to filter client-side
                 fetch('/api/employees?limit=1000'), // fetch more to avoid pagination for dropdown
                 fetch('/api/companies'),
                 fetch('/api/departments')
@@ -57,7 +57,11 @@ function AssetAllocationsContent() {
             const deptJson = deptRes.ok ? await deptRes.json() : { data: [] };
 
             setAllocations(allocJson.data || []);
-            setAssets(assetJson.data || []);
+            // Filter client side to allow both AVAILABLE and MAINTENANCE
+            const assignableAssets = (assetJson.data || []).filter((a: any) =>
+                a.status === 'AVAILABLE' || a.status === 'MAINTENANCE'
+            );
+            setAssets(assignableAssets);
             setEmployees((empJson.data || []).map((e: any) => ({
                 id: e.id,
                 fullName: e.fullName,
@@ -209,16 +213,16 @@ function AssetAllocationsContent() {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>Tài sản (Chỉ hiển thị máy sẵn sàng)</Label>
+                            <Label>Tài sản (Sẵn sàng hoặc Đang bảo trì)</Label>
                             <Select value={selectedAssetId} onValueChange={setSelectedAssetId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Chọn tài sản..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {assets.map(a => (
-                                        <SelectItem key={a.id} value={a.id}>{a.name} ({a.code})</SelectItem>
+                                        <SelectItem key={a.id} value={a.id}>{a.name} ({a.code}) {a.status === 'MAINTENANCE' ? '- Đang bảo trì' : ''}</SelectItem>
                                     ))}
-                                    {assets.length === 0 && <SelectItem value="none" disabled>Không có tài sản sẵn sàng</SelectItem>}
+                                    {assets.length === 0 && <SelectItem value="none" disabled>Không có tài sản hợp lệ</SelectItem>}
                                 </SelectContent>
                             </Select>
                         </div>
