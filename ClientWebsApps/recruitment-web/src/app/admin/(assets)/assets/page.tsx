@@ -396,11 +396,11 @@ function AssetsPageContent() {
 
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Tổng tài sản</p><p className="text-2xl font-bold">{stats.total}</p></div><Package className="h-8 w-8 text-muted-foreground" /></div></CardContent></Card>
-                <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Đang sử dụng</p><p className="text-2xl font-bold text-blue-600">{stats.inUse}</p></div><Laptop className="h-8 w-8 text-blue-500" /></div></CardContent></Card>
-                <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Sẵn sàng</p><p className="text-2xl font-bold text-green-600">{stats.available}</p></div><Package className="h-8 w-8 text-green-500" /></div></CardContent></Card>
-                <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Bảo trì / Hỏng</p><p className="text-2xl font-bold text-red-600">{stats.broken}</p></div><Monitor className="h-8 w-8 text-red-500" /></div></CardContent></Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div className="space-y-1"><p className="text-sm font-medium text-muted-foreground">Tổng tài sản</p><p className="text-2xl font-bold">{stats.total}</p></div><div className="p-3 bg-slate-100 rounded-full"><Package className="h-5 w-5 text-slate-500" /></div></div></CardContent></Card>
+                <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div className="space-y-1"><p className="text-sm font-medium text-muted-foreground">Đang sử dụng</p><p className="text-2xl font-bold text-blue-600">{stats.inUse}</p></div><div className="p-3 bg-blue-50 rounded-full"><Laptop className="h-5 w-5 text-blue-500" /></div></div></CardContent></Card>
+                <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div className="space-y-1"><p className="text-sm font-medium text-muted-foreground">Sẵn sàng</p><p className="text-2xl font-bold text-green-600">{stats.available}</p></div><div className="p-3 bg-green-50 rounded-full"><Package className="h-5 w-5 text-green-500" /></div></div></CardContent></Card>
+                <Card><CardContent className="pt-6"><div className="flex items-center justify-between"><div className="space-y-1"><p className="text-sm font-medium text-muted-foreground">Bảo trì / Hỏng</p><p className="text-2xl font-bold text-red-600">{stats.broken}</p></div><div className="p-3 bg-red-50 rounded-full"><Monitor className="h-5 w-5 text-red-500" /></div></div></CardContent></Card>
             </div>
 
             {/* Filters */}
