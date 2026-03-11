@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendEmail } from '@/lib/email';
-import { getRejectionEmailTemplate } from '@/lib/templates';
+import { sendRecruitmentEmail } from '@/lib/email';
+import { RejectionNotificationEmail } from '@/emails';
 
 // GET /api/candidates/[id] - Get single candidate with relations
 export async function GET(
@@ -83,12 +83,14 @@ export async function PATCH(
             // Send rejection email when status changes to REJECTED
             if (body.status === 'REJECTED' && existing.email) {
                 const jobTitle = existing.job?.title || 'N/A';
-                const emailHtml = getRejectionEmailTemplate(existing.name, jobTitle);
-                sendEmail(
+                sendRecruitmentEmail(
                     existing.email,
                     `Kết quả ứng tuyển - ${jobTitle}`,
-                    emailHtml
-                ).catch(err => console.error('Failed to send rejection email:', err));
+                    RejectionNotificationEmail({
+                        candidateName: existing.name,
+                        jobTitle,
+                    })
+                ).catch((err: unknown) => console.error('Failed to send rejection email:', err));
             }
         }
 

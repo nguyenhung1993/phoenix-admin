@@ -1,13 +1,12 @@
-import { Resend } from 'resend';
 import { NextRequest, NextResponse } from 'next/server';
+import { sendRecruitmentEmail } from '@/lib/email';
 import ApplicationReceivedEmail from '@/emails/application-received';
 import InterviewInvitationEmail from '@/emails/interview-invitation';
 import OfferLetterEmail from '@/emails/offer-letter';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import RejectionNotificationEmail from '@/emails/rejection-notification';
 
 // Email template types
-type EmailType = 'application-received' | 'interview-invitation' | 'offer-letter';
+type EmailType = 'application-received' | 'interview-invitation' | 'offer-letter' | 'rejection';
 
 interface SendEmailRequest {
     type: EmailType;
@@ -77,6 +76,17 @@ export async function POST(request: NextRequest) {
                 };
                 break;
 
+            case 'rejection':
+                emailConfig = {
+                    subject: `Kết quả ứng tuyển - ${data.jobTitle || 'Phoenix VN'}`,
+                    react: RejectionNotificationEmail({
+                        candidateName: data.candidateName as string,
+                        jobTitle: data.jobTitle as string,
+                        companyName: data.companyName as string,
+                    }),
+                };
+                break;
+
             default:
                 return NextResponse.json(
                     { error: 'Invalid email type' },
@@ -84,19 +94,17 @@ export async function POST(request: NextRequest) {
                 );
         }
 
-        const { data: result, error } = await resend.emails.send({
-            from: 'Phoenix VN <onboarding@resend.dev>',
-            to: [to],
-            subject: emailConfig.subject,
-            react: emailConfig.react,
-        });
+        // Gửi email qua Gmail SMTP (Nodemailer)
+        const result = await sendRecruitmentEmail(to, emailConfig.subject, emailConfig.react);
 
-        if (error) {
-            console.error('Resend error:', error);
-            return NextResponse.json({ error: error.message }, { status: 500 });
+        if (!result) {
+            return NextResponse.json(
+                { error: 'SMTP not configured. Check SMTP_HOST and SMTP_USER in .env' },
+                { status: 503 }
+            );
         }
 
-        return NextResponse.json({ success: true, id: result?.id });
+        return NextResponse.json({ success: true, messageId: result.messageId });
     } catch (error) {
         console.error('Send email error:', error);
         return NextResponse.json(

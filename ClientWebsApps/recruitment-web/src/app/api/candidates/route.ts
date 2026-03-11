@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { sendRecruitmentEmail } from '@/lib/email';
+import { ApplicationReceivedEmail } from '@/emails';
+import { notificationService } from '@/lib/notification-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,7 +97,7 @@ export async function POST(request: NextRequest) {
         // Verify job exists and is published
         const job = await prisma.job.findUnique({
             where: { id: jobId },
-            select: { id: true, status: true },
+            select: { id: true, status: true, title: true },
         });
 
         if (!job) {
@@ -121,6 +124,26 @@ export async function POST(request: NextRequest) {
             where: { id: jobId },
             data: { applicants: { increment: 1 } },
         });
+
+        // ===== AUTO-SEND EMAILS (non-blocking) =====
+
+        // 1. Gửi email xác nhận cho ứng viên
+        sendRecruitmentEmail(
+            email,
+            `Xác nhận ứng tuyển - ${job.title}`,
+            ApplicationReceivedEmail({
+                candidateName: name,
+                jobTitle: job.title,
+            })
+        ).catch(err => console.error('❌ Failed to send application confirmation email:', err));
+
+        // 2. Thông báo HR team có ứng viên mới
+        notificationService.notifyHR(
+            '📩 Ứng viên mới ứng tuyển',
+            `${name} vừa ứng tuyển vị trí ${job.title}. Email: ${email}`,
+            'RECRUITMENT',
+            `/admin/candidates`
+        ).catch(err => console.error('❌ Failed to notify HR:', err));
 
         return NextResponse.json(candidate, { status: 201 });
     } catch (error) {
