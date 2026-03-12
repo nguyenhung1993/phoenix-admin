@@ -7,7 +7,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -20,13 +20,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         });
 
         if (!interview) {
-            return NextResponse.json({ error: 'Interview not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy lịch phỏng vấn' }, { status: 404 });
         }
 
         return NextResponse.json(interview);
     } catch (error) {
         console.error('GET /api/interviews/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -35,7 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -63,7 +63,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         return NextResponse.json(interview);
     } catch (error) {
         console.error('PATCH /api/interviews/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -72,7 +72,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -81,6 +81,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         return NextResponse.json({ message: 'Interview deleted' });
     } catch (error) {
         console.error('DELETE /api/interviews/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

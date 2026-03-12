@@ -19,13 +19,13 @@ export async function POST(request: NextRequest) {
         const coverLetter = formData.get('coverLetter') as string;
 
         if (!jobId || !fullName || !email || !cv) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+            return NextResponse.json({ error: 'Thiếu thông tin bắt buộc' }, { status: 400 });
         }
 
         // Validate Job existence
         const job = await prisma.job.findUnique({ where: { id: jobId } });
         if (!job) {
-            return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy công việc' }, { status: 404 });
         }
 
         // Create filename and path
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
             console.error('Error saving file:', err);
             // Continue even if save fails (for demo), or return error?
             // Better to return error if this is critical
-            return NextResponse.json({ error: 'Failed to upload CV' }, { status: 500 });
+            return NextResponse.json({ error: 'Lỗi tải CV lên' }, { status: 500 });
         }
 
         const mockCvUrl = relativePath;
@@ -100,6 +100,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: 'Application submitted successfully', id: candidate.id }, { status: 201 });
     } catch (error) {
         console.error('POST /api/public/apply error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

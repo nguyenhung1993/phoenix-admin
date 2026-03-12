@@ -94,6 +94,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(pitData);
     } catch (error) {
         console.error('PIT report error:', error);
-        return NextResponse.json({ error: 'Failed to generate PIT report' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tạo báo cáo thuế TNCN' }, { status: 500 });
     }
 }

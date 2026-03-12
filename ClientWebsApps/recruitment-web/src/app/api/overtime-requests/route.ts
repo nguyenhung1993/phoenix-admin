@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ data });
     } catch (error) {
         console.error('GET /api/overtime-requests error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -57,7 +57,7 @@ export async function PATCH(request: NextRequest) {
 
         if (!id || !status) {
             return NextResponse.json(
-                { error: 'Missing required fields: id, status' },
+                { error: 'Thiếu thông tin bắt buộc: id, status' },
                 { status: 400 }
             );
         }
@@ -102,6 +102,6 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(updated);
     } catch (error) {
         console.error('PATCH /api/overtime-requests error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

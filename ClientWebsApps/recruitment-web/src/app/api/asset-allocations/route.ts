@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data: allocations });
     } catch (error) {
         console.error('GET /api/asset-allocations error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ data: allocation }, { status: 201 });
     } catch (error) {
         console.error('POST /api/asset-allocations error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest) {
     try {
         const body = await req.json();
         const { id, ...data } = body;
-        if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'Thiếu ID' }, { status: 400 });
 
         const allocation = await prisma.assetAllocation.update({ where: { id }, data });
 
@@ -59,6 +59,6 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ data: allocation });
     } catch (error) {
         console.error('PATCH /api/asset-allocations error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

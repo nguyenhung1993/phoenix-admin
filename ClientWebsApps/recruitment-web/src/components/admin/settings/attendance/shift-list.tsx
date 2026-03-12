@@ -16,7 +16,7 @@ export function ShiftList() {
     const [shifts, setShifts] = useState<ShiftType[]>([]);
 
     useEffect(() => {
-        fetch('/api/shift-types').then(r => r.json()).then(setShifts).catch(console.error);
+        fetch('/api/shift-types').then(r => r.json()).then((res: any) => setShifts(res.data || res || [])).catch(console.error);
     }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedShift, setSelectedShift] = useState<ShiftType | null>(null);

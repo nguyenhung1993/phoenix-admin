@@ -9,7 +9,7 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -20,11 +20,11 @@ export async function PATCH(
         });
 
         if (!notification) {
-            return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy thông báo' }, { status: 404 });
         }
 
         if (notification.userId !== session.user.id) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return NextResponse.json({ error: 'Bị từ chối truy cập' }, { status: 403 });
         }
 
         const updated = await prisma.notification.update({
@@ -36,7 +36,7 @@ export async function PATCH(
     } catch (error) {
         console.error('Error updating notification:', error);
         return NextResponse.json(
-            { error: 'Failed to update notification' },
+            { error: 'Lỗi cập nhật notification' },
             { status: 500 }
         );
     }

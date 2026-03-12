@@ -26,12 +26,28 @@ export default function ForgotPasswordPage() {
 
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false);
+        try {
+            const res = await fetch('/api/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                toast.error(data.error || 'Có lỗi xảy ra, vui lòng thử lại sau.');
+                return;
+            }
+
             setIsSubmitted(true);
-            toast.success('Yêu cầu đặt lại mật khẩu đã được gửi!');
-        }, 1500);
+            toast.success(data.message || 'Yêu cầu đặt lại mật khẩu đã được gửi!');
+        } catch (error) {
+            console.error('Lỗi khi gửi yêu cầu reset mật khẩu:', error);
+            toast.error('Không thể kết nối đến máy chủ. Vui lòng thử lại.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

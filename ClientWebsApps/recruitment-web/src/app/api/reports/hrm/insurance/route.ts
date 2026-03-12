@@ -84,6 +84,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(insuranceData);
     } catch (error) {
         console.error('Insurance report error:', error);
-        return NextResponse.json({ error: 'Failed to generate insurance report' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tạo báo cáo bảo hiểm' }, { status: 500 });
     }
 }

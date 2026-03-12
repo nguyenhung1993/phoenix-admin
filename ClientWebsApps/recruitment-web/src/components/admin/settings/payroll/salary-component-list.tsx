@@ -15,7 +15,7 @@ export function SalaryComponentList() {
     const [components, setComponents] = useState<SalaryComponent[]>([]);
 
     useEffect(() => {
-        fetch('/api/salary-components').then(r => r.json()).then(setComponents).catch(console.error);
+        fetch('/api/salary-components').then(r => r.json()).then((res: any) => setComponents(res.data || res || [])).catch(console.error);
     }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedComponent, setSelectedComponent] = useState<SalaryComponent | null>(null);

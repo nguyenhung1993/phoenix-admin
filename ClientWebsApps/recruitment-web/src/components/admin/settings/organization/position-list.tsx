@@ -19,7 +19,7 @@ export function PositionList() {
     const [positions, setPositions] = useState<Position[]>([]);
 
     useEffect(() => {
-        fetch('/api/positions').then(r => r.json()).then(setPositions).catch(console.error);
+        fetch('/api/positions').then(r => r.json()).then((res: any) => setPositions(res.data || res || [])).catch(console.error);
     }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);

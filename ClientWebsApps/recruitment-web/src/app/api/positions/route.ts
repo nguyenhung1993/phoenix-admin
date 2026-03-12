@@ -23,7 +23,7 @@ export async function GET() {
         return NextResponse.json({ data });
     } catch (error) {
         console.error('GET /api/positions error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
         if (!code || !name || !level) {
             return NextResponse.json(
-                { error: 'Missing required fields: code, name, level' },
+                { error: 'Thiếu thông tin bắt buộc: code, name, level' },
                 { status: 400 }
             );
         }
@@ -54,6 +54,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(position, { status: 201 });
     } catch (error) {
         console.error('POST /api/positions error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

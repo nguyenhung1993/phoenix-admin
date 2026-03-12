@@ -6,7 +6,7 @@ export async function POST() {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const result = await prisma.notification.updateMany({
@@ -26,7 +26,7 @@ export async function POST() {
     } catch (error) {
         console.error('Error marking all notifications as read:', error);
         return NextResponse.json(
-            { error: 'Failed to mark notifications as read' },
+            { error: 'Lỗi đánh dấu đã đọc thông báo' },
             { status: 500 }
         );
     }

@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const employee = await prisma.employee.findUnique({
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         });
 
         if (!employee) {
-            return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy nhân viên' }, { status: 404 });
         }
 
         const evaluations = await prisma.evaluation.findMany({
@@ -57,6 +57,6 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error('GET /api/portal/performance error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

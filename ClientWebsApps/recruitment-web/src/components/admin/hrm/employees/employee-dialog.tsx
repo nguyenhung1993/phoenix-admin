@@ -88,10 +88,10 @@ export function EmployeeDialog({
 
     useEffect(() => {
         if (open) {
-            fetch('/api/departments').then(r => r.json()).then(setDepartments).catch(console.error)
-            fetch('/api/positions').then(r => r.json()).then(setPositions).catch(console.error)
-            fetch('/api/contract-types').then(r => r.json()).then(setContractTypes).catch(console.error)
-            fetch('/api/shift-types').then(r => r.json()).then(setShiftTypes).catch(console.error)
+            fetch('/api/departments').then(r => r.json()).then((res: any) => setDepartments(res.data || res || [])).catch(console.error)
+            fetch('/api/positions').then(r => r.json()).then((res: any) => setPositions(res.data || res || [])).catch(console.error)
+            fetch('/api/contract-types').then(r => r.json()).then((res: any) => setContractTypes(res.data || res || [])).catch(console.error)
+            fetch('/api/shift-types').then(r => r.json()).then((res: any) => setShiftTypes(res.data || res || [])).catch(console.error)
         }
     }, [open])
     const form = useForm<EmployeeFormValues>({

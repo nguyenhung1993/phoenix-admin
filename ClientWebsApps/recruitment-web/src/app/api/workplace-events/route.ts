@@ -9,6 +9,6 @@ export async function GET() {
         return NextResponse.json(events);
     } catch (error) {
         console.error('Error fetching workplace events:', error);
-        return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải events' }, { status: 500 });
     }
 }

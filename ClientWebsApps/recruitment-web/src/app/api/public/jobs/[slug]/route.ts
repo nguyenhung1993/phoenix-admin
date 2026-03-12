@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         });
 
         if (!job || job.status !== 'PUBLISHED') {
-            return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy công việc' }, { status: 404 });
         }
 
         const formattedJob = {
@@ -26,6 +26,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         return NextResponse.json(formattedJob);
     } catch (error) {
         console.error('GET /api/public/jobs/[slug] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

@@ -57,7 +57,7 @@ export function CourseDialog({ open, onOpenChange, courseToEdit }: CourseDialogP
     const [courseCategories, setCourseCategories] = useState<{ id: string; name: string }[]>([]);
 
     useEffect(() => {
-        fetch('/api/course-categories').then(r => r.json()).then(setCourseCategories).catch(console.error);
+        fetch('/api/course-categories').then(r => r.json()).then((res: any) => setCourseCategories(res.data || res || [])).catch(console.error);
     }, []);
 
     const form = useForm<CourseFormValues>({

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data: maintenances });
     } catch (error) {
         console.error('GET /api/asset-maintenances error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -38,6 +38,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ data: maintenance }, { status: 201 });
     } catch (error) {
         console.error('POST /api/asset-maintenances error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

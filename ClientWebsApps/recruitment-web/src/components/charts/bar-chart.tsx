@@ -21,8 +21,13 @@ interface BarChartProps {
 }
 
 export function SimpleBarChart({ data }: BarChartProps) {
+    // Calculate a dynamic width. For example, 60px per bar, but at least 100% of container (e.g., 500px).
+    const minWidth = Math.max(data.length * 60, 500);
+
     return (
-        <ResponsiveContainer width="100%" height={350}>
+        <div className="w-full overflow-x-auto pb-4 scrollbar-thin">
+            <div style={{ minWidth: `${minWidth}px`, height: 350 }}>
+                <ResponsiveContainer width="100%" height="100%">
             <BarChart
                 data={data}
                 margin={{
@@ -53,5 +58,7 @@ export function SimpleBarChart({ data }: BarChartProps) {
                 </Bar>
             </BarChart>
         </ResponsiveContainer>
+            </div>
+        </div>
     );
 }

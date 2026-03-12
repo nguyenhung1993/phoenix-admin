@@ -14,7 +14,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
         if (!action || !userId || !userName) {
             return NextResponse.json(
-                { error: 'Missing required fields: action, userId, userName' },
+                { error: 'Thiếu thông tin bắt buộc: action, userId, userName' },
                 { status: 400 }
             );
         }
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         } else if (action === 'reject') {
             result = await workflowEngine.rejectStep(id, userId, userName, reason);
         } else {
-            return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+            return NextResponse.json({ error: 'Hành động không hợp lệ' }, { status: 400 });
         }
 
         return NextResponse.json(result);

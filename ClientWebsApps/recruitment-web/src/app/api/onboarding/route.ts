@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const searchParams = request.nextUrl.searchParams;
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ data: onboardings });
     } catch (error) {
         console.error('GET /api/onboarding error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const body = await request.json();
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
         if (!candidateId || !startDate) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: 'Thiếu thông tin bắt buộc' },
                 { status: 400 }
             );
         }
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!candidate) {
-            return NextResponse.json({ error: 'Candidate not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy ứng viên' }, { status: 404 });
         }
 
         const departmentName = candidate.job?.departmentId
@@ -98,6 +98,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(onboarding, { status: 201 });
     } catch (error) {
         console.error('POST /api/onboarding error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

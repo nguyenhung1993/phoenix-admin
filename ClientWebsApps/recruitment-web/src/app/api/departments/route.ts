@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const searchParams = request.nextUrl.searchParams;
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ data: enriched });
     } catch (error) {
         console.error('GET /api/departments error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const body = await request.json();
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
         if (!code || !name) {
             return NextResponse.json(
-                { error: 'Missing required fields: code, name' },
+                { error: 'Thiếu thông tin bắt buộc: code, name' },
                 { status: 400 }
             );
         }
@@ -96,6 +96,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(department, { status: 201 });
     } catch (error) {
         console.error('POST /api/departments error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

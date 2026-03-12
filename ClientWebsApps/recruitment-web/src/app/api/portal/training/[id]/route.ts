@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         const session = await auth();
 
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const enrollment = await prisma.enrollment.findUnique({
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         });
 
         if (!enrollment) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return NextResponse.json({ error: 'Bị từ chối truy cập' }, { status: 403 });
         }
 
         const formattedData = {
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         return NextResponse.json({ data: formattedData });
     } catch (error) {
         console.error('GET /api/portal/training/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -67,7 +67,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const body = await request.json();
 
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { progress } = body;
@@ -91,6 +91,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         return NextResponse.json({ data: updated });
     } catch (error) {
         console.error('PATCH /api/portal/training/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
         if (!to || !type) {
             return NextResponse.json(
-                { error: 'Missing required fields: to, type' },
+                { error: 'Thiếu thông tin bắt buộc: to, type' },
                 { status: 400 }
             );
         }
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
             default:
                 return NextResponse.json(
-                    { error: 'Invalid email type' },
+                    { error: 'Loại email không hợp lệ' },
                     { status: 400 }
                 );
         }
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
         if (!result) {
             return NextResponse.json(
-                { error: 'SMTP not configured. Check SMTP_HOST and SMTP_USER in .env' },
+                { error: 'SMTP chưa được cấu hình. Vui lòng kiểm tra SMTP_HOST và SMTP_USER trong .env' },
                 { status: 503 }
             );
         }
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('Send email error:', error);
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Lỗi hệ thống' },
             { status: 500 }
         );
     }

@@ -31,8 +31,8 @@ export default function WorkplaceFeedPage() {
     const [newPostContent, setNewPostContent] = useState('');
 
     useEffect(() => {
-        fetch('/api/posts').then(r => r.json()).then(setPosts).catch(console.error);
-        fetch('/api/workplace-events').then(r => r.json()).then(setEvents).catch(console.error);
+        fetch('/api/posts').then(r => r.json()).then((res: any) => setPosts(res.data || res || [])).catch(console.error);
+        fetch('/api/workplace-events').then(r => r.json()).then((res: any) => setEvents(res.data || res || [])).catch(console.error);
     }, []);
 
     const handlePost = () => {

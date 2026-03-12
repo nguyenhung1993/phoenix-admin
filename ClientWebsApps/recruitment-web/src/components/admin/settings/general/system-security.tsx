@@ -20,7 +20,7 @@ export function SystemSecurity() {
 
     useEffect(() => {
         fetch('/api/security-config').then(r => r.json()).then(setSecurityConfig).catch(console.error);
-        fetch('/api/audit-logs?limit=10').then(r => r.json()).then(setAuditLogs).catch(console.error);
+        fetch('/api/audit-logs?limit=10').then(r => r.json()).then((res: any) => setAuditLogs(res.data || res || [])).catch(console.error);
     }, []);
 
     const handleResetSystem = () => {

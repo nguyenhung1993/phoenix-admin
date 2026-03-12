@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data });
     } catch (error) {
         console.error('GET /api/evaluations error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ data: evaluation }, { status: 201 });
     } catch (error) {
         console.error('POST /api/evaluations error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -94,7 +94,7 @@ export async function PATCH(req: NextRequest) {
         const { id, status, selfScore, managerScore, finalScore, kpiResults, strengths, weaknesses, developmentPlan } = body;
 
         if (!id) {
-            return NextResponse.json({ error: 'Missing evaluation id' }, { status: 400 });
+            return NextResponse.json({ error: 'Thiếu ID đánh giá' }, { status: 400 });
         }
 
         const data: any = {};
@@ -118,6 +118,6 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ data: updated });
     } catch (error) {
         console.error('PATCH /api/evaluations error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

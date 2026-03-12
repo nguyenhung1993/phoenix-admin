@@ -16,7 +16,7 @@ export function ContractTypeList() {
     const [contractTypes, setContractTypes] = useState<ContractType[]>([]);
 
     useEffect(() => {
-        fetch('/api/contract-types').then(r => r.json()).then(setContractTypes).catch(console.error);
+        fetch('/api/contract-types').then(r => r.json()).then((res: any) => setContractTypes(res.data || res || [])).catch(console.error);
     }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedContractType, setSelectedContractType] = useState<ContractType | null>(null);

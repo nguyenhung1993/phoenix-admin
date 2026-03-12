@@ -8,7 +8,7 @@ export async function GET() {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const notifications = await prisma.notification.findMany({
@@ -36,7 +36,7 @@ export async function GET() {
     } catch (error) {
         console.error('Error fetching notifications:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch notifications' },
+            { error: 'Lỗi tải notifications' },
             { status: 500 }
         );
     }

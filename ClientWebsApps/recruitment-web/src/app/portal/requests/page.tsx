@@ -56,7 +56,7 @@ export default function MyRequestsPage() {
     const { addNotification } = useNotifications();
 
     useEffect(() => {
-        fetch('/api/approval-workflows').then(r => r.json()).then(setMyRequests).catch(console.error);
+        fetch('/api/approval-workflows').then(r => r.json()).then((res: any) => setMyRequests(res.data || res || [])).catch(console.error);
     }, []);
 
     const handleCreate = () => {

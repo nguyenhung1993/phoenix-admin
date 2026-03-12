@@ -60,7 +60,7 @@ export function KPIDialog({ open, onOpenChange, kpiToEdit }: KPIDialogProps) {
     const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
     useEffect(() => {
-        fetch('/api/departments').then(r => r.json()).then(setDepartments).catch(console.error);
+        fetch('/api/departments').then(r => r.json()).then((res: any) => setDepartments(res.data || res || [])).catch(console.error);
     }, []);
 
     const form = useForm<KPIFormValues>({

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const searchParams = request.nextUrl.searchParams;
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error('GET /api/candidates error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
         if (!name || !email || !jobId) {
             return NextResponse.json(
-                { error: 'Missing required fields: name, email, jobId' },
+                { error: 'Thiếu thông tin bắt buộc: name, email, jobId' },
                 { status: 400 }
             );
         }
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!job) {
-            return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy công việc' }, { status: 404 });
         }
 
         const candidate = await prisma.candidate.create({
@@ -148,6 +148,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(candidate, { status: 201 });
     } catch (error) {
         console.error('POST /api/candidates error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

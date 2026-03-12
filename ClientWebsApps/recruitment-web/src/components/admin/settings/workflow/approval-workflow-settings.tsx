@@ -38,7 +38,7 @@ export function ApprovalWorkflowSettings() {
     const [workflows, setWorkflows] = useState<ApprovalWorkflow[]>([]);
 
     useEffect(() => {
-        fetch('/api/approval-workflows').then(r => r.json()).then(setWorkflows).catch(console.error);
+        fetch('/api/approval-workflows').then(r => r.json()).then((res: any) => setWorkflows(res.data || res || [])).catch(console.error);
     }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingWorkflow, setEditingWorkflow] = useState<ApprovalWorkflow | null>(null);

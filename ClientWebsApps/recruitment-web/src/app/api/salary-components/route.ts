@@ -7,7 +7,7 @@ export async function GET() {
         return NextResponse.json(components);
     } catch (error) {
         console.error('Error fetching salary components:', error);
-        return NextResponse.json({ error: 'Failed to fetch salary components' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải salary components' }, { status: 500 });
     }
 }
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(component);
     } catch (error) {
         console.error('Error creating salary component:', error);
-        return NextResponse.json({ error: 'Failed to create salary component' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tạo salary component' }, { status: 500 });
     }
 }
 
@@ -30,7 +30,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(component);
     } catch (error) {
         console.error('Error updating salary component:', error);
-        return NextResponse.json({ error: 'Failed to update salary component' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi cập nhật salary component' }, { status: 500 });
     }
 }
 
@@ -38,11 +38,11 @@ export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
-        if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'ID là bắt buộc' }, { status: 400 });
         await prisma.salaryComponent.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting salary component:', error);
-        return NextResponse.json({ error: 'Failed to delete salary component' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi xóa salary component' }, { status: 500 });
     }
 }

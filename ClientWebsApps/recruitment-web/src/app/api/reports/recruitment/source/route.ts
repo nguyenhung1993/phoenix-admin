@@ -10,7 +10,7 @@ export async function GET() {
     } catch (error) {
         console.error('Error fetching source report:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch report data' },
+            { error: 'Lỗi tải report data' },
             { status: 500 }
         );
     }

@@ -20,7 +20,7 @@ export async function GET() {
         return NextResponse.json(config);
     } catch (error) {
         console.error('Error fetching security config:', error);
-        return NextResponse.json({ error: 'Failed to fetch security config' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải security config' }, { status: 500 });
     }
 }
 
@@ -35,6 +35,6 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(config);
     } catch (error) {
         console.error('Error updating security config:', error);
-        return NextResponse.json({ error: 'Failed to update security config' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi cập nhật security config' }, { status: 500 });
     }
 }

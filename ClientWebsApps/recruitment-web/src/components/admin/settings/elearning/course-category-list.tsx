@@ -16,7 +16,7 @@ export function CourseCategoryList() {
     const [categories, setCategories] = useState<CourseCategory[]>([]);
 
     useEffect(() => {
-        fetch('/api/course-categories').then(r => r.json()).then(setCategories).catch(console.error);
+        fetch('/api/course-categories').then(r => r.json()).then((res: any) => setCategories(res.data || res || [])).catch(console.error);
     }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<CourseCategory | null>(null);

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data: requests });
     } catch (error) {
         console.error('GET /api/approval-requests error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -25,12 +25,12 @@ export async function PATCH(req: NextRequest) {
     try {
         const body = await req.json();
         const { id, ...data } = body;
-        if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'Thiếu ID' }, { status: 400 });
 
         const updated = await prisma.approvalRequest.update({ where: { id }, data });
         return NextResponse.json({ data: updated });
     } catch (error) {
         console.error('PATCH /api/approval-requests error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

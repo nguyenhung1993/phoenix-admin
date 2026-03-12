@@ -7,7 +7,7 @@ export async function GET() {
         return NextResponse.json(types);
     } catch (error) {
         console.error('Error fetching contract types:', error);
-        return NextResponse.json({ error: 'Failed to fetch contract types' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải contract types' }, { status: 500 });
     }
 }
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(type);
     } catch (error) {
         console.error('Error creating contract type:', error);
-        return NextResponse.json({ error: 'Failed to create contract type' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tạo contract type' }, { status: 500 });
     }
 }
 
@@ -30,7 +30,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(type);
     } catch (error) {
         console.error('Error updating contract type:', error);
-        return NextResponse.json({ error: 'Failed to update contract type' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi cập nhật contract type' }, { status: 500 });
     }
 }
 
@@ -38,11 +38,11 @@ export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
-        if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'ID là bắt buộc' }, { status: 400 });
         await prisma.contractType.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting contract type:', error);
-        return NextResponse.json({ error: 'Failed to delete contract type' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi xóa contract type' }, { status: 500 });
     }
 }

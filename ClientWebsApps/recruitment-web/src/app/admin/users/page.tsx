@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, Save, Plus, Pencil, Trash2, MoreVertical, Loader2 } from 'lucide-react';
+import { Search, Save, Plus, Pencil, Trash2, MoreVertical, Loader2, X, Eye, EyeOff } from 'lucide-react';
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
     DropdownMenuSeparator, DropdownMenuTrigger,
@@ -45,9 +45,10 @@ export default function UserManagementPage() {
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
     const [positions, setPositions] = useState<{ id: string; name: string }[]>([]);
+    const [showPassword, setShowPassword] = useState(false);
 
-    const [formData, setFormData] = useState<Partial<User>>({
-        name: '', email: '', role: 'EMPLOYEE', department: '', position: '', status: 'active',
+    const [formData, setFormData] = useState<Partial<User> & { password?: string }>({
+        name: '', email: '', role: 'EMPLOYEE', department: '', position: '', status: 'active', password: '',
     });
 
     const fetchData = async () => {
@@ -69,11 +70,17 @@ export default function UserManagementPage() {
 
             if (deptRes.ok) {
                 const deptJson = await deptRes.json();
-                setDepartments((deptJson.data || []).filter((d: any) => d.isActive !== false));
+                const allDepts = (deptJson.data || []).filter((d: any) => d.isActive !== false);
+                // Deduplicate by name
+                const uniqueDepts = allDepts.filter((d: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.name === d.name) === i);
+                setDepartments(uniqueDepts);
             }
             if (posRes.ok) {
                 const posJson = await posRes.json();
-                setPositions((posJson.data || []).filter((p: any) => p.isActive !== false));
+                const allPos = (posJson.data || []).filter((p: any) => p.isActive !== false);
+                // Deduplicate by name
+                const uniquePos = allPos.filter((p: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.name === p.name) === i);
+                setPositions(uniquePos);
             }
         } catch {
             setUsers([]);
@@ -91,7 +98,7 @@ export default function UserManagementPage() {
 
     const handleOpenCreate = () => {
         setEditingUser(null);
-        setFormData({ name: '', email: '', role: 'EMPLOYEE', department: '', position: '', status: 'active' });
+        setFormData({ name: '', email: '', role: 'EMPLOYEE', department: '', position: '', status: 'active', password: '' });
         setIsDialogOpen(true);
     };
 
@@ -106,8 +113,32 @@ export default function UserManagementPage() {
             toast.error('Vui lòng nhập tên và email');
             return;
         }
-        toast.success(editingUser ? 'Cập nhật tài khoản thành công' : 'Thêm tài khoản mới thành công');
-        setIsDialogOpen(false);
+        try {
+            if (editingUser) {
+                const res = await fetch('/api/users', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: editingUser.id, ...formData }),
+                });
+                if (!res.ok) { const err = await res.json(); toast.error(err.error || 'Lỗi cập nhật'); return; }
+                const updated = await res.json();
+                setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...updated } : u));
+                toast.success('Cập nhật tài khoản thành công');
+            } else {
+                const res = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData),
+                });
+                if (!res.ok) { const err = await res.json(); toast.error(err.error || 'Lỗi tạo tài khoản'); return; }
+                const newUser = await res.json();
+                setUsers(prev => [newUser, ...prev]);
+                toast.success('Thêm tài khoản mới thành công');
+            }
+            setIsDialogOpen(false);
+        } catch {
+            toast.error('Đã xảy ra lỗi');
+        }
     };
 
     const handleDeleteClick = (user: User) => {
@@ -115,10 +146,15 @@ export default function UserManagementPage() {
         setIsDeleteDialogOpen(true);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (userToDelete) {
-            setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
-            toast.success('Đã xóa tài khoản');
+            try {
+                await fetch(`/api/users?id=${userToDelete.id}`, { method: 'DELETE' });
+                setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+                toast.success('Đã xóa tài khoản');
+            } catch {
+                toast.error('Lỗi khi xóa tài khoản');
+            }
             setIsDeleteDialogOpen(false);
             setUserToDelete(null);
         }
@@ -200,21 +236,25 @@ export default function UserManagementPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
-                                                <DropdownMenuItem onClick={() => handleOpenEdit(user)}>
-                                                    <Pencil className="mr-2 h-4 w-4" /> Chỉnh sửa
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(user)}>
-                                                    <Trash2 className="mr-2 h-4 w-4" /> Xóa tài khoản
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        {user.role !== 'SUPER_ADMIN' ? (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={() => handleOpenEdit(user)}>
+                                                        <Pencil className="mr-2 h-4 w-4" /> Chỉnh sửa
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(user)}>
+                                                        <Trash2 className="mr-2 h-4 w-4" /> Xóa tài khoản
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        ) : (
+                                            <div className="w-9 h-9 inline-block"></div>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -236,12 +276,49 @@ export default function UserManagementPage() {
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name" className="text-right">Tên</Label>
-                            <Input id="name" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="col-span-3" />
+                            <div className="relative col-span-3">
+                                <Input id="name" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="pr-10" />
+                                {formData.name && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, name: '' })}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="email" className="text-right">Email</Label>
-                            <Input id="email" type="email" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="col-span-3" />
+                            <div className="relative col-span-3">
+                                <Input id="email" type="email" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="pr-10" />
+                                {formData.email && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, email: '' })}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
+                        {!editingUser && (
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="password" className="text-right">Mật khẩu</Label>
+                                <div className="relative col-span-3">
+                                    <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="Mặc định: 123456" value={formData.password || ''} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="pr-10" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label className="text-right">Phòng ban</Label>
                             <Select value={formData.department} onValueChange={(val) => setFormData({ ...formData, department: val })}>

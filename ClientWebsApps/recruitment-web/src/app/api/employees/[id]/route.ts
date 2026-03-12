@@ -10,7 +10,7 @@ export async function GET(
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -30,7 +30,7 @@ export async function GET(
         return NextResponse.json(employee);
     } catch (error) {
         console.error('GET /api/employees/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -42,7 +42,7 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -112,7 +112,7 @@ export async function PATCH(
         return NextResponse.json(employee);
     } catch (error) {
         console.error('PATCH /api/employees/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -124,7 +124,7 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -139,6 +139,6 @@ export async function DELETE(
         return NextResponse.json({ message: 'Đã xóa nhân viên thành công' });
     } catch (error) {
         console.error('DELETE /api/employees/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

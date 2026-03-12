@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(posts);
     } catch (error) {
         console.error('Error fetching posts:', error);
-        return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải posts' }, { status: 500 });
     }
 }
 
@@ -24,6 +24,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(post);
     } catch (error) {
         console.error('Error creating post:', error);
-        return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tạo post' }, { status: 500 });
     }
 }

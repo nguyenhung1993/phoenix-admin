@@ -166,10 +166,10 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
                                     </span>
                                 </div>
                             )}
-                            <div className="flex items-center gap-2">
+                            {/* <div className="flex items-center gap-2">
                                 <span className="text-muted-foreground">Nghề thứ {1}:</span>
                                 <Link href="#" className="text-blue-600 hover:underline font-medium">Xem thêm</Link>
-                            </div>
+                            </div> */}
                         </div>
                     </div>
 

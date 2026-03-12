@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ data });
     } catch (error) {
         console.error('GET /api/resignations error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
         if (!employeeId || !managerId || !reason || !lastWorkingDate) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: 'Thiếu thông tin bắt buộc' },
                 { status: 400 }
             );
         }
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(resignation, { status: 201 });
     } catch (error) {
         console.error('POST /api/resignations error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -90,7 +90,7 @@ export async function PATCH(request: NextRequest) {
 
         if (!id || !status) {
             return NextResponse.json(
-                { error: 'Missing required fields: id, status' },
+                { error: 'Thiếu thông tin bắt buộc: id, status' },
                 { status: 400 }
             );
         }
@@ -106,6 +106,6 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(resignation);
     } catch (error) {
         console.error('PATCH /api/resignations error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

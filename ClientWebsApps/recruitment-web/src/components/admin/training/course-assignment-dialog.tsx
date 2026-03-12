@@ -33,7 +33,7 @@ export function CourseAssignmentDialog({ open, onOpenChange, course }: CourseAss
     const [employees, setEmployees] = useState<Employee[]>([]);
 
     useEffect(() => {
-        fetch('/api/employees').then(r => r.json()).then(setEmployees).catch(console.error);
+        fetch('/api/employees').then(r => r.json()).then((res: any) => setEmployees(res.data || res || [])).catch(console.error);
     }, []);
 
     if (!course) return null;

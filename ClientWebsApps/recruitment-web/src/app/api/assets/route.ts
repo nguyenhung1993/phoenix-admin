@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data: assets });
     } catch (error) {
         console.error('GET /api/assets error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ data: asset }, { status: 201 });
     } catch (error) {
         console.error('POST /api/assets error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest) {
     try {
         const body = await req.json();
         const { id, ...data } = body;
-        if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'Thiếu ID' }, { status: 400 });
 
         const currentAsset = await prisma.asset.findUnique({ where: { id } });
 
@@ -96,7 +96,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ data: asset });
     } catch (error) {
         console.error('PATCH /api/assets error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -104,12 +104,12 @@ export async function DELETE(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
-        if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'Thiếu ID' }, { status: 400 });
 
         await prisma.asset.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('DELETE /api/assets error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data });
     } catch (error) {
         console.error('GET /api/kpis error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -62,6 +62,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ data: kpi }, { status: 201 });
     } catch (error) {
         console.error('POST /api/kpis error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

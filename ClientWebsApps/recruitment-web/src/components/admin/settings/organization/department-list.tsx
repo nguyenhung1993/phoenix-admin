@@ -19,7 +19,7 @@ export function DepartmentList() {
     const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
 
     useEffect(() => {
-        fetch('/api/departments').then(r => r.json()).then(setDepartments).catch(console.error);
+        fetch('/api/departments').then(r => r.json()).then((res: any) => setDepartments(res.data || res || [])).catch(console.error);
     }, []);
 
     const handleCreate = () => {

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error('GET /api/jobs error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const body = await request.json();
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
         if (!title || !slug) {
             return NextResponse.json(
-                { error: 'Missing required fields: title, slug' },
+                { error: 'Thiếu thông tin bắt buộc: title, slug' },
                 { status: 400 }
             );
         }
@@ -114,6 +114,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(job, { status: 201 });
     } catch (error) {
         console.error('POST /api/jobs error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

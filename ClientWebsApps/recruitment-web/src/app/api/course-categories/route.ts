@@ -10,7 +10,7 @@ export async function GET() {
         return NextResponse.json(categories);
     } catch (error) {
         console.error('Error fetching course categories:', error);
-        return NextResponse.json({ error: 'Failed to fetch course categories' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tải course categories' }, { status: 500 });
     }
 }
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(category);
     } catch (error) {
         console.error('Error creating course category:', error);
-        return NextResponse.json({ error: 'Failed to create course category' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi tạo course category' }, { status: 500 });
     }
 }
 
@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(category);
     } catch (error) {
         console.error('Error updating course category:', error);
-        return NextResponse.json({ error: 'Failed to update course category' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi cập nhật course category' }, { status: 500 });
     }
 }
 
@@ -41,11 +41,11 @@ export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
-        if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'ID là bắt buộc' }, { status: 400 });
         await prisma.courseCategory.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting course category:', error);
-        return NextResponse.json({ error: 'Failed to delete course category' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi xóa course category' }, { status: 500 });
     }
 }

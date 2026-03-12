@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const enrollments = await prisma.enrollment.findMany({
@@ -43,6 +43,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ data });
     } catch (error) {
         console.error('GET /api/portal/training error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

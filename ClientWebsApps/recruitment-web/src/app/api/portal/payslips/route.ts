@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const employee = await prisma.employee.findUnique({
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         });
 
         if (!employee) {
-            return NextResponse.json({ error: 'Employee not found for this user' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy hồ sơ nhân viên cho người dùng này' }, { status: 404 });
         }
 
         const payslips = await prisma.payrollSlip.findMany({
@@ -35,6 +35,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ data: payslips });
     } catch (error) {
         console.error('GET /api/portal/payslips error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

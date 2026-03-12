@@ -73,11 +73,21 @@ export async function getHeadcountStats() {
 
     const departmentData = departments.map(dept => {
         const found = byDepartment.find(d => d.departmentId === dept.id);
+        const count = found?._count.id || 0;
+        
+        let shortName = dept.name;
+        if (shortName.length > 20) {
+            shortName = shortName.substring(0, 18) + '...';
+        }
+
         return {
-            department: dept.name,
-            count: found?._count.id || 0,
+            department: shortName,
+            fullDepartment: dept.name,
+            count: count,
         };
-    });
+    })
+    .filter(d => d.count > 0)
+    .sort((a, b) => b.count - a.count);
 
     const statusData = byStatus.map(s => ({
         status: s.status,

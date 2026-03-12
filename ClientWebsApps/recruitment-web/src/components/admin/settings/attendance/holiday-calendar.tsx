@@ -15,7 +15,7 @@ export function HolidayCalendar() {
     const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
 
     useEffect(() => {
-        fetch('/api/public-holidays').then(r => r.json()).then(setHolidays).catch(console.error);
+        fetch('/api/public-holidays').then(r => r.json()).then((res: any) => setHolidays(res.data || res || [])).catch(console.error);
     }, []);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedHoliday, setSelectedHoliday] = useState<PublicHoliday | null>(null);

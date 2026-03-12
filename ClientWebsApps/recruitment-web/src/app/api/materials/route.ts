@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ data });
     } catch (error) {
         console.error('GET /api/materials error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -45,7 +45,7 @@ export async function DELETE(req: NextRequest) {
         const id = searchParams.get('id');
 
         if (!id) {
-            return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+            return NextResponse.json({ error: 'Thiếu ID' }, { status: 400 });
         }
 
         await prisma.material.delete({ where: { id } });
@@ -53,6 +53,6 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('DELETE /api/materials error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

@@ -7,7 +7,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -20,13 +20,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         });
 
         if (!onboarding) {
-            return NextResponse.json({ error: 'Onboarding not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Không tìm thấy thông tin hội nhập' }, { status: 404 });
         }
 
         return NextResponse.json(onboarding);
     } catch (error) {
         console.error('GET /api/onboarding/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -35,7 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -79,10 +79,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             return NextResponse.json(updatedOnboarding);
         }
 
-        return NextResponse.json({ error: 'Invalid update data' }, { status: 400 });
+        return NextResponse.json({ error: 'Dữ liệu cập nhật không hợp lệ' }, { status: 400 });
     } catch (error) {
         console.error('PATCH /api/onboarding/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }
 
@@ -91,7 +91,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     try {
         const session = await auth();
         if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const { id } = await params;
@@ -100,6 +100,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         return NextResponse.json({ message: 'Onboarding deleted' });
     } catch (error) {
         console.error('DELETE /api/onboarding/[id] error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
     }
 }

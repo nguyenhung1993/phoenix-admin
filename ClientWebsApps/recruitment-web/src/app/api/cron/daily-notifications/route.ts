@@ -31,7 +31,7 @@ async function handleCronJob(request: NextRequest) {
         const cronSecret = process.env.CRON_SECRET;
 
         if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 401 });
         }
 
         const results = {
@@ -147,7 +147,7 @@ async function handleCronJob(request: NextRequest) {
     } catch (error) {
         console.error('CRON daily-notifications error:', error);
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Lỗi hệ thống' },
             { status: 500 }
         );
     }
