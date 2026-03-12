@@ -1,31 +1,45 @@
+const BASE_EMAIL_STYLE = `
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333333; background-color: #f4f4f5; margin: 0; padding: 0; }
+    .email-wrapper { width: 100%; table-layout: fixed; background-color: #f4f4f5; padding: 40px 0; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+    .header { background-color: #bc2c26; padding: 24px; text-align: center; color: #ffffff; }
+    .header h2 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px; }
+    .content { padding: 32px 24px; }
+    .content p { margin: 0 0 16px 0; font-size: 16px; color: #4b5563; }
+    .content strong { color: #111827; }
+    .button-container { text-align: center; margin: 32px 0; }
+    .button { display: inline-block; padding: 12px 24px; background-color: #bc2c26; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; }
+    .detail-box { background-color: #f9fafb; padding: 20px; border-radius: 6px; border: 1px solid #e5e7eb; margin: 24px 0; }
+    .detail-box p { margin: 0 0 8px 0; font-size: 15px; }
+    .detail-box p:last-child { margin: 0; }
+    .footer { background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0; }
+    .footer p { margin: 0 0 8px 0; font-size: 13px; color: #64748b; }
+`;
+
 export const getWelcomeEmailTemplate = (candidateName: string, jobTitle: string) => {
     return `
 <!DOCTYPE html>
 <html>
-<head>
-<style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: #f8fafc; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { padding: 20px; background-color: #fff; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px; }
-    .button { display: inline-block; padding: 10px 20px; background-color: #3b82f6; color: #fff; text-decoration: none; border-radius: 4px; margin-top: 10px; }
-    .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #64748b; }
-</style>
-</head>
+<head><style>${BASE_EMAIL_STYLE}</style></head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>Hồ sơ ứng tuyển đã được tiếp nhận</h2>
-        </div>
-        <div class="content">
-            <p>Xin chào <strong>${candidateName}</strong>,</p>
-            <p>Cảm ơn bạn đã quan tâm và ứng tuyển vào vị trí <strong>${jobTitle}</strong> tại Phoenix Corp.</p>
-            <p>Chúng tôi đã nhận được hồ sơ của bạn và sẽ tiến hành xem xét trong thời gian sớm nhất. Bộ phận tuyển dụng sẽ liên hệ với bạn nếu hồ sơ phù hợp.</p>
-            <p>Trân trọng,</p>
-            <p><strong>Bộ phận Tuyển dụng Phoenix Corp</strong></p>
-        </div>
-        <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} Phoenix Corp. All rights reserved.</p>
+    <div class="email-wrapper">
+        <div class="container">
+            <div class="header">
+                <h2>Phoenix HRMS</h2>
+            </div>
+            <div class="content">
+                <h3 style="color: #111827; margin-top: 0; font-size: 20px;">Hồ sơ ứng tuyển đã được tiếp nhận</h3>
+                <p>Xin chào <strong>${candidateName}</strong>,</p>
+                <p>Cảm ơn bạn đã quan tâm và ứng tuyển vào vị trí <strong>${jobTitle}</strong> tại Phoenix.</p>
+                <p>Chúng tôi đã nhận được hồ sơ của bạn và hệ thống đang trong quá trình ghi nhận. Bộ phận tuyển dụng sẽ xem xét năng lực của bạn và liên hệ lại trong thời gian sớm nhất nếu hồ sơ phù hợp với yêu cầu hiện tại.</p>
+                <br/>
+                <p>Trân trọng,</p>
+                <p><strong>Bộ phận Tuyển dụng Phoenix</strong></p>
+            </div>
+            <div class="footer">
+                <p>Đây là email tự động. Vui lòng không trả lời.</p>
+                <p>&copy; ${new Date().getFullYear()} Phoenix. All rights reserved.</p>
+            </div>
         </div>
     </div>
 </body>
@@ -37,37 +51,34 @@ export const getInterviewEmailTemplate = (candidateName: string, jobTitle: strin
     return `
 <!DOCTYPE html>
 <html>
-<head>
-<style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: #f0fdf4; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { padding: 20px; background-color: #fff; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px; }
-    .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #64748b; }
-    .detail-box { background-color: #f8fafc; padding: 15px; border-radius: 4px; margin: 15px 0; }
-</style>
-</head>
+<head><style>${BASE_EMAIL_STYLE}</style></head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>Thư mời phỏng vấn</h2>
-        </div>
-        <div class="content">
-            <p>Xin chào <strong>${candidateName}</strong>,</p>
-            <p>Chúc mừng bạn đã vượt qua vòng sơ loại cho vị trí <strong>${jobTitle}</strong>.</p>
-            <p>Chúng tôi trân trọng mời bạn tham gia buổi phỏng vấn tiếp theo với chi tiết như sau:</p>
-            <div class="detail-box">
-                <p><strong>Thời gian:</strong> ${date}</p>
-                <p><strong>Hình thức:</strong> ${type}</p>
-                ${location ? `<p><strong>Địa điểm:</strong> ${location}</p>` : ''}
-                ${link ? `<p><strong>Link tham gia:</strong> <a href="${link}">${link}</a></p>` : ''}
+    <div class="email-wrapper">
+        <div class="container">
+            <div class="header">
+                <h2>Phoenix HRMS</h2>
             </div>
-            <p>Vui lòng xác nhận tham gia bằng cách trả lời email này.</p>
-            <p>Trân trọng,</p>
-            <p><strong>Bộ phận Tuyển dụng Phoenix Corp</strong></p>
-        </div>
-        <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} Phoenix Corp. All rights reserved.</p>
+            <div class="content">
+                <h3 style="color: #111827; margin-top: 0; font-size: 20px;">Thư mời phỏng vấn - ${jobTitle}</h3>
+                <p>Xin chào <strong>${candidateName}</strong>,</p>
+                <p>Chúc mừng bạn đã vượt qua vòng sơ loại hồ sơ cho vị trí <strong>${jobTitle}</strong>.</p>
+                <p>Chúng tôi trân trọng mời bạn tham gia buổi phỏng vấn đánh giá năng lực với chi tiết như sau:</p>
+                
+                <div class="detail-box">
+                    <p><strong>Thời gian:</strong> ${date}</p>
+                    <p><strong>Hình thức phỏng vấn:</strong> ${type}</p>
+                    ${location ? `<p><strong>Địa điểm:</strong> ${location}</p>` : ''}
+                    ${link ? `<p><strong>Link tham gia Online:</strong> <a href="${link}" style="color: #bc2c26;">Tham gia phỏng vấn tại đây</a></p>` : ''}
+                </div>
+                
+                <p>Vui lòng xác nhận khả năng tham gia của bạn bằng cách trả lời (Reply) trực tiếp vào email này.</p>
+                <br/>
+                <p>Trân trọng,</p>
+                <p><strong>Bộ phận Tuyển dụng Phoenix</strong></p>
+            </div>
+            <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} Phoenix. All rights reserved.</p>
+            </div>
         </div>
     </div>
 </body>
@@ -79,36 +90,34 @@ export const getOfferEmailTemplate = (candidateName: string, jobTitle: string, s
     return `
 <!DOCTYPE html>
 <html>
-<head>
-<style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: #eff6ff; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { padding: 20px; background-color: #fff; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px; }
-    .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #64748b; }
-</style>
-</head>
+<head><style>${BASE_EMAIL_STYLE}</style></head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>Thư mời nhận việc (Offer Letter)</h2>
-        </div>
-        <div class="content">
-            <p>Xin chào <strong>${candidateName}</strong>,</p>
-            <p>Chúng tôi rất vui mừng thông báo bạn đã trúng tuyển vị trí <strong>${jobTitle}</strong> tại Phoenix Corp!</p>
-            <p>Dựa trên năng lực và kinh nghiệm của bạn, chúng tôi xin gửi đến bạn lời mời làm việc với các thông tin chính:</p>
-            <ul>
-                <li><strong>Mức lương cơ bản:</strong> ${salary} VND</li>
-                <li><strong>Ngày bắt đầu làm việc (dự kiến):</strong> ${startDate}</li>
-            </ul>
-            <p>Chi tiết về các chế độ phúc lợi khác được đính kèm trong email này.</p>
-            <p>Vui lòng phản hồi trước ngày hết hạn offer.</p>
-            <p>Chúng tôi rất mong được chào đón bạn gia nhập đội ngũ Phoenix Corp!</p>
-            <p>Trân trọng,</p>
-            <p><strong>Bộ phận Nhân sự Phoenix Corp</strong></p>
-        </div>
-        <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} Phoenix Corp. All rights reserved.</p>
+    <div class="email-wrapper">
+        <div class="container">
+            <div class="header">
+                <h2>Phoenix HRMS</h2>
+            </div>
+            <div class="content">
+                <h3 style="color: #111827; margin-top: 0; font-size: 20px;">Thư mời nhận việc (Offer Letter)</h3>
+                <p>Xin chào <strong>${candidateName}</strong>,</p>
+                <p>Chúng tôi rất vui mừng thông báo bạn đã trúng tuyển vị trí <strong>${jobTitle}</strong> tại Phoenix!</p>
+                <p>Dựa trên sự thể hiện xuất sắc của bạn trong các vòng phỏng vấn, chúng tôi xin gửi đến bạn lời mời làm việc chính thức với các thông tin tóm tắt sau:</p>
+                
+                <div class="detail-box">
+                    <p><strong>Vị trí:</strong> ${jobTitle}</p>
+                    <p><strong>Mức lương thoả thuận:</strong> ${salary} VND</p>
+                    <p><strong>Ngày bắt đầu làm việc dự kiến:</strong> ${startDate}</p>
+                </div>
+                
+                <p>Chi tiết về offer chính thức cùng các chế độ phúc lợi đã được đính kèm trong thư này hoặc sẽ được chia sẻ thông qua điện thoại bởi chuyên viên nhân sự của chúng tôi.</p>
+                <p>Chúng tôi rất mong chờ được chào đón bạn gia nhập đội ngũ Phoenix!</p>
+                <br/>
+                <p>Trân trọng,</p>
+                <p><strong>Bộ phận Nhân sự Phoenix</strong></p>
+            </div>
+            <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} Phoenix. All rights reserved.</p>
+            </div>
         </div>
     </div>
 </body>
@@ -120,40 +129,71 @@ export const getRejectionEmailTemplate = (candidateName: string, jobTitle: strin
     return `
 <!DOCTYPE html>
 <html>
-<head>
-<style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: #fef2f2; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { padding: 20px; background-color: #fff; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px; }
-    .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #64748b; }
-    .cta-box { background-color: #f8fafc; padding: 15px; border-radius: 4px; margin: 15px 0; text-align: center; }
-    .cta-box a { color: #3b82f6; text-decoration: none; font-weight: bold; }
-</style>
-</head>
+<head><style>${BASE_EMAIL_STYLE}</style></head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>Thông báo kết quả ứng tuyển</h2>
-        </div>
-        <div class="content">
-            <p>Xin chào <strong>${candidateName}</strong>,</p>
-            <p>Cảm ơn bạn đã dành thời gian ứng tuyển vào vị trí <strong>${jobTitle}</strong> tại Phoenix Corp.</p>
-            <p>Sau khi xem xét kỹ lưỡng, chúng tôi rất tiếc phải thông báo rằng hồ sơ của bạn chưa phù hợp với yêu cầu của vị trí này tại thời điểm hiện tại.</p>
-            <p>Chúng tôi đánh giá cao sự quan tâm của bạn đối với Phoenix Corp và khuyến khích bạn tiếp tục theo dõi các vị trí tuyển dụng khác phù hợp hơn.</p>
-            <div class="cta-box">
-                <p>Xem các vị trí đang tuyển tại:</p>
-                <a href="${process.env.NEXTAUTH_URL || 'https://phoenix-admin.vercel.app'}/careers">Phoenix Careers</a>
+    <div class="email-wrapper">
+        <div class="container">
+            <div class="header" style="background-color: #64748b;">
+                <h2>Phoenix HRMS</h2>
             </div>
-            <p>Chúc bạn nhiều thành công trong sự nghiệp!</p>
-            <p>Trân trọng,</p>
-            <p><strong>Bộ phận Tuyển dụng Phoenix Corp</strong></p>
-        </div>
-        <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} Phoenix Corp. All rights reserved.</p>
+            <div class="content">
+                <h3 style="color: #111827; margin-top: 0; font-size: 20px;">Thông báo kết quả ứng tuyển</h3>
+                <p>Xin chào <strong>${candidateName}</strong>,</p>
+                <p>Cảm ơn bạn đã quan tâm và dành thời gian quý báu tham gia ứng tuyển vào vị trí <strong>${jobTitle}</strong> tại Phoenix.</p>
+                <p>Chúng tôi rất ấn tượng với những kỹ năng và kinh nghiệm bạn đã chia sẻ. Tuy nhiên, sau khi xem xét kỹ lưỡng và cân nhắc với yêu cầu hiện tại của vị trí, chúng tôi rất tiếc phải thông báo rằng hồ sơ của bạn chưa thật sự đồng điệu với định hướng phát triển của team ở thời điểm này.</p>
+                <p>Hồ sơ của bạn đã được lưu tự động vào hệ thống Talent Pool của chúng tôi. Chúng tôi sẽ ưu tiên liên hệ lại với bạn ngay khi có các vị trí mới phù hợp hơn trong tương lai.</p>
+                
+                <div class="button-container">
+                    <a href="${process.env.NEXTAUTH_URL || 'https://phoenix-admin.vercel.app'}/careers" class="button" style="background-color: #64748b;">Khám phá các cơ hội khác</a>
+                </div>
+                
+                <p>Chúc bạn thật nhiều rực rỡ và thành công trên con đường phát triển sự nghiệp sắp tới!</p>
+                <br/>
+                <p>Trân trọng,</p>
+                <p><strong>Bộ phận Tuyển dụng Phoenix</strong></p>
+            </div>
+            <div class="footer">
+                <p>Đây là email tự động. Vui lòng không trả lời.</p>
+                <p>&copy; ${new Date().getFullYear()} Phoenix. All rights reserved.</p>
+            </div>
         </div>
     </div>
 </body>
 </html>
     `;
 };
+
+export const getResetPasswordEmailTemplate = (userName: string, resetUrl: string) => {
+    return `
+<!DOCTYPE html>
+<html>
+<head><style>${BASE_EMAIL_STYLE}</style></head>
+<body>
+    <div class="email-wrapper">
+        <div class="container">
+            <div class="header">
+                <h2>Phoenix HRMS</h2>
+            </div>
+            <div class="content">
+                <h3 style="color: #111827; margin-top: 0; font-size: 20px;">Yêu cầu Đặt lại mật khẩu</h3>
+                <p>Xin chào <strong>${userName}</strong>,</p>
+                <p>Chúng tôi vừa nhận được yêu cầu khôi phục mật khẩu truy cập hệ thống Phoenix HRMS được kết nối với địa chỉ email này.</p>
+                <p>Vui lòng nhấp vào nút bên dưới để tiến hành thiết lập mật khẩu mới. Xin lưu ý rằng liên kết bảo mật này sẽ hết hạn sau <strong>1 giờ</strong>.</p>
+                
+                <div class="button-container">
+                    <a href="${resetUrl}" class="button">Đặt Lại Mật Khẩu</a>
+                </div>
+                
+                <p style="font-size: 14px; margin-top: 32px; color: #6b7280;">Nếu bạn không hề thực hiện yêu cầu này, xin vui lòng bỏ qua email. Tài khoản của bạn vẫn hoàn toàn an toàn và không có bất cứ thay đổi nào xảy ra.</p>
+            </div>
+            <div class="footer">
+                <p>Đây là email hỗ trợ bảo mật tự động. Vui lòng không trả lời.</p>
+                <p>&copy; ${new Date().getFullYear()} Phoenix. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+};
+
